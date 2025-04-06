@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
-from typing import Tuple, Dict, Optional, List, Union # Added Union
+from typing import Tuple, Dict, Optional, List, Union, Deque # Added Deque
 
 # Use MasterConfig object and tokenizer variables
 from config import MasterConfig as Config
@@ -14,18 +14,19 @@ from ai_modules import EmotionalModule, SyntrixKorporator, StrukturKaskade, Simp
 
 
 class ConsciousAgent(nn.Module):
-    def __init__(self, state_dim: int = Config.Agent.STATE_DIM, hidden_dim: int = Config.Agent.HIDDEN_DIM, vocab_size: int = Config.NLP.VOCAB_SIZE): # Added type hints
+    # ... (__init__, state_history, compute_accessibility, forward, _get_default_outputs, step remain the same) ...
+    def __init__(self, state_dim: int = Config.Agent.STATE_DIM, hidden_dim: int = Config.Agent.HIDDEN_DIM, vocab_size: int = Config.NLP.VOCAB_SIZE):
         super().__init__();
         self.state_dim = state_dim; self.hidden_dim = hidden_dim; self.vocab_size = vocab_size
         logger.info(f"Agent Init: state_dim={state_dim}, hidden_dim={hidden_dim}, vocab_size={vocab_size}")
 
-        self.lattice = MetronicLattice(dim=state_dim, tau=Config.Agent.TAU); # Pass tau
+        self.lattice = MetronicLattice(dim=state_dim, tau=Config.Agent.TAU);
         self.korporator = SyntrixKorporator(self.state_dim, self.hidden_dim, m=min(6, hidden_dim // 2) if hidden_dim >= 2 else 1);
         self.kaskade = StrukturKaskade(hidden_dim, hidden_dim, levels=Config.Agent.CASCADE_LEVELS);
         kaskade_out_dim = self.kaskade._output_dim;
-        self.emotional_module = EmotionalModule(input_dim=Config.Agent.EMOTION_DIM + 1) # Input is emo + reward(1)
+        self.emotional_module = EmotionalModule(input_dim=Config.Agent.EMOTION_DIM + 1)
 
-        self.attention: Optional[nn.MultiheadAttention] = None; # Type hint Optional
+        self.attention: Optional[nn.MultiheadAttention] = None;
         if state_dim > 0:
             possible_heads=[h for h in [8, 4, 2, 1] if state_dim % h == 0];
             num_heads = possible_heads[0] if possible_heads else 1;
@@ -35,16 +36,18 @@ class ConsciousAgent(nn.Module):
             except Exception as e: logger.error(f"Failed init Attention: {e}. Disabled."); self.attention=None
 
         self.feedback = nn.Linear(kaskade_out_dim, state_dim);
-        self.value_head = nn.Linear(kaskade_out_dim, 1) # Value head for RL
-        self.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE) # Use config
+        self.value_head = nn.Linear(kaskade_out_dim, 1)
+        self.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE)
 
         self.gpt = SimpleGPT(vocab_size=Config.NLP.VOCAB_SIZE, embed_dim=64, hidden_dim=128, num_heads=4)
 
         agent_params = list(self.korporator.parameters()) + list(self.kaskade.parameters()) + list(self.feedback.parameters()) + list(self.emotional_module.parameters()) + list(self.value_head.parameters())
         if self.attention: agent_params.extend(list(self.attention.parameters()))
         self.optimizer = optim.Adam(agent_params, lr=Config.RL.LR)
+        # Store original base LR for adaptive adjustments
+        self._base_lr = Config.RL.LR
 
-        self.state_history_deque: deque[torch.Tensor] = deque(maxlen=Config.Agent.HISTORY_SIZE); # Use Deque from collections
+        self.state_history_deque: Deque[torch.Tensor] = deque(maxlen=Config.Agent.HISTORY_SIZE);
         for _ in range(Config.Agent.HISTORY_SIZE): self.state_history_deque.append(torch.zeros(Config.Agent.STATE_DIM, device=DEVICE))
         self.prev_emotions = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE); self.step_count = 0
 
@@ -64,7 +67,6 @@ class ConsciousAgent(nn.Module):
         else:
              logger.info("Skipping initial GPT training: No TRAIN_DATA provided.")
         logger.info("ConsciousAgent initialized.")
-
 
     @property
     def state_history(self) -> torch.Tensor:
@@ -92,16 +94,14 @@ class ConsciousAgent(nn.Module):
             return accessibility_matrix
         except Exception as e: logger.error(f"Error accessibility calc: {e}", exc_info=True); return default_matrix
 
-    # Define return type alias
     ForwardReturnType = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, float, float, float, float, float, float, float, float]
 
-    def forward(self, state_input: torch.Tensor, current_reward_input: Union[float, torch.Tensor], full_state_history_input: Optional[torch.Tensor]) -> ForwardReturnType: # Use Union for reward
+    def forward(self, state_input: torch.Tensor, current_reward_input: Union[float, torch.Tensor], full_state_history_input: Optional[torch.Tensor]) -> ForwardReturnType:
         is_batch = state_input.ndim == 2; batch_size = state_input.shape[0] if is_batch else 1
         if not isinstance(state_input, torch.Tensor): logger.error("Agent.forward: Invalid state type."); return self._get_default_outputs(batch_size)
         state = state_input.to(DEVICE);
         if not is_safe(state): logger.warning("Agent.forward: Unsafe state input. Using zeros."); state = torch.zeros_like(state_input)
 
-        # --- Robust Reward Handling ---
         if is_batch:
             if isinstance(current_reward_input, torch.Tensor):
                 if current_reward_input.shape == (batch_size, 1): current_reward = current_reward_input.to(DEVICE).float()
@@ -109,7 +109,7 @@ class ConsciousAgent(nn.Module):
                 else: logger.warning(f"Agent.forward batch: Reward shape mismatch {current_reward_input.shape}. Using zeros."); current_reward = torch.zeros(batch_size, 1, device=DEVICE, dtype=torch.float32)
             else:
                  try:
-                     rewards_float = [float(r) for r in current_reward_input] # type: ignore - assume iterable if not tensor
+                     rewards_float = [float(r) for r in current_reward_input] # type: ignore
                      current_reward = torch.tensor(rewards_float, device=DEVICE, dtype=torch.float32).unsqueeze(1)
                      if current_reward.shape[0] != batch_size: raise ValueError("Batch size mismatch")
                  except (ValueError, TypeError): logger.warning(f"Agent.forward batch: Invalid non-tensor reward input type {type(current_reward_input)}. Using zeros."); current_reward = torch.zeros(batch_size, 1, device=DEVICE, dtype=torch.float32)
@@ -117,7 +117,6 @@ class ConsciousAgent(nn.Module):
             try: current_reward_float = float(current_reward_input); current_reward = torch.tensor([[current_reward_float]], device=DEVICE, dtype=torch.float32) # Shape (1, 1)
             except (ValueError, TypeError): logger.warning(f"Agent.forward single: Invalid reward input type {type(current_reward_input)}. Using zero."); current_reward = torch.tensor([[0.0]], device=DEVICE, dtype=torch.float32)
         if not is_safe(current_reward): logger.warning("Agent.forward: Unsafe reward. Using zeros."); current_reward = torch.zeros_like(current_reward).float()
-        # --- End Reward Handling ---
 
         discretized_state = self.lattice.discretize(state.clone().detach());
         if not is_safe(discretized_state): discretized_state = torch.zeros_like(state)
@@ -151,17 +150,15 @@ class ConsciousAgent(nn.Module):
             attn_output_context = discretized_state
             pass
 
-        # --- Emotional Module Call (Ensure shapes are 2D) ---
         if is_batch:
             emotion_state_part = discretized_state[:, :Config.Agent.EMOTION_DIM]
             prev_emotions_for_module = self.prev_emotions.unsqueeze(0).repeat(batch_size, 1)
         else:
-            emotion_state_part = discretized_state[:Config.Agent.EMOTION_DIM].unsqueeze(0) # Shape (1, 6)
-            prev_emotions_for_module = self.prev_emotions.unsqueeze(0) # Shape (1, 6)
+            emotion_state_part = discretized_state[:Config.Agent.EMOTION_DIM].unsqueeze(0)
+            prev_emotions_for_module = self.prev_emotions.unsqueeze(0)
 
         if not is_safe(prev_emotions_for_module): prev_emotions_for_module = torch.zeros_like(prev_emotions_for_module)
         current_emotions_batch = self.emotional_module(emotion_state_part, current_reward, prev_emotions_for_module)
-        # --- End Emotional Module Call ---
 
         if not is_batch:
             current_emotions = current_emotions_batch.squeeze(0)
@@ -218,7 +215,7 @@ class ConsciousAgent(nn.Module):
          zero_belief = torch.zeros(batch_size, kaskade_out_dim, device=DEVICE) if batch_size > 1 else torch.zeros(kaskade_out_dim, device=DEVICE)
          zero_feedback = torch.zeros(batch_size, self.state_dim, device=DEVICE) if batch_size > 1 else torch.zeros(self.state_dim, device=DEVICE)
          zero_value = torch.zeros(batch_size, 1, device=DEVICE) if batch_size > 1 else torch.zeros(1, device=DEVICE)
-         zero_metrics = (0.0,) * 8 # 8 float metrics
+         zero_metrics = (0.0,) * 8
          return (zero_emo, zero_belief, zero_feedback, zero_value, *zero_metrics)
 
     StepReturnType = Tuple[torch.Tensor, str, torch.Tensor, float]
@@ -235,11 +232,14 @@ class ConsciousAgent(nn.Module):
              forward_outputs = self.forward(state, reward, state_history)
              current_emotions = forward_outputs[0]
              belief_for_memory = forward_outputs[1]
-             att_score_metric = forward_outputs[6]
+             att_score_metric = forward_outputs[6] # Index 6 is att_score
 
              try:
                  response_context = context if context else "..."
-                 response = self.gpt.generate(response_context, current_emotions)
+                 # Use nucleus sampling parameters from config or defaults
+                 temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7)
+                 top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)
+                 response = self.gpt.generate(response_context, current_emotions, temperature=temp, top_p=top_p)
              except Exception as e:
                  logger.error(f"Error GPT gen step: {e}"); response = "..."
 
@@ -250,7 +250,7 @@ class ConsciousAgent(nn.Module):
 
 
     def learn(self, batch_size: int = Config.RL.AGENT_BATCH_SIZE) -> float:
-        """Samples batch, computes modulated loss using PER, value head, consistency, intrinsic rewards, and optimizes."""
+        """Samples batch, computes loss with PER/intrinsic rewards/adaptive LR, and optimizes."""
         self.train()
 
         self.beta = min(1.0, self.beta + self.beta_increment)
@@ -270,16 +270,18 @@ class ConsciousAgent(nn.Module):
         current_batch_size = states.shape[0]
         if current_batch_size == 0: logger.warning("Learn: Batch size 0."); return 0.0
 
+        # --- Calculate V(s) and Metrics ---
         try:
             zero_rewards_batch = torch.zeros_like(rewards)
             outputs = self.forward(states, zero_rewards_batch, None)
-
             current_value_pred = outputs[3]
             rho_score_batch = outputs[8]
             box_score_batch = outputs[9]
 
+            # Validate shapes and safety
             if not is_safe(current_value_pred) or current_value_pred.shape != (current_batch_size, 1): raise ValueError(f"Invalid V(s) shape/safety")
 
+            # Convert metrics to tensors if necessary
             if isinstance(rho_score_batch, float): rho_score_tensor = torch.full((current_batch_size, 1), rho_score_batch, device=DEVICE)
             elif isinstance(rho_score_batch, torch.Tensor): rho_score_tensor = rho_score_batch.detach().clone()
             else: raise ValueError("Invalid rho_score type")
@@ -296,6 +298,7 @@ class ConsciousAgent(nn.Module):
 
         except Exception as e: logger.error(f"Error V(s)/Metrics learn: {e}", exc_info=True); return -1.0
 
+        # --- Calculate V(s') ---
         next_value_pred = torch.zeros_like(rewards)
         with torch.no_grad():
             try:
@@ -307,15 +310,15 @@ class ConsciousAgent(nn.Module):
                 next_value_pred[dones] = 0.0
             except Exception as e: logger.error(f"Error V(s') learn: {e}", exc_info=True)
 
+        # --- Calculate Rewards and TD Error ---
         intrinsic_reward_consistency = rho_score_tensor * Config.RL.INTRINSIC_REWARD_SCALE_CONSISTENCY
         intrinsic_reward_box = box_score_tensor * Config.RL.INTRINSIC_REWARD_SCALE_BOX
         intrinsic_reward_td_error = torch.abs(rewards + Config.RL.GAMMA * next_value_pred.detach() - current_value_pred.detach()).clamp(max=1.0) * Config.RL.INTRINSIC_REWARD_SCALE_TD
-
         effective_rewards = rewards + (intrinsic_reward_consistency + intrinsic_reward_box + intrinsic_reward_td_error).detach()
-
         target_value = effective_rewards + Config.RL.GAMMA * next_value_pred
         td_error = target_value - current_value_pred
 
+        # --- Modulated Loss ---
         loss = torch.tensor(0.0, device=DEVICE)
         if current_value_pred.requires_grad:
             base_loss_elementwise = F.mse_loss(current_value_pred, target_value.detach(), reduction='none')
@@ -324,6 +327,25 @@ class ConsciousAgent(nn.Module):
             loss = modulated_loss.mean()
         else: logger.warning("Learn: current_value_pred does not require grad.")
 
+        # --- Adaptive Learning Rate ---
+        original_lrs = []
+        dynamic_lr = self._base_lr # Default to base LR
+        if Config.RL.ADAPTIVE_LR_ENABLED and rho_score_tensor.numel() > 0:
+            avg_rho_score = rho_score_tensor.mean().item()
+            min_factor = Config.RL.LR_ADAPTIVE_MIN_FACTOR
+            max_factor = Config.RL.LR_ADAPTIVE_MAX_FACTOR
+            # Linear interpolation between min and max factor based on avg rho score
+            dynamic_lr_factor = min_factor + (max_factor - min_factor) * max(0.0, min(1.0, avg_rho_score))
+            dynamic_lr = self._base_lr * dynamic_lr_factor
+            logger.debug(f"Adaptive LR: Rho={avg_rho_score:.3f}, Factor={dynamic_lr_factor:.3f}, LR={dynamic_lr:.6f}")
+
+            # Store original LRs and set new dynamic LR for all param groups
+            for i, param_group in enumerate(self.optimizer.param_groups):
+                original_lrs.append(param_group['lr'])
+                param_group['lr'] = dynamic_lr
+        # --- End Adaptive Learning Rate ---
+
+        # --- Optimization ---
         loss_val = loss.item()
         if is_safe(loss) and loss.requires_grad:
              self.optimizer.zero_grad()
@@ -335,6 +357,14 @@ class ConsciousAgent(nn.Module):
         elif not loss.requires_grad and abs(loss_val) > 1e-7 : logger.warning(f"Learn: Loss ({loss_val:.4f}) requires no grad.")
         elif not is_safe(loss): logger.warning(f"Learn: Unsafe loss ({loss_val:.4f})."); self.optimizer.zero_grad()
         else: pass
+
+        # --- Restore Original Learning Rate ---
+        if Config.RL.ADAPTIVE_LR_ENABLED and original_lrs:
+            for i, param_group in enumerate(self.optimizer.param_groups):
+                if i < len(original_lrs):
+                    param_group['lr'] = original_lrs[i]
+            # logger.debug("Restored original learning rate.") # Optional: reduce log noise
+        # --- End Restore ---
 
         return loss_val
 
