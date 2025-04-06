@@ -9,9 +9,11 @@ import os
 import time
 import ctypes
 import math
+from typing import Optional, Dict, Tuple, Deque, List
 
-# Need Config, DEVICE, logger, is_safe
-from config import Config, DEVICE, logger
+# --- Use the instantiated MasterConfig object ---
+from config import MasterConfig as Config # Import the instance as Config
+from config import DEVICE, logger
 from utils import is_safe
 
 # Need Qt and OpenGL imports
@@ -20,12 +22,22 @@ try:
     from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QSize, QRect
     from PyQt5.QtGui import (QColor, QFont, QPainter, QPen, QOpenGLShader, QOpenGLShaderProgram,
                              QVector3D, QMouseEvent)
-    from OpenGL.GL import *
-    from OpenGL.GL import glGenBuffers, glBindBuffer, glBufferData, glBufferSubData, glDeleteBuffers
-    from OpenGL.GL import glGenVertexArrays, glBindVertexArray, glEnableVertexAttribArray, glVertexAttribPointer, glDeleteVertexArrays
+    from OpenGL.GL import (
+        glClearColor, glEnable, glDisable, glBlendFunc, glClear, glViewport, glDepthFunc, glDepthMask,
+        glGenBuffers, glBindBuffer, glBufferData, glBufferSubData, glDeleteBuffers,
+        glGenVertexArrays, glBindVertexArray, glEnableVertexAttribArray, glVertexAttribPointer,
+        glDeleteVertexArrays, glDrawArrays, glGetAttribLocation, glUseProgram, glGetUniformLocation,
+        glUniform1f, glUniform2f, glUniform3f, glPointSize, glHint,
+        GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_TRIANGLES, GL_POINTS,
+        GL_FLOAT, GL_FALSE, GL_TRUE, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE,
+        GL_DEPTH_TEST, GL_BLEND, GL_LEQUAL, GL_PROGRAM_POINT_SIZE, GL_POINT_SMOOTH,
+        GL_STATIC_DRAW, GL_DYNAMIC_DRAW, GL_POINT_SMOOTH_HINT, GL_NICEST,
+        GL_ARRAY_BUFFER
+    )
+    from OpenGL.GL import GLfloat
 except ImportError as e:
     logger.critical(f"graphics.py: PyQt5 or PyOpenGL import failed: {e}. Please install PyQt5, PyOpenGL, PyOpenGL-accelerate.")
-    raise # Re-raise to prevent silent failure
+    raise
 
 # Need Live2D imports
 try:
@@ -46,38 +58,40 @@ from dataclasses import dataclass, field
 class Particle:
     position: QVector3D = field(default_factory=lambda: QVector3D(0, 0, 0))
     velocity: QVector3D = field(default_factory=lambda: QVector3D(0, 0, 0))
-    color: QVector3D = field(default_factory=lambda: QVector3D(1, 1, 1))
+    color: QVector3D = field(default_factory=lambda: QVector3D(1, 1, 1)) # Store RGB
+    alpha: float = 1.0 # Store alpha separately
     lifetime: float = 0.0
     size: float = 1.0
-    alpha: float = 1.0
 
 class ParticleSystem:
-    def __init__(self, count=Config.PARTICLE_COUNT):
+    def __init__(self, count: int = Config.Graphics.PARTICLE_COUNT):
         self.max_count = count
         if self.max_count <= 0:
             logger.warning(f"ParticleSystem count is {self.max_count}. Disabling particles."); self.max_count = 0
-        self.particles = []
+        self.particles: List[Particle] = []
         self.particle_buffer = np.zeros(self.max_count * 7, dtype=np.float32) if self.max_count > 0 else np.array([], dtype=np.float32)
         self.initialize_particles()
+        if self.max_count > 0: logger.info(f"Particle system initialized with {self.max_count} particles.")
 
     def initialize_particles(self):
         if self.max_count <= 0: return
         self.particles = [self.create_particle() for _ in range(self.max_count)]
         logger.debug(f"Initialized {len(self.particles)} particles.")
+        self._update_buffer()
 
-    def create_particle(self):
-        size_factor = random.uniform(Config.PARTICLE_MIN_SIZE, Config.PARTICLE_MAX_SIZE)
+    def create_particle(self) -> Particle:
+        size_factor = random.uniform(Config.Graphics.PARTICLE_MIN_SIZE, Config.Graphics.PARTICLE_MAX_SIZE)
         pos = QVector3D(random.uniform(-1.2, 1.2), random.uniform(-1.2, 1.2), random.uniform(-0.2, 0.2))
         vel = QVector3D(random.uniform(-0.005, 0.005), random.uniform(0.001, 0.008), random.uniform(-0.001, 0.001))
         col = QVector3D(random.uniform(0.6, 0.9), random.uniform(0.7, 1.0), random.uniform(0.8, 1.0))
         life = random.uniform(2.0, 5.0)
-        return Particle(position=pos, velocity=vel, color=col, lifetime=life, size=size_factor, alpha=1.0)
+        return Particle(position=pos, velocity=vel, color=col, alpha=1.0, lifetime=life, size=size_factor)
 
-    def update(self, delta_time, emotions):
+    def update(self, delta_time: float, emotions: torch.Tensor):
         if self.max_count <= 0 or not self.particles: return
 
         dominant_emotion_idx = 0; intensity = 0.5
-        if isinstance(emotions, torch.Tensor) and emotions.numel() >= Config.EMOTION_DIM and is_safe(emotions):
+        if isinstance(emotions, torch.Tensor) and emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(emotions):
             try:
                 emo_cpu = emotions.cpu()
                 dominant_emotion_idx = torch.argmax(emo_cpu).item();
@@ -86,23 +100,24 @@ class ParticleSystem:
                  logger.warning(f"Particle update error getting emotion: {e}")
 
         buffer_idx = 0
-        time_scale = delta_time
+        time_scale = delta_time * 60.0
 
         for i, particle in enumerate(self.particles):
             particle.position += particle.velocity * time_scale
             particle.lifetime -= delta_time
-            particle.alpha = max(0.0, min(1.0, particle.lifetime / 2.0)) * 0.8
+            particle.alpha = max(0.0, min(1.0, particle.lifetime / 2.0)) * (0.4 + intensity * 0.6)
 
             if dominant_emotion_idx == 0: # Joy
-                particle.velocity.setY(particle.velocity.y() + 0.005 * intensity * time_scale)
-                particle.color.setX(min(1.0, particle.color.x() + 0.1 * intensity * time_scale))
-                particle.color.setY(min(1.0, particle.color.y() + 0.05 * intensity * time_scale))
+                particle.velocity.setY(particle.velocity.y() + 0.00015 * intensity * time_scale)
+                particle.color.setX(min(1.0, particle.color.x() + 0.02 * intensity * time_scale))
+                particle.color.setY(min(1.0, particle.color.y() + 0.01 * intensity * time_scale))
             elif dominant_emotion_idx == 1: # Fear
-                particle.velocity += QVector3D(random.uniform(-0.005, 0.005), random.uniform(-0.005, 0.005), 0) * intensity * time_scale
-                particle.color.setX(min(1.0, particle.color.x() + 0.1 * intensity * time_scale))
+                particle.velocity += QVector3D(random.uniform(-0.0008, 0.0008), random.uniform(-0.0008, 0.0008), 0) * intensity * time_scale
+                particle.color.setX(min(1.0, particle.color.x() + 0.02 * intensity * time_scale))
+                particle.color.setZ(min(1.0, particle.color.z() + 0.01 * intensity * time_scale))
             elif dominant_emotion_idx == 4: # Calm
-                particle.velocity *= (1.0 - 0.1 * intensity * time_scale)
-                particle.color.setZ(min(1.0, particle.color.z() + 0.1 * intensity * time_scale))
+                particle.velocity *= (1.0 - 0.03 * intensity * time_scale)
+                particle.color.setZ(min(1.0, particle.color.z() + 0.02 * intensity * time_scale))
 
             needs_reset = (particle.lifetime <= 0 or
                            abs(particle.position.x()) > 1.5 or
@@ -115,12 +130,37 @@ class ParticleSystem:
             if buffer_idx + 7 <= len(self.particle_buffer):
                 self.particle_buffer[buffer_idx : buffer_idx+7] = [
                     particle.position.x(), particle.position.y(), particle.position.z(),
-                    particle.color.x(), particle.color.y(), particle.color.z(), particle.alpha
+                    max(0.0, min(1.0, particle.color.x())),
+                    max(0.0, min(1.0, particle.color.y())),
+                    max(0.0, min(1.0, particle.color.z())),
+                    max(0.0, min(1.0, particle.alpha))
                 ]
             else:
                 logger.warning("Particle buffer overflow detected during update.")
                 break
             buffer_idx += 7
+        # Update buffer after loop
+        self._update_buffer()
+
+
+    def _update_buffer(self):
+        """Fills the numpy buffer with current particle data."""
+        if self.max_count <= 0: return
+        buffer_idx = 0
+        for p in self.particles:
+            if buffer_idx + 7 <= len(self.particle_buffer):
+                self.particle_buffer[buffer_idx : buffer_idx + 7] = [
+                    p.position.x(), p.position.y(), p.position.z(),
+                    max(0.0, min(1.0, p.color.x())),
+                    max(0.0, min(1.0, p.color.y())),
+                    max(0.0, min(1.0, p.color.z())),
+                    max(0.0, min(1.0, p.alpha))
+                ]
+                buffer_idx += 7
+            else:
+                 logger.warning("Particle buffer overflow in _update_buffer.")
+                 break
+
 
 # --- Live2D Character Widget ---
 class Live2DCharacter(QOpenGLWidget):
@@ -131,43 +171,42 @@ class Live2DCharacter(QOpenGLWidget):
 
     live2d_initialized_global = False
 
-    def __init__(self, hud_widget=None, parent=None): # hud_widget passed in, but not used internally directly anymore
+    def __init__(self, hud_widget=None, parent=None):
         super().__init__(parent)
         logger.info("Initializing Live2DCharacter...")
-        self.model = None
-        self.live2d_initialized = False
-        self.model_loaded = False
-        self.model_path = Config.MODEL_PATH
-        self.emotions = torch.zeros(Config.EMOTION_DIM, device=DEVICE)
-        self.frame_count = 0
-        self.time_elapsed = 0.0
-        # self.hud_widget = hud_widget # Removed direct ref, HUD color calculation is in HUDWidget itself
+        self.model: Optional[Live2Dv3AppModel] = None
+        self.live2d_initialized: bool = False
+        self.model_loaded: bool = False
+        self.model_path: str = Config.Graphics.MODEL_PATH
+        self.emotions: torch.Tensor = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
+        self.frame_count: int = 0
+        self.time_elapsed: float = 0.0
 
-        self.cursor_pos = (0.0, 0.0)
-        self.cursor_history = deque(maxlen=10)
-        self.is_mouse_over = False
-        self.last_interaction_time = time.time()
-        self.toggle_states = {'blush': 0.0, 'wings': 0.0, 'mad': 0.0, 'confusion': 0.0}
+        self.cursor_pos: Tuple[float, float] = (0.0, 0.0)
+        self.cursor_history: Deque[Tuple[float, float]] = deque(maxlen=10)
+        self.is_mouse_over: bool = False
+        self.last_interaction_time: float = time.time()
+        self.toggle_states: Dict[str, float] = {'blush': 0.0, 'wings': 0.0, 'mad': 0.0, 'confusion': 0.0}
 
-        self.animation_params = {
+        self.animation_params: Dict[str, Dict] = {
             'breath': {'phase': 0.0, 'speed': 0.08, 'magnitude': 0.5},
             'blink': {'timer': 0.0, 'interval': random.uniform(2.0, 5.0), 'state': 'WAITING', 'phase': 0.0},
             'hair_sway': {'phase': 0.0, 'speed': 0.06, 'magnitude': 8.0},
             'idle': {'phase': 0.0, 'speed': 0.03, 'magnitude': 5.0}
         }
-        self.target_values = {}
-        self.current_values = {}
-        self.default_values = {}
-        self.parameter_velocities = {}
-        self.parameter_map = {}
-        self._failed_params = set()
+        self.target_values: Dict[str, float] = {}
+        self.current_values: Dict[str, float] = {}
+        self.default_values: Dict[str, float] = {}
+        self.parameter_velocities: Dict[str, float] = {}
+        self.parameter_map: Dict[str | int, Dict] = {}
+        self._failed_params: set = set()
 
-        self.shader_program = None
-        self.particle_shader = None
-        self.particle_vao = None
-        self.particle_vbo = None
-        self.quad_vao = None
-        self.quad_vbo = None
+        self.shader_program: Optional[QOpenGLShaderProgram] = None
+        self.particle_shader: Optional[QOpenGLShaderProgram] = None
+        self.particle_vao: int = 0
+        self.particle_vbo: int = 0
+        self.quad_vao: int = 0
+        self.quad_vbo: int = 0
 
         self.particle_system = ParticleSystem()
 
@@ -179,7 +218,6 @@ class Live2DCharacter(QOpenGLWidget):
         self._init_live2d_library()
         self._setup_animation_timer()
 
-    # --- Core Initialization Methods ---
     def _init_live2d_library(self):
         if not Live2DCharacter.live2d_initialized_global:
             try:
@@ -190,12 +228,14 @@ class Live2DCharacter(QOpenGLWidget):
             except Exception as e:
                 logger.critical(f"Live2D Core initialization FAILED: {e}", exc_info=True)
                 self.error_occurred.emit(f"Live2D Core init failed: {e}")
+                self.live2d_initialized = False
         else:
-            self.live2d_initialized = True
+             self.live2d_initialized = True
+             logger.debug("Live2D Core library already initialized globally.")
 
     def _setup_animation_timer(self):
         self.animation_timer = QTimer(self)
-        interval = max(10, int(1000.0 / Config.FPS))
+        interval = max(10, int(1000.0 / Config.Graphics.FPS))
         self.animation_timer.setInterval(interval)
         self.animation_timer.timeout.connect(self._tick)
 
@@ -211,11 +251,14 @@ class Live2DCharacter(QOpenGLWidget):
              self.error_occurred.emit(f"OpenGL context error: {e}")
              self.character_initialized.emit(False)
              return
+
         try:
-            bg = Config.BACKGROUND_COLOR; glClearColor(bg[0], bg[1], bg[2], bg[3])
+            bg = Config.Graphics.BACKGROUND_COLOR; glClearColor(bg[0], bg[1], bg[2], bg[3])
             glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL)
             glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             glEnable(GL_PROGRAM_POINT_SIZE); glEnable(GL_POINT_SMOOTH)
+            glHint(GL_POINT_SMOOTH_HINT, GL_NICEST)
+
             try:
                 live2d_v3.glInit(); logger.debug("Live2D OpenGL extensions initialized.")
             except Exception as e:
@@ -227,6 +270,8 @@ class Live2DCharacter(QOpenGLWidget):
 
             if not self._setup_particle_buffers():
                 logger.warning("Failed to set up particle buffers. Particles disabled.")
+                self.particle_system.max_count = 0
+
 
             self._load_model()
             if self.model_loaded and self.model:
@@ -245,27 +290,27 @@ class Live2DCharacter(QOpenGLWidget):
             self.error_occurred.emit(f"Graphics initialization error: {e}")
             self.character_initialized.emit(False)
         finally:
-            self.doneCurrent()
+            try: self.doneCurrent()
+            except Exception as e_done: logger.error(f"Error calling doneCurrent in initializeGL finally: {e_done}")
 
-    # --- Resource Setup Methods ---
     def _setup_background_shader(self):
         try:
             self.shader_program = QOpenGLShaderProgram(self)
             vs_code = """#version 330 core
                 layout (location = 0) in vec2 position; out vec2 fragCoord;
                 void main() { gl_Position = vec4(position.x, position.y, 0.0, 1.0); fragCoord = position * 0.5 + 0.5; }"""
-            fs_code = """#version 330 core
+            fs_code = f"""#version 330 core
                 uniform vec2 resolution; uniform float time; uniform vec3 emotion_color;
                 in vec2 fragCoord; out vec4 FragColor;
-                float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
-                void main() {
-                    vec2 uv = fragCoord; vec3 finalColor = vec3(0.1, 0.1, 0.15);
+                float random(vec2 st) {{ return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }}
+                void main() {{
+                    vec2 uv = fragCoord; vec3 finalColor = vec3({Config.Graphics.BACKGROUND_COLOR[0]}, {Config.Graphics.BACKGROUND_COLOR[1]}, {Config.Graphics.BACKGROUND_COLOR[2]});
                     float noise = random(uv * 5.0 + vec2(time * 0.1)) * 0.05; finalColor += emotion_color * noise * 2.0;
                     float vignette = smoothstep(0.8, 0.2, length(uv - 0.5)); finalColor *= vignette;
                     float dist = length(uv - 0.5); float pulse = sin(time * 1.5 + dist * 5.0) * 0.5 + 0.5;
-                    float glow = smoothstep(0.5, 0.0, dist) * pulse * 0.1; finalColor += emotion_color * glow;
+                    float glow = smoothstep(0.5, 0.0, dist) * pulse * 0.1 * {Config.Graphics.GLOW_INTENSITY / 3.0:.3f}; finalColor += emotion_color * glow;
                     FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0);
-                } """
+                }} """
             if not self.shader_program.addShaderFromSourceCode(QOpenGLShader.ShaderTypeBit.Vertex, vs_code):
                 logger.error(f"Background Vertex Shader compile failed: {self.shader_program.log()}"); return False
             if not self.shader_program.addShaderFromSourceCode(QOpenGLShader.ShaderTypeBit.Fragment, fs_code):
@@ -287,10 +332,11 @@ class Live2DCharacter(QOpenGLWidget):
             glBufferData(GL_ARRAY_BUFFER, quad_vertices.nbytes, quad_vertices, GL_STATIC_DRAW)
             position_loc = 0
             if self.shader_program and self.shader_program.isLinked():
-                loc_check = glGetAttribLocation(self.shader_program.programId(), b"position")
-                if loc_check != -1: position_loc = loc_check
-                else: logger.warning("BG Shader: 'position' attribute not found. Using default location 0.")
+                 loc_check = glGetAttribLocation(self.shader_program.programId(), b"position")
+                 if loc_check != -1: position_loc = loc_check
+                 else: logger.warning("BG Shader: 'position' attribute not found. Using default location 0.")
             else: logger.warning("BG Shader not linked when setting up buffers, using default location 0.")
+
             glEnableVertexAttribArray(position_loc)
             glVertexAttribPointer(position_loc, 2, GL_FLOAT, GL_FALSE, 2 * ctypes.sizeof(GLfloat), ctypes.c_void_p(0))
             glBindBuffer(GL_ARRAY_BUFFER, 0); glBindVertexArray(0)
@@ -298,8 +344,8 @@ class Live2DCharacter(QOpenGLWidget):
             return True
         except Exception as e:
             logger.error(f"Error setting up background GL buffers: {e}", exc_info=True)
-            if hasattr(self, 'quad_vbo') and self.quad_vbo: glDeleteBuffers(1, [self.quad_vbo]); self.quad_vbo = None
-            if hasattr(self, 'quad_vao') and self.quad_vao: glDeleteVertexArrays(1, [self.quad_vao]); self.quad_vao = None
+            if hasattr(self, 'quad_vbo') and self.quad_vbo: glDeleteBuffers(1, [self.quad_vbo]); self.quad_vbo = 0
+            if hasattr(self, 'quad_vao') and self.quad_vao: glDeleteVertexArrays(1, [self.quad_vao]); self.quad_vao = 0
             return False
 
     def _setup_particle_buffers(self):
@@ -311,14 +357,15 @@ class Live2DCharacter(QOpenGLWidget):
             glBufferData(GL_ARRAY_BUFFER, buffer_size, None, GL_DYNAMIC_DRAW)
             stride = 7 * ctypes.sizeof(GLfloat)
             glEnableVertexAttribArray(0); glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
-            glEnableVertexAttribArray(1); glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(3 * ctypes.sizeof(GLfloat)))
+            color_offset = ctypes.c_void_p(3 * ctypes.sizeof(GLfloat))
+            glEnableVertexAttribArray(1); glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, color_offset)
             glBindBuffer(GL_ARRAY_BUFFER, 0); glBindVertexArray(0)
             logger.debug("Particle VAO/VBO created successfully.")
             return True
         except Exception as e:
             logger.error(f"Error setting up particle GL buffers: {e}", exc_info=True)
-            if hasattr(self, 'particle_vbo') and self.particle_vbo: glDeleteBuffers(1, [self.particle_vbo]); self.particle_vbo = None
-            if hasattr(self, 'particle_vao') and self.particle_vao: glDeleteVertexArrays(1, [self.particle_vao]); self.particle_vao = None
+            if hasattr(self, 'particle_vbo') and self.particle_vbo: glDeleteBuffers(1, [self.particle_vbo]); self.particle_vbo = 0
+            if hasattr(self, 'particle_vao') and self.particle_vao: glDeleteVertexArrays(1, [self.particle_vao]); self.particle_vao = 0
             return False
 
     def _load_model(self):
@@ -332,7 +379,6 @@ class Live2DCharacter(QOpenGLWidget):
             w, h = self.width(), self.height()
             if w <= 0 or h <= 0: w, h = 400, 600
             load_success = self.model.LoadModelJson(self.model_path)
-            if not load_success: logger.warning("Proceeding despite LoadModelJson returning False")
             self.model.Resize(w, h)
             self.model_loaded = True
             logger.info(f"Loaded model: {os.path.basename(self.model_path)}")
@@ -359,9 +405,9 @@ class Live2DCharacter(QOpenGLWidget):
             'confusion': {'params': ['Param4'], 'mapper': lambda p, x: x, 'smoothing': 0.1}
         }
         all_params = set()
-        for config in self.parameter_map.values():
-            if isinstance(config, dict) and 'params' in config:
-                all_params.update(p for p in config.get('params', []) if isinstance(p, str))
+        for config_val in self.parameter_map.values():
+            if isinstance(config_val, dict) and 'params' in config_val:
+                all_params.update(p for p in config_val.get('params', []) if isinstance(p, str))
         all_params.update({'PARAM_BODY_ANGLE_Z', 'Param3', 'PARAM_BREATH'})
 
         logger.info(f"Initializing {len(all_params)} parameters identified from map/heuristics...")
@@ -373,32 +419,33 @@ class Live2DCharacter(QOpenGLWidget):
         model_param_ids = []
         if self.model:
             try: model_param_ids = self.model.GetParameterIds()
+            except AttributeError: logger.warning("model.GetParameterIds() not available.")
             except Exception as e: logger.warning(f"Could not get parameter IDs from model: {e}.")
 
         for param_id in all_params:
             default_val = 0.0; found_in_model = False
-            if param_id in model_param_ids:
+            if param_id in model_param_ids and hasattr(self.model, 'GetParameterDefaultValue'):
                 try: default_val = self.model.GetParameterDefaultValue(param_id); found_in_model = True
                 except Exception as e: logger.warning(f"Could not get default for '{param_id}': {e}.")
-            if not found_in_model: # Heuristic guessing
-                if param_id.endswith('_OPEN'): default_val = Config.EYE_PARAM_DEFAULT
-                elif param_id == 'PARAM_MOUTH_OPEN_Y': default_val = Config.MOUTH_PARAM_DEFAULT
+            if not found_in_model:
+                if param_id.endswith('_OPEN'): default_val = Config.Graphics.EYE_PARAM_DEFAULT
+                elif param_id == 'PARAM_MOUTH_OPEN_Y': default_val = Config.Graphics.MOUTH_PARAM_DEFAULT
                 elif param_id == 'PARAM_BREATH': default_val = 0.5
-                # ... (other heuristics omitted for brevity, assumed 0.0)
 
             self.default_values[param_id] = default_val
             self.target_values[param_id] = default_val
             self.current_values[param_id] = default_val
             self.parameter_velocities[param_id] = 0.0
-            try: self.model.SetParameterValue(param_id, default_val)
+            try:
+                if hasattr(self.model, 'SetParameterValue'):
+                     self.model.SetParameterValue(param_id, default_val)
             except Exception as e:
                  if param_id not in self._failed_params:
                      logger.debug(f"Initial set failed for param '{param_id}'. Err: {e}")
                      self._failed_params.add(param_id)
         logger.info("Parameter map and initial values set.")
 
-    # --- Rendering and Update Methods ---
-    def resizeGL(self, width, height):
+    def resizeGL(self, width: int, height: int):
         if width <= 0 or height <= 0: return
         try: self.makeCurrent()
         except Exception as e: logger.error(f"Failed context in resizeGL: {e}"); return
@@ -417,23 +464,26 @@ class Live2DCharacter(QOpenGLWidget):
         except Exception as e: logger.error(f"Failed context in paintGL: {e}"); return
 
         if not self.model_loaded or not self.model:
-            bg = Config.BACKGROUND_COLOR; glClearColor(bg[0], bg[1], bg[2], bg[3])
+            bg = Config.Graphics.BACKGROUND_COLOR; glClearColor(bg[0], bg[1], bg[2], bg[3])
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.doneCurrent(); return
+            try: self.doneCurrent()
+            except: pass
+            return
+
         try:
-            # 1. Background
             glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE)
             if self.shader_program and self.shader_program.isLinked() and self.quad_vao:
                 self.shader_program.bind()
                 self.shader_program.setUniformValue("time", self.time_elapsed)
                 self.shader_program.setUniformValue("resolution", float(self.width()), float(self.height()))
-                # Dominant emotion color calculation (simplified for graphics.py)
                 dominant_idx = 0; intensity = 0.5
-                if self.emotions.numel() >= Config.EMOTION_DIM and is_safe(self.emotions):
+                if self.emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(self.emotions):
                     try: emo_cpu = self.emotions.cpu(); dominant_idx = torch.argmax(emo_cpu).item(); intensity = emo_cpu[dominant_idx].item()
                     except Exception: pass
-                # Simplified color logic without direct HUD dependency
-                colors_fallback = [(0.3, 1, 0.3), (1, 0.3, 0.3), (1, 1, 0.3), (1, 0.6, 0.3), (0.3, 0.8, 1), (1, 0.3, 1)] # Normalized RGB
+                colors_fallback = [(0.3, 1, 0.3), (1, 0.3, 0.3), (1, 1, 0.3), (1, 0.6, 0.3), (0.3, 0.8, 1), (1, 0.3, 1)]
+                if len(colors_fallback) < Config.Agent.EMOTION_DIM:
+                    colors_fallback.extend([(0.8, 0.8, 0.8)] * (Config.Agent.EMOTION_DIM - len(colors_fallback)))
+
                 base_rgb = colors_fallback[dominant_idx % len(colors_fallback)]
                 final_color = [max(0.1, c * (0.5 + intensity * 0.7)) for c in base_rgb]
                 self.shader_program.setUniformValue("emotion_color", final_color[0], final_color[1], final_color[2])
@@ -441,23 +491,27 @@ class Live2DCharacter(QOpenGLWidget):
                 glBindVertexArray(self.quad_vao); glDrawArrays(GL_TRIANGLES, 0, 6); glBindVertexArray(0)
                 self.shader_program.release()
             else:
-                bg = Config.BACKGROUND_COLOR; glClearColor(bg[0], bg[1], bg[2], bg[3]); glClear(GL_COLOR_BUFFER_BIT)
+                bg = Config.Graphics.BACKGROUND_COLOR; glClearColor(bg[0], bg[1], bg[2], bg[3]); glClear(GL_COLOR_BUFFER_BIT)
 
-            # 2. Particles
             if self.particle_system.max_count > 0 and self.particle_vao and self.particle_vbo:
                 glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE)
                 glEnable(GL_POINT_SMOOTH); glDepthMask(GL_FALSE)
+
+                glBindVertexArray(self.particle_vao)
                 glBindBuffer(GL_ARRAY_BUFFER, self.particle_vbo)
                 if self.particle_system.particle_buffer is not None and self.particle_system.particle_buffer.size > 0:
                      glBufferSubData(GL_ARRAY_BUFFER, 0, self.particle_system.particle_buffer.nbytes, self.particle_system.particle_buffer)
                 glBindBuffer(GL_ARRAY_BUFFER, 0)
-                glBindVertexArray(self.particle_vao)
-                glPointSize(5.0)
+
+                avg_size = np.mean([p.size for p in self.particle_system.particles]) if self.particle_system.particles else Config.Graphics.PARTICLE_MIN_SIZE
+                point_pixel_size = np.clip(avg_size, Config.Graphics.PARTICLE_MIN_SIZE, Config.Graphics.PARTICLE_MAX_SIZE)
+                glPointSize(point_pixel_size)
+
                 glDrawArrays(GL_POINTS, 0, self.particle_system.max_count)
+
                 glBindVertexArray(0)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); glDepthMask(GL_TRUE)
 
-            # 3. Avatar
             glEnable(GL_DEPTH_TEST); glClear(GL_DEPTH_BUFFER_BIT)
             if self.model: self.model.Draw()
 
@@ -473,23 +527,25 @@ class Live2DCharacter(QOpenGLWidget):
         if not self.model_loaded or not self.model: return
         self.frame_count += 1
         interval_ms = self.animation_timer.interval()
-        delta_time = interval_ms / 1000.0 if interval_ms > 0 else (1.0 / Config.FPS)
+        delta_time = interval_ms / 1000.0 if interval_ms > 0 else (1.0 / Config.Graphics.FPS)
         self.time_elapsed += delta_time
+
         self.particle_system.update(delta_time, self.emotions)
         self._update_animations(delta_time)
-        try: self.model.Update()
-        except Exception as e: logger.error(f"Error during model.Update() in _tick: {e}", exc_info=True); return
         self._update_model_parameters(delta_time)
-        self.update() # Request repaint
+        try:
+            self.model.Update()
+        except Exception as e: logger.error(f"Error during model.Update() in _tick: {e}", exc_info=True); return
 
-    def _update_animations(self, delta_time):
-        time_scale = delta_time * 60.0 # Keep scaling for now
+        self.update()
 
-        # Breath
+
+    def _update_animations(self, delta_time: float):
+        time_scale = delta_time * 60.0
+
         breath = self.animation_params['breath']
         breath['phase'] = (breath['phase'] + breath['speed'] * time_scale) % (2 * math.pi)
 
-        # Blink
         blink = self.animation_params['blink']; blink['timer'] += delta_time
         blink_close_speed = 8.0; blink_open_speed = 6.0
         if blink['state'] == 'WAITING':
@@ -501,27 +557,23 @@ class Live2DCharacter(QOpenGLWidget):
             blink['phase'] = max(0.0, blink['phase'] - delta_time * blink_open_speed)
             if blink['phase'] <= 0.0: blink['state'] = 'WAITING'; blink['interval'] = random.uniform(1.5, 4.5); blink['timer'] = 0.0
 
-        # Hair Sway / Idle Tilt
         hair = self.animation_params['hair_sway']; hair['phase'] = (hair['phase'] + hair['speed'] * time_scale) % (2 * math.pi)
         idle = self.animation_params['idle']; idle['phase'] = (idle['phase'] + idle['speed'] * time_scale) % (2 * math.pi)
 
-        # Surprise Timer
         if 'surprise' in self.animation_params:
              surprise = self.animation_params['surprise']
              surprise['timer'] = surprise.get('timer', 0.0) + delta_time
              if surprise['timer'] >= surprise.get('duration', 1.5):
                  self.animation_params.pop('surprise', None)
 
-        # Confusion Fade
         fade_rate = 2.0
         if not self.is_mouse_over:
             self.toggle_states['confusion'] = max(0.0, self.toggle_states['confusion'] - delta_time * fade_rate)
 
-    def _update_model_parameters(self, delta_time):
+    def _update_model_parameters(self, delta_time: float):
         if not self.model or not self.model_loaded or not self.parameter_map: return
         active_targets = self.default_values.copy()
 
-        # Layer 1: Procedural
         breath_value = 0.5 + 0.5 * math.sin(self.animation_params['breath']['phase'])
         if 'PARAM_BREATH' in active_targets: active_targets['PARAM_BREATH'] = breath_value
         hair_sway_val = math.sin(self.animation_params['hair_sway']['phase']) * self.animation_params['hair_sway']['magnitude']
@@ -529,40 +581,36 @@ class Live2DCharacter(QOpenGLWidget):
         if 'PARAM_ANGLE_Z' in active_targets: active_targets['PARAM_ANGLE_Z'] = self.default_values.get('PARAM_ANGLE_Z', 0.0) + idle_tilt_val * 0.3
         if 'Param8' in active_targets: active_targets['Param8'] = self.default_values.get('Param8', 0.0) + hair_sway_val * 0.1
 
-        # Layer 2: Emotions
-        if self.emotions.numel() >= Config.EMOTION_DIM and is_safe(self.emotions):
+        if self.emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(self.emotions):
             emo_cpu = self.emotions.cpu()
-            for emotion_idx, config in self.parameter_map.items():
-                if not isinstance(emotion_idx, int) or not (0 <= emotion_idx < Config.EMOTION_DIM): continue
+            for emotion_idx, config_val in self.parameter_map.items():
+                if not isinstance(emotion_idx, int) or not (0 <= emotion_idx < Config.Agent.EMOTION_DIM): continue
                 emotion_value = emo_cpu[emotion_idx].item()
                 if emotion_value > 0.05:
-                     for param_id in config.get('params', []):
+                     for param_id in config_val.get('params', []):
                          if param_id in active_targets:
-                             active_targets[param_id] = config['mapper'](param_id, emotion_value)
+                             active_targets[param_id] = config_val['mapper'](param_id, emotion_value)
 
-        # Layer 3: Interaction
         if self.is_mouse_over and self.cursor_history:
              if len(self.cursor_history) > 0:
                  avg_x = sum(x for x, _ in self.cursor_history) / len(self.cursor_history)
                  avg_y = sum(y for _, y in self.cursor_history) / len(self.cursor_history)
-                 for key, value in [('cursor_x', avg_x), ('cursor_y', avg_y)]:
-                     config = self.parameter_map.get(key)
-                     if config:
-                         for param_id in config.get('params', []):
+                 for key, loop_value in [('cursor_x', avg_x), ('cursor_y', avg_y)]:
+                     config_val_lookup = self.parameter_map.get(key)
+                     if config_val_lookup:
+                         for param_id in config_val_lookup.get('params', []):
                              if param_id in active_targets:
-                                 active_targets[param_id] = config['mapper'](param_id, value)
+                                 active_targets[param_id] = config_val_lookup['mapper'](param_id, loop_value)
 
-        # Layer 4: Toggles
         for toggle_key, toggle_value in self.toggle_states.items():
-             config = self.parameter_map.get(toggle_key)
-             if config and toggle_value > 0.01:
-                 for param_id in config.get('params', []):
+             config_val = self.parameter_map.get(toggle_key)
+             if config_val and toggle_value > 0.01:
+                 for param_id in config_val.get('params', []):
                      if param_id in active_targets:
-                          mapped_value = config['mapper'](param_id, toggle_value)
+                          mapped_value = config_val['mapper'](param_id, toggle_value)
                           if toggle_key == 'confusion': active_targets[param_id] = active_targets.get(param_id, 0.0) + mapped_value
                           else: active_targets[param_id] = mapped_value
 
-        # Layer 5: Blinking
         blink_phase = self.animation_params['blink']['phase']; blink_state = self.animation_params['blink']['state']
         eye_open_value = 1.0
         if blink_state == 'CLOSING': eye_open_value = 1.0 - blink_phase
@@ -572,7 +620,6 @@ class Live2DCharacter(QOpenGLWidget):
              if param_id in active_targets:
                  active_targets[param_id] *= eye_open_value
 
-        # Apply Smoothing & Set Values
         for param_id, target_val in active_targets.items():
             if param_id not in self.current_values: continue
             current_val = self.current_values[param_id]
@@ -580,24 +627,37 @@ class Live2DCharacter(QOpenGLWidget):
             for cfg in self.parameter_map.values():
                 if isinstance(cfg, dict) and param_id in cfg.get('params', []): param_config = cfg; break
             smoothing_alpha = param_config.get('smoothing', 0.1) if param_config else 0.1
-            lerp_factor = min(1.0, delta_time / max(0.01, smoothing_alpha * 2.0))
+            lerp_factor = 1.0 - math.exp(-delta_time / max(0.001, smoothing_alpha))
             new_current = current_val + (target_val - current_val) * lerp_factor
-            self.current_values[param_id] = new_current
+
+            min_val, max_val = -1.0, 1.0
+            if 'ANGLE' in param_id: min_val, max_val = -30.0, 30.0
+            elif 'EYE_OPEN' in param_id or 'MOUTH_OPEN' in param_id or 'BREATH' in param_id or 'CHEEK' in param_id: min_val, max_val = 0.0, 1.0
+            elif param_id in ['Param', 'Param6', 'Param2', 'Param4']: min_val, max_val = 0.0, 1.0
+
+            clamped_new_current = max(min_val, min(max_val, new_current))
+            self.current_values[param_id] = clamped_new_current
+
             try:
-                 self.model.SetParameterValue(param_id, new_current) # FIXED API CALL
+                 if hasattr(self.model, 'SetParameterValue'):
+                    self.model.SetParameterValue(param_id, clamped_new_current) # Correct 2-arg call
                  self._failed_params.discard(param_id)
+            except TypeError as te:
+                 if param_id not in self._failed_params:
+                     logger.warning(f"TypeError setting param '{param_id}' (val: {clamped_new_current:.3f}). SDK likely expects different arguments: {te}")
+                     self._failed_params.add(param_id)
             except Exception as e:
                 if param_id not in self._failed_params:
                     err_type = type(e).__name__
-                    logger.warning(f"Failed set param '{param_id}' (val: {new_current:.3f}). Err: {err_type}")
+                    logger.warning(f"Failed set param '{param_id}' (val: {clamped_new_current:.3f}). SDK Method missing or other error: {err_type}")
                     self._failed_params.add(param_id)
 
-    # --- External Update and Interaction Handlers ---
-    def update_emotions(self, emotions_tensor):
-        if isinstance(emotions_tensor, torch.Tensor) and emotions_tensor.shape == (Config.EMOTION_DIM,) and is_safe(emotions_tensor):
+    def update_emotions(self, emotions_tensor: torch.Tensor):
+        if isinstance(emotions_tensor, torch.Tensor) and emotions_tensor.shape == (Config.Agent.EMOTION_DIM,) and is_safe(emotions_tensor):
             self.emotions = emotions_tensor.detach().to(DEVICE)
         else:
-            logger.warning(f"Received invalid emotion data type/shape")
+            shape_info = emotions_tensor.shape if isinstance(emotions_tensor, torch.Tensor) else 'N/A'
+            logger.warning(f"Received invalid emotion data type/shape: {type(emotions_tensor)}, shape: {shape_info}")
 
     def mouseMoveEvent(self, event: QMouseEvent):
         if not self.model_loaded: return
@@ -627,25 +687,28 @@ class Live2DCharacter(QOpenGLWidget):
     def enterEvent(self, event): super().enterEvent(event); self.is_mouse_over = True
     def leaveEvent(self, event): super().leaveEvent(event); self.is_mouse_over = False; self.cursor_history.clear()
 
-    # --- Cleanup ---
     def cleanup(self):
         logger.info("Cleaning up Live2DCharacter resources...")
         try: self.makeCurrent()
         except Exception as e: logger.error(f"Failed context for cleanup: {e}"); return
         try:
             if hasattr(self, 'animation_timer') and self.animation_timer: self.animation_timer.stop()
-            if hasattr(self, 'quad_vao') and self.quad_vao: glDeleteVertexArrays(1, [self.quad_vao]); self.quad_vao = None
-            if hasattr(self, 'quad_vbo') and self.quad_vbo: glDeleteBuffers(1, [self.quad_vbo]); self.quad_vbo = None
-            if hasattr(self, 'particle_vao') and self.particle_vao: glDeleteVertexArrays(1, [self.particle_vao]); self.particle_vao = None
-            if hasattr(self, 'particle_vbo') and self.particle_vbo: glDeleteBuffers(1, [self.particle_vbo]); self.particle_vbo = None
+
+            if self.quad_vao: glDeleteVertexArrays(1, [self.quad_vao]); self.quad_vao = 0
+            if self.quad_vbo: glDeleteBuffers(1, [self.quad_vbo]); self.quad_vbo = 0
+            if self.particle_vao: glDeleteVertexArrays(1, [self.particle_vao]); self.particle_vao = 0
+            if self.particle_vbo: glDeleteBuffers(1, [self.particle_vbo]); self.particle_vbo = 0
+
             if self.model:
                 release_method = getattr(self.model, 'Release', None)
                 if callable(release_method):
                     try: release_method()
                     except Exception as e_rel: logger.error(f"Error calling model.Release(): {e_rel}")
                 self.model = None; self.model_loaded = False; logger.debug("Model reference released.")
+
             if self.shader_program: self.shader_program = None;
             if self.particle_shader: self.particle_shader = None;
+
         except Exception as e:
             logger.error(f"Error during OpenGL resource cleanup: {e}", exc_info=True)
         finally:
