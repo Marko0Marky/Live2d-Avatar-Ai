@@ -3,46 +3,50 @@
 import torch
 import math
 import html
+from typing import Dict, Optional, List, TYPE_CHECKING
 
-# Need Config, logger
-from config import Config, logger
-from typing import Optional, Dict
-
-# Need Qt imports
+# --- Add Missing PyQt5 Imports ---
 try:
     from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
                                  QGroupBox, QTextEdit, QPushButton, QMessageBox)
-    from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QRect
-    from PyQt5.QtGui import QFont, QPainter, QPen, QColor
+    from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QRect, QObject # Added QObject (base for QWidget)
+    from PyQt5.QtGui import QFont, QPainter, QPen, QColor, QPaintEvent # Added QPaintEvent
 except ImportError as e:
-    logger.critical(f"gui_widgets.py: PyQt5 import failed: {e}. Please install PyQt5.")
-    raise
+    print(f"CRITICAL ERROR: gui_widgets.py - PyQt5 import failed: {e}. Please install PyQt5.")
+    import sys
+    sys.exit(1)
+# --- End Add Imports ---
 
-# Need is_safe (optional, but good practice)
+# Use the instantiated MasterConfig object
+from config import MasterConfig as Config
+from config import logger
 from utils import is_safe
 
 # Forward declaration for type hinting
-class EnhancedConsciousAgent: pass
+if TYPE_CHECKING:
+    from orchestrator import EnhancedConsciousAgent
+
 
 class HUDWidget(QWidget):
     """Overlays key information (emotions, metrics, response) directly on the avatar view."""
-    def __init__(self, agent_orchestrator: 'EnhancedConsciousAgent', parent=None):
+    def __init__(self, agent_orchestrator: 'EnhancedConsciousAgent', parent: Optional[QWidget] = None):
         super().__init__(parent)
-        # Directly access env from orchestrator to get names
         if not hasattr(agent_orchestrator, 'env'):
              raise AttributeError("HUDWidget requires agent_orchestrator to have an 'env' attribute.")
-        self.agent_orchestrator = agent_orchestrator # Keep ref if needed later, though env used directly now
-        self.response = "Initializing..."
+        self.agent_orchestrator = agent_orchestrator
+        self.response: str = "Initializing..."
+        self.emotion_names: List[str] = []
+
         try:
             self.emotion_names = self.agent_orchestrator.env.emotion_names
-            if len(self.emotion_names) != Config.EMOTION_DIM:
-                 logger.warning(f"HUD: Emotion name/DIM mismatch. Using defaults.")
-                 self.emotion_names = [f"Emo{i+1}" for i in range(Config.EMOTION_DIM)]
+            if len(self.emotion_names) != Config.Agent.EMOTION_DIM:
+                 logger.warning(f"HUD: Emotion name/DIM mismatch ({len(self.emotion_names)} vs {Config.Agent.EMOTION_DIM}). Using defaults.")
+                 self.emotion_names = [f"Emo{i+1}" for i in range(Config.Agent.EMOTION_DIM)]
         except Exception as e:
-            logger.warning(f"HUD: Could not get emotion names from env: {e}. Using defaults.");
-            self.emotion_names = [f"Emo{i+1}" for i in range(Config.EMOTION_DIM)]
+            logger.warning(f"HUD: Could not get emotion names from env: {e}. Using defaults for {Config.Agent.EMOTION_DIM} emotions.");
+            self.emotion_names = [f"Emo{i+1}" for i in range(Config.Agent.EMOTION_DIM)]
 
-        self.emotion_values: torch.Tensor = torch.zeros(Config.EMOTION_DIM)
+        self.emotion_values: torch.Tensor = torch.zeros(Config.Agent.EMOTION_DIM)
         self.metrics: Dict[str, float] = {}
 
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground);
@@ -53,13 +57,12 @@ class HUDWidget(QWidget):
         self.text_pen = QPen(QColor(230, 230, 255, 210), 1);
         self.response_pen = QPen(QColor(255, 220, 100, 230), 1)
 
-        # Base glow colors (copied from original)
         self._glow_colors_rgb = [(76, 255, 76), (255, 76, 76), (255, 255, 76), (255, 153, 76), (76, 200, 255), (255, 76, 255)];
-        num_colors_needed = Config.EMOTION_DIM
+        num_colors_needed = Config.Agent.EMOTION_DIM
         if len(self._glow_colors_rgb) < num_colors_needed: self._glow_colors_rgb.extend([(200,200,200)]*(num_colors_needed - len(self._glow_colors_rgb)))
         elif len(self._glow_colors_rgb) > num_colors_needed: self._glow_colors_rgb = self._glow_colors_rgb[:num_colors_needed]
 
-        self.pulse_phase = 0.0;
+        self.pulse_phase: float = 0.0;
         self.pulse_timer = QTimer(self);
         self.pulse_timer.timeout.connect(self.update_pulse);
         self.pulse_timer.start(1000 // 60)
@@ -68,23 +71,25 @@ class HUDWidget(QWidget):
         self.pulse_phase = (self.pulse_phase + 0.08) % (2 * math.pi);
         self.update()
 
-    def update_hud(self, emotions, response, metrics_dict):
+    def update_hud(self, emotions: Optional[torch.Tensor], response: str, metrics_dict: Dict[str, float]):
         self.response = response if response else ""
-        if emotions is not None and isinstance(emotions, torch.Tensor) and emotions.shape == (Config.EMOTION_DIM,) and is_safe(emotions):
+        expected_shape = (Config.Agent.EMOTION_DIM,)
+        if emotions is not None and isinstance(emotions, torch.Tensor) and emotions.shape == expected_shape and is_safe(emotions):
             self.emotion_values = emotions.detach().cpu()
         else:
-            if not torch.equal(self.emotion_values, torch.zeros(Config.EMOTION_DIM)):
+            if not torch.equal(self.emotion_values, torch.zeros(Config.Agent.EMOTION_DIM)):
                 logger.warning(f"HUD received invalid emotions. Resetting display.")
-                self.emotion_values = torch.zeros(Config.EMOTION_DIM)
+                self.emotion_values = torch.zeros(Config.Agent.EMOTION_DIM)
 
         self.metrics = {
             "Att": metrics_dict.get("att_score", 0.0),
             "Rho": metrics_dict.get("rho_score", 0.0),
-            "Loss": metrics_dict.get("loss_value", 0.0),
+            "Loss": metrics_dict.get("loss", 0.0),
             "Box": metrics_dict.get("box_score", 0.0)
             }
+        self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent): # Added type hint
         painter = QPainter(self);
         painter.setRenderHint(QPainter.RenderHint.Antialiasing);
         painter.setFont(self.font)
@@ -95,12 +100,12 @@ class HUDWidget(QWidget):
         x_pos = rect.left(); y_pos = rect.top(); line_height = 14
 
         dominant_idx = 0; intensity = 0.0
-        if self.emotion_values.numel() >= Config.EMOTION_DIM:
+        if self.emotion_values.numel() >= Config.Agent.EMOTION_DIM:
             try: dominant_idx = torch.argmax(self.emotion_values).item(); intensity = self.emotion_values[dominant_idx].item()
             except Exception: pass
 
         pulse = 1.0 + 0.3 * math.sin(self.pulse_phase) * intensity;
-        glow_alpha = int(min(1.0, intensity * Config.GLOW_INTENSITY * pulse) * 80)
+        glow_alpha = int(min(1.0, intensity * Config.Graphics.GLOW_INTENSITY * pulse) * 80)
 
         if glow_alpha > 10:
             glow_color_rgb = self._glow_colors_rgb[dominant_idx % len(self._glow_colors_rgb)];
@@ -115,7 +120,6 @@ class HUDWidget(QWidget):
                 p.setPen(self.glow_pen); p.drawText(x + 1, y + 1, text)
             p.setPen(base_pen); p.drawText(x, y, text)
 
-        # Draw Emotion Bars
         bar_width = min(70, rect.width() - 50); bar_height = 5; bar_spacing = 2; y_emo_start = y_pos
         for i, name in enumerate(self.emotion_names):
             value = self.emotion_values[i].item() if i < self.emotion_values.numel() else 0.0
@@ -134,13 +138,11 @@ class HUDWidget(QWidget):
             painter.drawRoundedRect(bar_x, bar_y, fill_width, bar_height, 1, 1)
         y_pos = bar_y + bar_height + int(line_height * 0.8)
 
-        # Draw Metrics
         if y_pos < rect.bottom() - line_height:
             metrics_text = " | ".join([f"{k}:{v:.2f}" for k, v in self.metrics.items()])
             draw_text_with_glow(painter, x_pos, y_pos, metrics_text, self.text_pen);
             y_pos += line_height
 
-        # Draw Agent Response
         if self.response and y_pos < rect.bottom():
             response_text = f"> {self.response}";
             response_rect = QRect(x_pos, y_pos, rect.width(), rect.bottom() - y_pos)
@@ -156,7 +158,7 @@ class AIStateWidget(QWidget):
     """Displays agent's core stats like emotions (bars) and aggregate metrics (text)."""
     request_completeness_test = pyqtSignal()
 
-    def __init__(self, agent_orchestrator: 'EnhancedConsciousAgent', parent=None):
+    def __init__(self, agent_orchestrator: 'EnhancedConsciousAgent', parent: Optional[QWidget] = None):
         super().__init__(parent)
         if not hasattr(agent_orchestrator, 'env'):
              raise AttributeError("AIStateWidget requires agent_orchestrator to have an 'env' attribute.")
@@ -172,18 +174,19 @@ class AIStateWidget(QWidget):
         emotion_group = QGroupBox("Emotions");
         emotion_layout = QVBoxLayout(); emotion_layout.setSpacing(4);
         emotion_group.setLayout(emotion_layout)
-        self.emotion_labels = []; self.emotion_bars = []
+        self.emotion_labels: List[QLabel] = []; self.emotion_bars: List[QProgressBar] = []
 
+        emotions_list: List[str] = []
         try: emotions_list = self.agent_orchestrator.env.emotion_names
         except Exception as e:
             logger.warning(f"AIState: Could not get emotion names: {e}");
-            emotions_list = [f"Emo{i+1}" for i in range(Config.EMOTION_DIM)]
-        if len(emotions_list) != Config.EMOTION_DIM:
-             logger.warning(f"AIState: Emotion name/DIM mismatch. Using defaults.")
-             emotions_list = [f"Emo{i+1}" for i in range(Config.EMOTION_DIM)]
+            emotions_list = [f"Emo{i+1}" for i in range(Config.Agent.EMOTION_DIM)]
+        if len(emotions_list) != Config.Agent.EMOTION_DIM:
+             logger.warning(f"AIState: Emotion name/DIM mismatch. Using defaults for {Config.Agent.EMOTION_DIM} emotions.")
+             emotions_list = [f"Emo{i+1}" for i in range(Config.Agent.EMOTION_DIM)]
 
         hud_colors_rgb = [(76, 255, 76), (255, 76, 76), (255, 255, 76), (255, 153, 76), (76, 200, 255), (255, 76, 255)];
-        num_colors_needed = Config.EMOTION_DIM
+        num_colors_needed = Config.Agent.EMOTION_DIM
         if len(hud_colors_rgb) < num_colors_needed: hud_colors_rgb.extend([(200,200,200)]*(num_colors_needed - len(hud_colors_rgb)))
         elif len(hud_colors_rgb) > num_colors_needed: hud_colors_rgb = hud_colors_rgb[:num_colors_needed]
         colors_hex = [QColor(*rgb).name() for rgb in hud_colors_rgb]
@@ -225,22 +228,23 @@ class AIStateWidget(QWidget):
         self.status_label.setObjectName("status_label")
         self.completeness_label.setObjectName("completeness_label")
 
-        self.completeness_result = None
-        self.completeness_details = ""
+        self.completeness_result: Optional[bool] = None
+        self.completeness_details: str = ""
 
     def trigger_completeness_test(self):
         logger.info("Completeness test button clicked, emitting request signal.");
         self.request_completeness_test.emit()
 
-    def update_display(self, stats, emotions, loss=0.0):
-        if emotions is not None and isinstance(emotions, torch.Tensor) and emotions.shape == (Config.EMOTION_DIM,) and is_safe(emotions):
+    def update_display(self, stats: Dict, emotions: Optional[torch.Tensor], loss: float = 0.0):
+        expected_shape = (Config.Agent.EMOTION_DIM,)
+        if emotions is not None and isinstance(emotions, torch.Tensor) and emotions.shape == expected_shape and is_safe(emotions):
              emo_cpu = emotions.detach().cpu();
              for i, bar in enumerate(self.emotion_bars):
                  if i < len(emo_cpu): bar.setValue(int(emo_cpu[i].item() * 100))
                  else: bar.setValue(0)
         else:
              if not all(bar.value() == 0 for bar in self.emotion_bars):
-                 logger.warning("AIStateWidget received invalid emotions. Resetting bars.")
+                 logger.warning(f"AIStateWidget received invalid emotions ({type(emotions)}). Resetting bars.")
                  for bar in self.emotion_bars: bar.setValue(0)
 
         episodes = stats.get("episode", 0); total_steps = stats.get("total_steps", 0);
@@ -248,6 +252,9 @@ class AIStateWidget(QWidget):
         I_S = stats.get("I_S", 0.0); rho_struct = stats.get("rho_struct", 0.0); att_score = stats.get("att_score", 0.0);
         self_consistency = stats.get("self_consistency", 0.0); rho_score = stats.get("rho_score", 0.0); tau_t = stats.get("tau_t", 0.0);
         box_score = stats.get("box_score", 0.0); R_acc = stats.get("R_acc", 0.0)
+        # Use the 'loss' value passed in, which comes from orchestrator.last_reported_loss
+        current_loss = loss
+
         stats_text = (
             f"Steps: {total_steps:<7,} Episode: {episodes:<5} Avg Rew: {avg_reward:<+8.3f}\n"
             f"--------------------------------------------\n"
@@ -255,10 +262,13 @@ class AIStateWidget(QWidget):
             f" RhoStr : {rho_struct:<8.3f} | SelfC  : {self_consistency:<+8.3f}\n"
             f" RhoScr : {rho_score:<8.3f} | Tau(t) : {tau_t:<8.3f}\n"
             f" BoxScr : {box_score:<8.3f} | R_Acc  : {R_acc:<8.3f}\n"
-            f" Loss   : {loss:<+8.4f}" )
+            f" Loss   : {current_loss:<+8.4f}" ) # Display current_loss
         self.stats_label.setText(stats_text)
 
-    def update_completeness_display(self, result, details):
+        # Update completeness display based on stored result
+        self.update_completeness_display(self.completeness_result, self.completeness_details)
+
+    def update_completeness_display(self, result: Optional[bool], details: str):
         self.completeness_result = result;
         self.completeness_details = details if details else "No details provided."
         if self.completeness_result is True:
@@ -272,7 +282,7 @@ class AIStateWidget(QWidget):
             self.completeness_label.setStyleSheet("#completeness_label { font-weight: bold; color: #ccc; }");
         self.completeness_label.setToolTip(self.completeness_details)
 
-    def set_status(self, status_text, color_hex="#FFA500"):
+    def set_status(self, status_text: str, color_hex: str ="#FFA500"):
         self.status_label.setText(f"Status: {status_text}")
         self.status_label.setStyleSheet(f"""QLabel#status_label {{ font-weight: bold; color: {color_hex}; font-family: 'Segoe UI', Arial; font-size: 13px; border: none; background: transparent; padding: 5px; }}""")
 
