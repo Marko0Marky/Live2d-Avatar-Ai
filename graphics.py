@@ -11,12 +11,20 @@ import ctypes
 import math
 from typing import Optional, Dict, Tuple, Deque, List
 
-# --- Use the instantiated MasterConfig object ---
-from config import MasterConfig as Config # Import the instance as Config
+# --- NEW: Import TextBlob ---
+try:
+    from textblob import TextBlob
+    TEXTBLOB_AVAILABLE = True
+except ImportError:
+    TEXTBLOB_AVAILABLE = False
+    logging.warning("TextBlob library not found ('pip install textblob' + 'python -m textblob.download_corpora'). Sentiment analysis for head movement disabled.")
+# --- End Import ---
+
+
+from config import MasterConfig as Config
 from config import DEVICE, logger
 from utils import is_safe
 
-# Need Qt and OpenGL imports
 try:
     from PyQt5.QtWidgets import QOpenGLWidget, QSizePolicy
     from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QSize, QRect
@@ -39,7 +47,6 @@ except ImportError as e:
     logger.critical(f"graphics.py: PyQt5 or PyOpenGL import failed: {e}. Please install PyQt5, PyOpenGL, PyOpenGL-accelerate.")
     raise
 
-# Need Live2D imports
 try:
     import live2d.v3 as live2d_v3
     from live2d.v3 import LAppModel as Live2Dv3AppModel
@@ -50,24 +57,22 @@ except Exception as core_err:
     logger.critical(f"graphics.py: An unexpected error occurred related to the Live2D Core library: {core_err}. Ensure native lib installed.")
     raise
 
-# Need dataclass
 from dataclasses import dataclass, field
 
-# --- Particle System Components ---
+# --- Particle System Components (Remains the same) ---
 @dataclass
 class Particle:
     position: QVector3D = field(default_factory=lambda: QVector3D(0, 0, 0))
     velocity: QVector3D = field(default_factory=lambda: QVector3D(0, 0, 0))
-    color: QVector3D = field(default_factory=lambda: QVector3D(1, 1, 1)) # Store RGB
-    alpha: float = 1.0 # Store alpha separately
+    color: QVector3D = field(default_factory=lambda: QVector3D(1, 1, 1))
+    alpha: float = 1.0
     lifetime: float = 0.0
     size: float = 1.0
 
 class ParticleSystem:
     def __init__(self, count: int = Config.Graphics.PARTICLE_COUNT):
         self.max_count = count
-        if self.max_count <= 0:
-            logger.warning(f"ParticleSystem count is {self.max_count}. Disabling particles."); self.max_count = 0
+        if self.max_count <= 0: logger.warning(f"ParticleSystem count is {self.max_count}. Disabling particles."); self.max_count = 0
         self.particles: List[Particle] = []
         self.particle_buffer = np.zeros(self.max_count * 7, dtype=np.float32) if self.max_count > 0 else np.array([], dtype=np.float32)
         self.initialize_particles()
@@ -89,86 +94,42 @@ class ParticleSystem:
 
     def update(self, delta_time: float, emotions: torch.Tensor):
         if self.max_count <= 0 or not self.particles: return
-
         dominant_emotion_idx = 0; intensity = 0.5
         if isinstance(emotions, torch.Tensor) and emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(emotions):
             try:
                 emo_cpu = emotions.cpu()
                 dominant_emotion_idx = torch.argmax(emo_cpu).item();
                 intensity = emo_cpu[dominant_emotion_idx].item()
-            except Exception as e:
-                 logger.warning(f"Particle update error getting emotion: {e}")
-
+            except Exception as e: logger.warning(f"Particle update error getting emotion: {e}")
         buffer_idx = 0
         time_scale = delta_time * 60.0
-
         for i, particle in enumerate(self.particles):
             particle.position += particle.velocity * time_scale
             particle.lifetime -= delta_time
             particle.alpha = max(0.0, min(1.0, particle.lifetime / 2.0)) * (0.4 + intensity * 0.6)
-
-            if dominant_emotion_idx == 0: # Joy
-                particle.velocity.setY(particle.velocity.y() + 0.00015 * intensity * time_scale)
-                particle.color.setX(min(1.0, particle.color.x() + 0.02 * intensity * time_scale))
-                particle.color.setY(min(1.0, particle.color.y() + 0.01 * intensity * time_scale))
-            elif dominant_emotion_idx == 1: # Fear
-                particle.velocity += QVector3D(random.uniform(-0.0008, 0.0008), random.uniform(-0.0008, 0.0008), 0) * intensity * time_scale
-                particle.color.setX(min(1.0, particle.color.x() + 0.02 * intensity * time_scale))
-                particle.color.setZ(min(1.0, particle.color.z() + 0.01 * intensity * time_scale))
-            elif dominant_emotion_idx == 4: # Calm
-                particle.velocity *= (1.0 - 0.03 * intensity * time_scale)
-                particle.color.setZ(min(1.0, particle.color.z() + 0.02 * intensity * time_scale))
-
-            needs_reset = (particle.lifetime <= 0 or
-                           abs(particle.position.x()) > 1.5 or
-                           particle.position.y() > 1.5 or
-                           particle.position.y() < -1.5)
-            if needs_reset:
-                self.particles[i] = self.create_particle()
-                particle = self.particles[i]
-
-            if buffer_idx + 7 <= len(self.particle_buffer):
-                self.particle_buffer[buffer_idx : buffer_idx+7] = [
-                    particle.position.x(), particle.position.y(), particle.position.z(),
-                    max(0.0, min(1.0, particle.color.x())),
-                    max(0.0, min(1.0, particle.color.y())),
-                    max(0.0, min(1.0, particle.color.z())),
-                    max(0.0, min(1.0, particle.alpha))
-                ]
-            else:
-                logger.warning("Particle buffer overflow detected during update.")
-                break
-            buffer_idx += 7
-        # Update buffer after loop
+            if dominant_emotion_idx == 0: particle.velocity.setY(particle.velocity.y() + 0.00015 * intensity * time_scale); particle.color.setX(min(1.0, particle.color.x() + 0.02 * intensity * time_scale)); particle.color.setY(min(1.0, particle.color.y() + 0.01 * intensity * time_scale))
+            elif dominant_emotion_idx == 1: particle.velocity += QVector3D(random.uniform(-0.0008, 0.0008), random.uniform(-0.0008, 0.0008), 0) * intensity * time_scale; particle.color.setX(min(1.0, particle.color.x() + 0.02 * intensity * time_scale)); particle.color.setZ(min(1.0, particle.color.z() + 0.01 * intensity * time_scale))
+            elif dominant_emotion_idx == 4: particle.velocity *= (1.0 - 0.03 * intensity * time_scale); particle.color.setZ(min(1.0, particle.color.z() + 0.02 * intensity * time_scale))
+            needs_reset = (particle.lifetime <= 0 or abs(particle.position.x()) > 1.5 or particle.position.y() > 1.5 or particle.position.y() < -1.5)
+            if needs_reset: self.particles[i] = self.create_particle(); particle = self.particles[i]
+            if buffer_idx + 7 <= len(self.particle_buffer): self.particle_buffer[buffer_idx : buffer_idx+7] = [particle.position.x(), particle.position.y(), particle.position.z(), max(0.0, min(1.0, particle.color.x())), max(0.0, min(1.0, particle.color.y())), max(0.0, min(1.0, particle.color.z())), max(0.0, min(1.0, particle.alpha))]; buffer_idx += 7
+            else: logger.warning("Particle buffer overflow detected during update."); break
         self._update_buffer()
 
-
     def _update_buffer(self):
-        """Fills the numpy buffer with current particle data."""
         if self.max_count <= 0: return
         buffer_idx = 0
         for p in self.particles:
             if buffer_idx + 7 <= len(self.particle_buffer):
-                self.particle_buffer[buffer_idx : buffer_idx + 7] = [
-                    p.position.x(), p.position.y(), p.position.z(),
-                    max(0.0, min(1.0, p.color.x())),
-                    max(0.0, min(1.0, p.color.y())),
-                    max(0.0, min(1.0, p.color.z())),
-                    max(0.0, min(1.0, p.alpha))
-                ]
-                buffer_idx += 7
-            else:
-                 logger.warning("Particle buffer overflow in _update_buffer.")
-                 break
+                self.particle_buffer[buffer_idx : buffer_idx + 7] = [p.position.x(), p.position.y(), p.position.z(), max(0.0, min(1.0, p.color.x())), max(0.0, min(1.0, p.color.y())), max(0.0, min(1.0, p.color.z())), max(0.0, min(1.0, p.alpha))]; buffer_idx += 7
+            else: logger.warning("Particle buffer overflow in _update_buffer."); break
 
 
 # --- Live2D Character Widget ---
 class Live2DCharacter(QOpenGLWidget):
-    """Widget to display the Live2D model using modern OpenGL."""
     character_initialized = pyqtSignal(bool)
     error_occurred = pyqtSignal(str)
     interaction_detected = pyqtSignal()
-
     live2d_initialized_global = False
 
     def __init__(self, hud_widget=None, parent=None):
@@ -181,13 +142,11 @@ class Live2DCharacter(QOpenGLWidget):
         self.emotions: torch.Tensor = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
         self.frame_count: int = 0
         self.time_elapsed: float = 0.0
-
         self.cursor_pos: Tuple[float, float] = (0.0, 0.0)
         self.cursor_history: Deque[Tuple[float, float]] = deque(maxlen=10)
         self.is_mouse_over: bool = False
         self.last_interaction_time: float = time.time()
         self.toggle_states: Dict[str, float] = {'blush': 0.0, 'wings': 0.0, 'mad': 0.0, 'confusion': 0.0}
-
         self.animation_params: Dict[str, Dict] = {
             'breath': {'phase': 0.0, 'speed': 0.08, 'magnitude': 0.5},
             'blink': {'timer': 0.0, 'interval': random.uniform(2.0, 5.0), 'state': 'WAITING', 'phase': 0.0},
@@ -200,6 +159,22 @@ class Live2DCharacter(QOpenGLWidget):
         self.parameter_velocities: Dict[str, float] = {}
         self.parameter_map: Dict[str | int, Dict] = {}
         self._failed_params: set = set()
+
+        # --- NEW: Monologue state ---
+        self.current_monologue: str = ""
+        self.monologue_sentiment: float = 0.0
+        self.monologue_movement_type: Optional[str] = None # e.g., "ponder", "positive", None
+        self.last_monologue_update_time: float = 0.0
+        self.monologue_update_interval: float = 3.0 # How often to check monologue
+
+        # --- NEW: Micro-movement state ---
+        self.micro_movement_timer: float = 0.0
+        self.micro_movement_interval: float = 0.1 # Update micro-movements frequently
+        self.micro_movement_target_offset_x: float = 0.0
+        self.micro_movement_target_offset_y: float = 0.0
+        self.micro_movement_current_offset_x: float = 0.0
+        self.micro_movement_current_offset_y: float = 0.0
+
 
         self.shader_program: Optional[QOpenGLShaderProgram] = None
         self.particle_shader: Optional[QOpenGLShaderProgram] = None
@@ -218,6 +193,7 @@ class Live2DCharacter(QOpenGLWidget):
         self._init_live2d_library()
         self._setup_animation_timer()
 
+    # ... (_init_live2d_library, _setup_animation_timer, initializeGL, _setup_background_shader, _setup_gl_buffers, _setup_particle_buffers, _load_model, _create_parameter_mapper, resizeGL, paintGL remain the same) ...
     def _init_live2d_library(self):
         if not Live2DCharacter.live2d_initialized_global:
             try:
@@ -293,6 +269,7 @@ class Live2DCharacter(QOpenGLWidget):
             try: self.doneCurrent()
             except Exception as e_done: logger.error(f"Error calling doneCurrent in initializeGL finally: {e_done}")
 
+    # --- Resource Setup Methods ---
     def _setup_background_shader(self):
         try:
             self.shader_program = QOpenGLShaderProgram(self)
@@ -532,20 +509,27 @@ class Live2DCharacter(QOpenGLWidget):
 
         self.particle_system.update(delta_time, self.emotions)
         self._update_animations(delta_time)
-        self._update_model_parameters(delta_time)
+
+        # --- NEW: Trigger monologue analysis periodically ---
+        if self.time_elapsed - self.last_monologue_update_time > self.monologue_update_interval:
+             # In a real scenario, you might get the monologue from the orchestrator here
+             # For now, let's just use the stored one if it exists
+             if self.current_monologue:
+                 self._analyze_monologue(self.current_monologue)
+             self.last_monologue_update_time = self.time_elapsed
+
+        self._update_model_parameters(delta_time) # This now includes monologue/micro-movements
         try:
             self.model.Update()
         except Exception as e: logger.error(f"Error during model.Update() in _tick: {e}", exc_info=True); return
 
         self.update()
 
-
     def _update_animations(self, delta_time: float):
+        # ... (blink, breath, sway, idle logic remains the same) ...
         time_scale = delta_time * 60.0
-
         breath = self.animation_params['breath']
         breath['phase'] = (breath['phase'] + breath['speed'] * time_scale) % (2 * math.pi)
-
         blink = self.animation_params['blink']; blink['timer'] += delta_time
         blink_close_speed = 8.0; blink_open_speed = 6.0
         if blink['state'] == 'WAITING':
@@ -556,24 +540,130 @@ class Live2DCharacter(QOpenGLWidget):
         elif blink['state'] == 'OPENING':
             blink['phase'] = max(0.0, blink['phase'] - delta_time * blink_open_speed)
             if blink['phase'] <= 0.0: blink['state'] = 'WAITING'; blink['interval'] = random.uniform(1.5, 4.5); blink['timer'] = 0.0
-
         hair = self.animation_params['hair_sway']; hair['phase'] = (hair['phase'] + hair['speed'] * time_scale) % (2 * math.pi)
         idle = self.animation_params['idle']; idle['phase'] = (idle['phase'] + idle['speed'] * time_scale) % (2 * math.pi)
-
         if 'surprise' in self.animation_params:
              surprise = self.animation_params['surprise']
              surprise['timer'] = surprise.get('timer', 0.0) + delta_time
              if surprise['timer'] >= surprise.get('duration', 1.5):
                  self.animation_params.pop('surprise', None)
-
         fade_rate = 2.0
         if not self.is_mouse_over:
             self.toggle_states['confusion'] = max(0.0, self.toggle_states['confusion'] - delta_time * fade_rate)
 
+        # --- NEW: Update Micro-movement Timer ---
+        self.micro_movement_timer += delta_time
+        if self.micro_movement_timer >= self.micro_movement_interval:
+            self.micro_movement_timer = 0.0
+            # Update target offsets less frequently than applying them
+            if random.random() < 0.2: # 20% chance each micro-interval to pick new target
+                self.micro_movement_target_offset_x = random.uniform(-0.5, 0.5) # Small angle target
+                self.micro_movement_target_offset_y = random.uniform(-0.5, 0.5)
+
+    # --- NEW: Method to receive and analyze monologue ---
+    def update_monologue(self, monologue_text: str):
+        """Receives the latest internal monologue and analyzes it."""
+        self.current_monologue = monologue_text
+        self._analyze_monologue(monologue_text)
+
+    def _analyze_monologue(self, monologue: str):
+        """Analyzes monologue sentiment and keywords."""
+        if not monologue or not TEXTBLOB_AVAILABLE:
+            self.monologue_sentiment = 0.0
+            self.monologue_movement_type = None
+            return
+
+        # Reset movement type
+        self.monologue_movement_type = None
+        try:
+            blob = TextBlob(monologue)
+            self.monologue_sentiment = blob.sentiment.polarity # Value between -1.0 and 1.0
+
+            # Keyword analysis
+            lower_mono = monologue.lower()
+            thinking_keywords = ["think", "wonder", "consider", "maybe", "perhaps", "hmm"]
+            decision_keywords = ["decide", "choose", "will", "okay", "right"] # Simple examples
+            positive_keywords = ["happy", "great", "good", "love", "like", "yay"]
+            negative_keywords = ["sad", "bad", "worried", "nervous", "hate", "ugh"]
+
+            if any(word in lower_mono for word in thinking_keywords):
+                self.monologue_movement_type = "ponder"
+            elif any(word in lower_mono for word in decision_keywords):
+                 self.monologue_movement_type = "decide"
+            # Use sentiment as fallback if no strong keywords match
+            elif self.monologue_sentiment > 0.4: # Threshold for clear positivity
+                 if any(word in lower_mono for word in positive_keywords): # Check for explicit positive words too
+                      self.monologue_movement_type = "positive"
+            elif self.monologue_sentiment < -0.4: # Threshold for clear negativity
+                 if any(word in lower_mono for word in negative_keywords):
+                      self.monologue_movement_type = "negative"
+
+            # logger.debug(f"Monologue: '{monologue}' | Sentiment: {self.monologue_sentiment:.2f} | Type: {self.monologue_movement_type}")
+
+        except Exception as e:
+            logger.warning(f"Error analyzing monologue with TextBlob: {e}")
+            self.monologue_sentiment = 0.0
+            self.monologue_movement_type = None
+
+    # --- NEW: Method to apply head movement based on monologue ---
+    def _apply_monologue_movement(self, active_targets: Dict[str, float], delta_time: float) -> Dict[str, float]:
+        """Calculates and applies head angle adjustments based on monologue analysis."""
+        # Define target angles based on movement type
+        target_angle_x = 0.0
+        target_angle_y = 0.0
+        current_time = self.time_elapsed # Use consistent time
+
+        if self.monologue_movement_type == "ponder":
+            target_angle_x = 3.0 * math.sin(current_time * 0.8) # Slow side tilt, smaller range
+        elif self.monologue_movement_type == "decide":
+            # Quick nod - use a short pulse shape? Or just brief sine
+            target_angle_y = 4.0 * math.sin(current_time * 5.0) # Faster up/down
+            # Fade this out quickly? For now, rely on next monologue changing it
+        elif self.monologue_movement_type == "positive":
+            target_angle_y = 5.0 * math.sin(current_time * 2.5) # Moderate nod
+        elif self.monologue_movement_type == "negative":
+            target_angle_x = -4.0 * math.sin(current_time * 1.8) # Moderate side tilt/shake
+
+        # Apply these targets additively or selectively to relevant params
+        # We add them to the *existing* target calculated from other layers (emotions, cursor)
+        # Using PARAM_ANGLE_X and PARAM_ANGLE_Y
+        if 'PARAM_ANGLE_X' in active_targets:
+            active_targets['PARAM_ANGLE_X'] += target_angle_x
+        if 'PARAM_ANGLE_Y' in active_targets:
+            active_targets['PARAM_ANGLE_Y'] += target_angle_y
+        # Maybe also a subtle Z rotation for pondering?
+        if self.monologue_movement_type == "ponder" and 'PARAM_ANGLE_Z' in active_targets:
+             active_targets['PARAM_ANGLE_Z'] += 2.0 * math.sin(current_time * 0.7)
+
+
+        return active_targets
+
+    # --- NEW: Method to apply micro-movements ---
+    def _apply_micro_movements(self, active_targets: Dict[str, float], delta_time: float) -> Dict[str, float]:
+        """Applies subtle random offsets for idle realism."""
+        # Smoothly interpolate current offset towards target offset
+        lerp_factor = 1.0 - math.exp(-delta_time / 0.1) # Faster smoothing for micro-movements
+        self.micro_movement_current_offset_x += (self.micro_movement_target_offset_x - self.micro_movement_current_offset_x) * lerp_factor
+        self.micro_movement_current_offset_y += (self.micro_movement_target_offset_y - self.micro_movement_current_offset_y) * lerp_factor
+
+        # Add the current smoothed offset to target angles
+        if 'PARAM_ANGLE_X' in active_targets:
+             active_targets['PARAM_ANGLE_X'] += self.micro_movement_current_offset_x
+        if 'PARAM_ANGLE_Y' in active_targets:
+             active_targets['PARAM_ANGLE_Y'] += self.micro_movement_current_offset_y
+        # Add tiny Z offset too?
+        if 'PARAM_ANGLE_Z' in active_targets:
+             active_targets['PARAM_ANGLE_Z'] += self.micro_movement_current_offset_x * 0.3 # Link Z slightly to X offset
+
+        return active_targets
+
+
+    # --- MODIFIED: Call monologue and micro-movement logic ---
     def _update_model_parameters(self, delta_time: float):
         if not self.model or not self.model_loaded or not self.parameter_map: return
         active_targets = self.default_values.copy()
 
+        # --- Layer 1: Base Procedural Animations ---
         breath_value = 0.5 + 0.5 * math.sin(self.animation_params['breath']['phase'])
         if 'PARAM_BREATH' in active_targets: active_targets['PARAM_BREATH'] = breath_value
         hair_sway_val = math.sin(self.animation_params['hair_sway']['phase']) * self.animation_params['hair_sway']['magnitude']
@@ -581,6 +671,8 @@ class Live2DCharacter(QOpenGLWidget):
         if 'PARAM_ANGLE_Z' in active_targets: active_targets['PARAM_ANGLE_Z'] = self.default_values.get('PARAM_ANGLE_Z', 0.0) + idle_tilt_val * 0.3
         if 'Param8' in active_targets: active_targets['Param8'] = self.default_values.get('Param8', 0.0) + hair_sway_val * 0.1
 
+
+        # --- Layer 2: Emotion Influence ---
         if self.emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(self.emotions):
             emo_cpu = self.emotions.cpu()
             for emotion_idx, config_val in self.parameter_map.items():
@@ -591,6 +683,7 @@ class Live2DCharacter(QOpenGLWidget):
                          if param_id in active_targets:
                              active_targets[param_id] = config_val['mapper'](param_id, emotion_value)
 
+        # --- Layer 3: Interaction Influence (Cursor) ---
         if self.is_mouse_over and self.cursor_history:
              if len(self.cursor_history) > 0:
                  avg_x = sum(x for x, _ in self.cursor_history) / len(self.cursor_history)
@@ -602,6 +695,7 @@ class Live2DCharacter(QOpenGLWidget):
                              if param_id in active_targets:
                                  active_targets[param_id] = config_val_lookup['mapper'](param_id, loop_value)
 
+        # --- Layer 4: Toggleable States ---
         for toggle_key, toggle_value in self.toggle_states.items():
              config_val = self.parameter_map.get(toggle_key)
              if config_val and toggle_value > 0.01:
@@ -611,6 +705,13 @@ class Live2DCharacter(QOpenGLWidget):
                           if toggle_key == 'confusion': active_targets[param_id] = active_targets.get(param_id, 0.0) + mapped_value
                           else: active_targets[param_id] = mapped_value
 
+        # --- NEW: Layer 5: Monologue Head Movement (Additive) ---
+        active_targets = self._apply_monologue_movement(active_targets, delta_time)
+
+        # --- NEW: Layer 6: Micro-movements (Additive) ---
+        active_targets = self._apply_micro_movements(active_targets, delta_time)
+
+        # --- Layer 7: Eye Blinking (Multiplicative - Applied Last) ---
         blink_phase = self.animation_params['blink']['phase']; blink_state = self.animation_params['blink']['state']
         eye_open_value = 1.0
         if blink_state == 'CLOSING': eye_open_value = 1.0 - blink_phase
@@ -620,6 +721,8 @@ class Live2DCharacter(QOpenGLWidget):
              if param_id in active_targets:
                  active_targets[param_id] *= eye_open_value
 
+
+        # --- Apply Smoothing and Set Parameter Values ---
         for param_id, target_val in active_targets.items():
             if param_id not in self.current_values: continue
             current_val = self.current_values[param_id]
@@ -640,7 +743,7 @@ class Live2DCharacter(QOpenGLWidget):
 
             try:
                  if hasattr(self.model, 'SetParameterValue'):
-                    self.model.SetParameterValue(param_id, clamped_new_current) # Correct 2-arg call
+                    self.model.SetParameterValue(param_id, clamped_new_current)
                  self._failed_params.discard(param_id)
             except TypeError as te:
                  if param_id not in self._failed_params:
@@ -652,6 +755,7 @@ class Live2DCharacter(QOpenGLWidget):
                     logger.warning(f"Failed set param '{param_id}' (val: {clamped_new_current:.3f}). SDK Method missing or other error: {err_type}")
                     self._failed_params.add(param_id)
 
+    # ... (update_emotions, mouseMoveEvent, mousePressEvent, enterEvent, leaveEvent, cleanup remain the same) ...
     def update_emotions(self, emotions_tensor: torch.Tensor):
         if isinstance(emotions_tensor, torch.Tensor) and emotions_tensor.shape == (Config.Agent.EMOTION_DIM,) and is_safe(emotions_tensor):
             self.emotions = emotions_tensor.detach().to(DEVICE)
@@ -715,5 +819,6 @@ class Live2DCharacter(QOpenGLWidget):
             try: self.doneCurrent()
             except Exception as e_done: logger.error(f"Error calling doneCurrent during cleanup: {e_done}")
             logger.info("Character cleanup finished.")
+
 
 # --- END OF FILE graphics.py ---
