@@ -306,7 +306,7 @@ class EnhancedConsciousAgent:
         logger.info("Shutting down learn executor...")
         try:
             self.learn_executor.shutdown(wait=True, cancel_futures=False)
-            logger.info("Learn executor shut down successfully.")
+            logger.info("Learn executor shut down successfully.").
         except Exception as e:
             logger.error(f"Error shutting down learn executor: {e}", exc_info=True)
 
