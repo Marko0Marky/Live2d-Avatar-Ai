@@ -1,6 +1,6 @@
 # --- START OF FILE orchestrator.py ---
 import torch
-from typing import Dict, Tuple, Optional, List, Union # Added Union
+from typing import Dict, Tuple, Optional, List, Union
 import concurrent.futures
 import asyncio
 import time
@@ -11,49 +11,45 @@ from config import DEVICE, logger
 from environment import EmotionalSpace
 from agent import ConsciousAgent
 from graphics import Live2DCharacter
-from utils import is_safe, Experience, MetaCognitiveMemory # Import Experience, MCM
+from utils import is_safe, Experience, MetaCognitiveMemory
 
-# --- Define return type alias for reflect *before* it's used ---
-# Use Union for list element type flexibility if needed later
 ReflectReturnType = Dict[str, Union[float, List[float], int]]
-# --- Define return type alias for train_step *before* it's used ---
-TrainStepReturnType = Tuple[ReflectReturnType, float, bool, str, float] # Use ReflectReturnType here
+TrainStepReturnType = Tuple[ReflectReturnType, float, bool, str, float]
 
 
-class EnhancedConsciousAgent: # Orchestrator Class
-    """Orchestrates interaction, triggers batched learning asynchronously, and handles chat."""
-    def __init__(self, train_interval: int = Config.RL.AGENT_TRAIN_INTERVAL, batch_size: int = Config.RL.AGENT_BATCH_SIZE, num_workers: int = 1): # Added type hints
+class EnhancedConsciousAgent:
+    def __init__(self, train_interval: int = Config.RL.AGENT_TRAIN_INTERVAL, batch_size: int = Config.RL.AGENT_BATCH_SIZE, num_workers: int = 1):
         logger.info("Initializing EnhancedConsciousAgent Orchestrator (Async Batched Learning + Chat)...")
         self.env = EmotionalSpace()
-        self.model = ConsciousAgent().to(DEVICE) # Uses updated config internally
+        self.model = ConsciousAgent().to(DEVICE)
         self.avatar = Live2DCharacter()
         logger.debug("Live2DCharacter display instance created for orchestrator.")
 
         self.train_interval = max(1, train_interval)
         self.batch_size = batch_size
 
-        self.episode_rewards: List[float] = [] # Now List is defined
+        self.episode_rewards: List[float] = []
         self.current_episode_reward_sum: float = 0.0
         self.total_steps: int = 0; self.episode_steps: int = 0; self.episode_count: int = 0
         self.last_reward: float = 0.0; self.last_reported_loss: float = 0.0
         self.learn_step_running: bool = False
 
-        self.last_response_emotions: torch.Tensor = self.model.prev_emotions.clone().detach() # Type hint tensor
-        self.current_response: str = "Initializing..." # Type hint str
+        self.last_response_emotions: torch.Tensor = self.model.prev_emotions.clone().detach()
+        self.current_response: str = "Initializing..."
 
         self.num_workers = max(1, num_workers)
         self.learn_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.num_workers, thread_name_prefix='LearnWorker')
         self.learn_future: Optional[concurrent.futures.Future] = None
 
         try:
-             self.current_state: torch.Tensor = self.env.reset() # Type hint tensor
+             self.current_state: torch.Tensor = self.env.reset()
              assert is_safe(self.current_state) and self.current_state.shape == (Config.Agent.STATE_DIM,)
         except Exception as e: logger.critical(f"Orchestrator Init Error: {e}", exc_info=True); raise RuntimeError("Init state failed.") from e
 
-        self.current_event: Optional[str] = self.env.current_event_type # Type hint optional str
+        self.current_event: Optional[str] = self.env.current_event_type
         logger.info(f"Orchestrator initialized (Async Learn, {self.num_workers} worker(s), Chat Enabled).")
 
-    def set_hud_widget(self, hud_widget): pass # Keep signature if needed elsewhere
+    def set_hud_widget(self, hud_widget): pass
 
     def _run_learn_task(self) -> Optional[float]:
         loss = None
@@ -75,9 +71,8 @@ class EnhancedConsciousAgent: # Orchestrator Class
             except Exception as e: logger.error(f"Exception retrieving learn task result: {e}"); self.last_reported_loss = -1.0
             finally: self.learn_future = None; self.learn_step_running = False;
 
-    # Use the predefined type alias
-    def train_step(self) -> TrainStepReturnType: # Now TrainStepReturnType is defined
-        """ Performs internal simulation step, stores experience, triggers async learning."""
+    def train_step(self) -> TrainStepReturnType:
+        """ Performs internal simulation step, stores experience with attention-weighted priority, triggers async learning."""
         self._check_learn_future()
 
         if self.current_state is None or not is_safe(self.current_state) or self.current_state.shape != (Config.Agent.STATE_DIM,):
@@ -95,13 +90,19 @@ class EnhancedConsciousAgent: # Orchestrator Class
 
         self.last_reward = reward; self.current_event = event_type; self.current_episode_reward_sum += reward
 
+        # --- Agent Step ---
+        att_score_metric = 0.0 # Default attention score
         try:
+            # agent.step returns: current_emotions, response, belief_for_memory, att_score_metric
             emotions_internal, response_internal, belief_for_memory, att_score_metric = self.model.step(state_before_step, reward, self.model.state_history, context_internal)
         except Exception as e:
              logger.error(f"Error agent step: {e}");
              emotions_internal = self.model.prev_emotions if is_safe(self.model.prev_emotions) else torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE);
              response_internal = "(Agent step error)"; belief_for_memory = torch.zeros(Config.Agent.HIDDEN_DIM, device=DEVICE); att_score_metric = 0.0
+        # --- End Agent Step ---
 
+
+        # --- Store Experience with Attention-Weighted Priority ---
         initial_td_error = MetaCognitiveMemory.INITIAL_TD_ERROR
         with torch.no_grad():
              try:
@@ -114,18 +115,29 @@ class EnhancedConsciousAgent: # Orchestrator Class
                          initial_td_error = abs((target_val - current_value).item())
                  else: logger.warning("Forward mismatch during TD error estimation.")
              except Exception as e: logger.warning(f"Could not estimate initial TD error: {e}")
+
         try:
             belief_to_store = belief_for_memory if isinstance(belief_for_memory, torch.Tensor) and is_safe(belief_for_memory) else None
-            exp = Experience(state_before_step, belief_to_store, reward, next_state.detach(), env_done, initial_td_error)
-            self.model.memory.add(exp)
+            # --- NEW: Calculate priority using attention ---
+            base_priority = abs(initial_td_error) + 1e-5
+            attention_factor = 1.0 + Config.RL.PRIORITY_ATTENTION_WEIGHT * max(0.0, min(1.0, att_score_metric)) # Ensure factor is >= 1
+            final_priority = base_priority * attention_factor
+            # --- End Priority Calc ---
+            exp = Experience(state_before_step, belief_to_store, reward, next_state.detach(), env_done, final_priority) # Store final_priority as td_error field for memory
+            self.model.memory.add(exp) # Memory now uses the pre-calculated priority
         except Exception as e: logger.error(f"Failed adding experience: {e}")
+        # --- End Store Experience ---
 
+
+        # --- Trigger Async Learning ---
         if not self.learn_step_running and (self.total_steps % self.train_interval == 0) and (len(self.model.memory) >= self.batch_size):
             try: self.learn_future = self.learn_executor.submit(self._run_learn_task); self.learn_step_running = True
             except Exception as e: logger.error(f"Failed submit learn task: {e}"); self.learn_step_running = False
 
+        # --- State Update ---
         self.current_state = next_state.detach().clone()
 
+        # --- Episode Handling ---
         done = env_done
         if done:
             logger.info(f"Episode {self.episode_count + 1} finished. Steps: {self.episode_steps}. Reward: {self.current_episode_reward_sum:.2f}. Last Learn Loss: {self.last_reported_loss:.4f}")
@@ -139,8 +151,8 @@ class EnhancedConsciousAgent: # Orchestrator Class
         metrics_dict = self.reflect()
         return metrics_dict, reward, done, self.current_response, self.last_reported_loss
 
+    # --- handle_user_chat, reflect, test_completeness, update_environment, cleanup remain the same ---
     def handle_user_chat(self, user_text: str) -> str:
-        """Processes user chat, dynamically blends emotions, generates response, updates avatar."""
         logger.info(f"Handling user chat: '{user_text[:50]}...'")
         if not isinstance(user_text, str) or not user_text.strip(): return "..."
 
@@ -167,7 +179,10 @@ class EnhancedConsciousAgent: # Orchestrator Class
 
             if self.avatar: self.avatar.update_emotions(self.last_response_emotions)
 
-            response = self.model.gpt.generate(context=user_text, emotions=self.last_response_emotions)
+            # Use nucleus sampling parameters from config or defaults
+            temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7) # Get temp from config, fallback 0.7
+            top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)       # Get top_p from config, fallback 0.9
+            response = self.model.gpt.generate(context=user_text, emotions=self.last_response_emotions, temperature=temp, top_p=top_p)
             self.current_response = response
 
             logger.debug(f"Generated response: '{response}' with emotions: {self.last_response_emotions.cpu().numpy()}")
@@ -178,8 +193,7 @@ class EnhancedConsciousAgent: # Orchestrator Class
             self.current_response = "Sorry, I had trouble thinking about that."
             return self.current_response
 
-    def reflect(self) -> ReflectReturnType: # Now ReflectReturnType is defined
-        """Collects various metrics and states for logging/display."""
+    def reflect(self) -> ReflectReturnType:
         stats_dict: ReflectReturnType = {
             "avg_reward_last20": 0.0, "total_steps": self.total_steps, "episode": self.episode_count,
             "current_emotions_internal": [0.0]*Config.Agent.EMOTION_DIM,
@@ -213,7 +227,6 @@ class EnhancedConsciousAgent: # Orchestrator Class
         except Exception as e: logger.error(f"Error memory norms/response emotions reflect: {e}", exc_info=False)
         return stats_dict
 
-
     def test_completeness(self) -> Tuple[bool, str]:
         logger.info("Performing Completeness Test...")
         if self.current_state is None or not is_safe(self.current_state) or self.current_state.shape != (Config.Agent.STATE_DIM,): return False, "Invalid state"
@@ -238,18 +251,16 @@ class EnhancedConsciousAgent: # Orchestrator Class
         logger.info(f"Completeness Test Result: {consistent}. Details: {details}")
         return consistent, details
 
-    def update_environment(self, event_freq: float, intensities: List[float]): # Now List is defined
+    def update_environment(self, event_freq: float, intensities: List[float]):
         try: self.env.update_params(event_freq, intensities)
         except Exception as e: logger.error(f"Error updating env params: {e}")
 
     def cleanup(self):
-        """Shuts down the thread pool executor."""
         logger.info("Shutting down learn executor...")
         try:
-            # Consider adding a timeout to shutdown
-            self.learn_executor.shutdown(wait=True, cancel_futures=False) # wait=True is generally safer
+            self.learn_executor.shutdown(wait=True, cancel_futures=False)
             logger.info("Learn executor shut down successfully.")
         except Exception as e:
             logger.error(f"Error shutting down learn executor: {e}", exc_info=True)
 
-# --- END OF FILE orchestrator.py ---
+# --- END OF FILE orchestrator.py ---a
