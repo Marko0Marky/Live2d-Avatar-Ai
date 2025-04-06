@@ -4,6 +4,7 @@ from typing import Dict, Tuple, Optional, List, Union
 import concurrent.futures
 import asyncio
 import time
+import math
 
 # Use MasterConfig
 from config import MasterConfig as Config
@@ -13,13 +14,16 @@ from agent import ConsciousAgent
 from graphics import Live2DCharacter
 from utils import is_safe, Experience, MetaCognitiveMemory
 
-ReflectReturnType = Dict[str, Union[float, List[float], int]]
-TrainStepReturnType = Tuple[ReflectReturnType, float, bool, str, float]
+# ReflectReturnType includes mood and monologue string now
+ReflectReturnType = Dict[str, Union[float, List[float], int, str]]
+# TrainStepReturnType now includes monologue string
+TrainStepReturnType = Tuple[ReflectReturnType, float, bool, str, float, str] # Added str for monologue
 
 
 class EnhancedConsciousAgent:
     def __init__(self, train_interval: int = Config.RL.AGENT_TRAIN_INTERVAL, batch_size: int = Config.RL.AGENT_BATCH_SIZE, num_workers: int = 1):
-        logger.info("Initializing EnhancedConsciousAgent Orchestrator (Async Batched Learning + Chat)...")
+        # ... (rest of init remains the same) ...
+        logger.info("Initializing EnhancedConsciousAgent Orchestrator (Async Batched Learning + Chat + Mood)...")
         self.env = EmotionalSpace()
         self.model = ConsciousAgent().to(DEVICE)
         self.avatar = Live2DCharacter()
@@ -36,6 +40,12 @@ class EnhancedConsciousAgent:
 
         self.last_response_emotions: torch.Tensor = self.model.prev_emotions.clone().detach()
         self.current_response: str = "Initializing..."
+        self.mood: torch.Tensor = torch.tensor([0.4, 0.1, 0.5, 0.1, 0.6, 0.2], device=DEVICE, dtype=torch.float32)
+        if self.mood.shape[0] != Config.Agent.EMOTION_DIM:
+            logger.warning(f"Initial mood vector size mismatch. Adjusting to {Config.Agent.EMOTION_DIM}.");
+            self.mood = torch.ones(Config.Agent.EMOTION_DIM, device=DEVICE) * 0.3
+
+        self.last_internal_monologue: str = ""
 
         self.num_workers = max(1, num_workers)
         self.learn_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.num_workers, thread_name_prefix='LearnWorker')
@@ -47,8 +57,10 @@ class EnhancedConsciousAgent:
         except Exception as e: logger.critical(f"Orchestrator Init Error: {e}", exc_info=True); raise RuntimeError("Init state failed.") from e
 
         self.current_event: Optional[str] = self.env.current_event_type
-        logger.info(f"Orchestrator initialized (Async Learn, {self.num_workers} worker(s), Chat Enabled).")
+        logger.info(f"Orchestrator initialized (Async Learn, {self.num_workers} worker(s), Chat Enabled, Mood Enabled).")
 
+
+    # ... (set_hud_widget, _run_learn_task, _check_learn_future remain the same) ...
     def set_hud_widget(self, hud_widget): pass
 
     def _run_learn_task(self) -> Optional[float]:
@@ -71,14 +83,14 @@ class EnhancedConsciousAgent:
             except Exception as e: logger.error(f"Exception retrieving learn task result: {e}"); self.last_reported_loss = -1.0
             finally: self.learn_future = None; self.learn_step_running = False;
 
-    def train_step(self) -> TrainStepReturnType:
-        """ Performs internal simulation step, stores experience with attention-weighted priority, triggers async learning."""
+    def train_step(self) -> TrainStepReturnType: # Use updated return type
+        """ Performs internal step, generates monologue, stores experience, triggers learning, updates mood."""
         self._check_learn_future()
 
         if self.current_state is None or not is_safe(self.current_state) or self.current_state.shape != (Config.Agent.STATE_DIM,):
             logger.error(f"Orchestrator train_step: Invalid state. Resetting.");
             try: self.current_state = self.env.reset(); assert is_safe(self.current_state) and self.current_state.shape==(Config.Agent.STATE_DIM,)
-            except: logger.critical("Reset failed."); return ({'error': True, 'message':"FATAL STATE"}, -1.0, True, "FATAL STATE", self.last_reported_loss)
+            except: logger.critical("Reset failed."); return ({'error': True, 'message':"FATAL STATE", "last_monologue":""}, -1.0, True, "FATAL STATE", self.last_reported_loss, "") # Add "" for monologue
 
         self.total_steps += 1; self.episode_steps += 1
         state_before_step = self.current_state.clone().detach()
@@ -90,19 +102,30 @@ class EnhancedConsciousAgent:
 
         self.last_reward = reward; self.current_event = event_type; self.current_episode_reward_sum += reward
 
-        # --- Agent Step ---
-        att_score_metric = 0.0 # Default attention score
+        att_score_metric = 0.0
+        response_internal = "(Agent step error)"
+        emotions_internal = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
         try:
-            # agent.step returns: current_emotions, response, belief_for_memory, att_score_metric
             emotions_internal, response_internal, belief_for_memory, att_score_metric = self.model.step(state_before_step, reward, self.model.state_history, context_internal)
         except Exception as e:
              logger.error(f"Error agent step: {e}");
              emotions_internal = self.model.prev_emotions if is_safe(self.model.prev_emotions) else torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE);
-             response_internal = "(Agent step error)"; belief_for_memory = torch.zeros(Config.Agent.HIDDEN_DIM, device=DEVICE); att_score_metric = 0.0
-        # --- End Agent Step ---
+             belief_for_memory = torch.zeros(Config.Agent.HIDDEN_DIM, device=DEVICE); att_score_metric = 0.0
 
+        self.last_internal_monologue = ""
+        try:
+            monologue_context = f"Internal state: {context_internal}. Feeling:"
+            temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7)
+            top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)
+            # Generate monologue based on *internal* emotions
+            self.last_internal_monologue = self.model.gpt.generate(monologue_context, emotions_internal, temperature=temp, top_p=top_p, max_len=12)
+            # Only log monologue if it's not empty/fallback
+            if self.last_internal_monologue and self.last_internal_monologue != "...":
+                logger.debug(f"Internal Monologue: '{self.last_internal_monologue}' (based on internal emo: {emotions_internal.cpu().numpy().round(2)})")
+        except Exception as e:
+            logger.error(f"Error generating internal monologue: {e}")
 
-        # --- Store Experience with Attention-Weighted Priority ---
+        # Store Experience
         initial_td_error = MetaCognitiveMemory.INITIAL_TD_ERROR
         with torch.no_grad():
              try:
@@ -115,43 +138,57 @@ class EnhancedConsciousAgent:
                          initial_td_error = abs((target_val - current_value).item())
                  else: logger.warning("Forward mismatch during TD error estimation.")
              except Exception as e: logger.warning(f"Could not estimate initial TD error: {e}")
-
         try:
             belief_to_store = belief_for_memory if isinstance(belief_for_memory, torch.Tensor) and is_safe(belief_for_memory) else None
-            # --- NEW: Calculate priority using attention ---
             base_priority = abs(initial_td_error) + 1e-5
-            attention_factor = 1.0 + Config.RL.PRIORITY_ATTENTION_WEIGHT * max(0.0, min(1.0, att_score_metric)) # Ensure factor is >= 1
+            attention_factor = 1.0 + Config.RL.PRIORITY_ATTENTION_WEIGHT * max(0.0, min(1.0, att_score_metric))
             final_priority = base_priority * attention_factor
-            # --- End Priority Calc ---
-            exp = Experience(state_before_step, belief_to_store, reward, next_state.detach(), env_done, final_priority) # Store final_priority as td_error field for memory
-            self.model.memory.add(exp) # Memory now uses the pre-calculated priority
+            exp = Experience(state_before_step, belief_to_store, reward, next_state.detach(), env_done, final_priority)
+            self.model.memory.add(exp)
+        except AttributeError as ae: logger.error(f"AttributeError adding experience (likely config issue): {ae}", exc_info=True)
         except Exception as e: logger.error(f"Failed adding experience: {e}")
-        # --- End Store Experience ---
 
-
-        # --- Trigger Async Learning ---
+        # Trigger Async Learning
         if not self.learn_step_running and (self.total_steps % self.train_interval == 0) and (len(self.model.memory) >= self.batch_size):
             try: self.learn_future = self.learn_executor.submit(self._run_learn_task); self.learn_step_running = True
             except Exception as e: logger.error(f"Failed submit learn task: {e}"); self.learn_step_running = False
 
-        # --- State Update ---
+        # State Update
         self.current_state = next_state.detach().clone()
 
-        # --- Episode Handling ---
+        # Update Mood
+        try:
+            internal_emotion_this_step = emotions_internal.detach()
+            if is_safe(internal_emotion_this_step) and is_safe(self.mood):
+                decay = Config.RL.MOOD_UPDATE_DECAY
+                self.mood = decay * self.mood + (1.0 - decay) * internal_emotion_this_step
+                self.mood = torch.clamp(self.mood, 0.0, 1.0)
+            elif not is_safe(self.mood):
+                 logger.warning("Mood became unsafe. Resetting to neutral.")
+                 self.mood.fill_(0.3)
+        except Exception as e:
+            logger.error(f"Error updating mood: {e}")
+
+        # Episode Handling
         done = env_done
         if done:
             logger.info(f"Episode {self.episode_count + 1} finished. Steps: {self.episode_steps}. Reward: {self.current_episode_reward_sum:.2f}. Last Learn Loss: {self.last_reported_loss:.4f}")
             self.episode_rewards.append(self.current_episode_reward_sum); self.episode_count += 1
             try: self.current_state = self.env.reset(); assert is_safe(self.current_state) and self.current_state.shape == (Config.Agent.STATE_DIM,)
-            except Exception as e: logger.critical(f"CRITICAL: Failed reset: {e}."); done = True; self.current_state = None; response = "FATAL RESET"; return ({'error': True, 'message':"FATAL RESET"}, reward, done, response, self.last_reported_loss)
+            except Exception as e: logger.critical(f"CRITICAL: Failed reset: {e}."); done = True; self.current_state = None; response = "FATAL RESET"; return ({'error': True, 'message':"FATAL RESET", "last_monologue":""}, reward, done, response, self.last_reported_loss, "") # Add "" for monologue
             self.model.prev_emotions.zero_()
             self.last_response_emotions.zero_()
+            self.mood.fill_(0.3)
             self.episode_steps = 0; self.current_episode_reward_sum = 0.0; self.current_event = self.env.current_event_type;
 
-        metrics_dict = self.reflect()
-        return metrics_dict, reward, done, self.current_response, self.last_reported_loss
+        # orchestrator.py -> train_step (near the end)
 
-    # --- handle_user_chat, reflect, test_completeness, update_environment, cleanup remain the same ---
+        metrics_dict = self.reflect()
+        # --- Add Logging ---
+        logger.debug(f"train_step returning {len(metrics_dict)} metrics, rew={reward}, done={done}, resp='{self.current_response[:10]}...', loss={self.last_reported_loss:.4f}, mono='{self.last_internal_monologue[:10]}...'")
+        # --- End Logging ---
+        return metrics_dict, reward, done, self.current_response, self.last_reported_loss, self.last_internal_monologue
+    # ... (handle_user_chat remains the same) ...
     def handle_user_chat(self, user_text: str) -> str:
         logger.info(f"Handling user chat: '{user_text[:50]}...'")
         if not isinstance(user_text, str) or not user_text.strip(): return "..."
@@ -160,18 +197,23 @@ class EnhancedConsciousAgent:
             impact_vector = self.env.get_emotional_impact_from_text(user_text)
             current_response_emotions = self.last_response_emotions.clone().detach()
 
-            current_max_emo = current_response_emotions.max().item()
+            mood_influence = 0.15
+            biased_current_emotions = torch.clamp(
+                current_response_emotions * (1.0 - mood_influence) + self.mood * mood_influence,
+                0.0, 1.0
+            )
+
+            current_max_emo = biased_current_emotions.max().item()
             blend_factor_user = 0.7 - (current_max_emo * 0.3)
             blend_factor_user = max(0.4, min(0.7, blend_factor_user))
             blend_factor_current = 1.0 - blend_factor_user
-            logger.debug(f"Emotion blend factor (user): {blend_factor_user:.2f}")
 
             blended_emotions = torch.clamp(
-                current_response_emotions * blend_factor_current + impact_vector * blend_factor_user,
+                biased_current_emotions * blend_factor_current + impact_vector * blend_factor_user,
                 0.0, 1.0
             )
             if not is_safe(blended_emotions):
-                logger.warning("Blended emotions unsafe, using previous."); blended_emotions = current_response_emotions
+                logger.warning("Blended emotions unsafe, using previous biased."); blended_emotions = biased_current_emotions
 
             self.last_response_emotions = blended_emotions.clone().detach()
             self.model.prev_emotions = self.model.prev_emotions * 0.5 + self.last_response_emotions * 0.5
@@ -179,13 +221,12 @@ class EnhancedConsciousAgent:
 
             if self.avatar: self.avatar.update_emotions(self.last_response_emotions)
 
-            # Use nucleus sampling parameters from config or defaults
-            temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7) # Get temp from config, fallback 0.7
-            top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)       # Get top_p from config, fallback 0.9
+            temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7)
+            top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)
             response = self.model.gpt.generate(context=user_text, emotions=self.last_response_emotions, temperature=temp, top_p=top_p)
             self.current_response = response
 
-            logger.debug(f"Generated response: '{response}' with emotions: {self.last_response_emotions.cpu().numpy()}")
+            logger.debug(f"Generated response: '{response}' with emotions: {self.last_response_emotions.cpu().numpy().round(2)}")
             return self.current_response
 
         except Exception as e:
@@ -193,11 +234,14 @@ class EnhancedConsciousAgent:
             self.current_response = "Sorry, I had trouble thinking about that."
             return self.current_response
 
+    # Reflect already includes monologue
     def reflect(self) -> ReflectReturnType:
         stats_dict: ReflectReturnType = {
             "avg_reward_last20": 0.0, "total_steps": self.total_steps, "episode": self.episode_count,
             "current_emotions_internal": [0.0]*Config.Agent.EMOTION_DIM,
             "current_emotions_response": [0.0]*Config.Agent.EMOTION_DIM,
+            "current_mood": [0.0]*Config.Agent.EMOTION_DIM,
+            "last_monologue": self.last_internal_monologue, # Added monologue here
             "I_S": 0.0, "rho_struct": 0.0, "att_score": 0.0, "self_consistency": 0.0,
             "rho_score": 0.0, "box_score": 0.0, "tau_t": 0.0, "R_acc": 0.0,
             "loss": self.last_reported_loss, "rho_struct_mem_short": 0.0, "rho_struct_mem_long": 0.0
@@ -218,15 +262,18 @@ class EnhancedConsciousAgent:
                               })
                      else: logger.warning(f"Reflection: forward returned {len(reflect_outputs)} values, expected 12.")
             else: logger.warning(f"Reflection skipped: Invalid state.")
-        except Exception as e: logger.error(f"Error reflect: {e}", exc_info=False);
+        except Exception as e: logger.error(f"Error reflect agent state: {e}", exc_info=False);
         try:
              stats_dict["rho_struct_mem_short"] = self.model.memory.get_short_term_norm();
              stats_dict["rho_struct_mem_long"] = self.model.memory.get_long_term_norm();
              stats_dict["rho_struct"] = stats_dict["rho_struct_mem_short"] * 0.3 + stats_dict["rho_struct_mem_long"] * 0.7
              stats_dict["current_emotions_response"] = self.last_response_emotions.cpu().tolist()
-        except Exception as e: logger.error(f"Error memory norms/response emotions reflect: {e}", exc_info=False)
+             stats_dict["current_mood"] = self.mood.cpu().tolist() if is_safe(self.mood) else [0.0]*Config.Agent.EMOTION_DIM
+        except Exception as e: logger.error(f"Error get memory norms/response emotions/mood reflect: {e}", exc_info=False)
         return stats_dict
 
+
+    # ... (test_completeness, update_environment, cleanup remain the same) ...
     def test_completeness(self) -> Tuple[bool, str]:
         logger.info("Performing Completeness Test...")
         if self.current_state is None or not is_safe(self.current_state) or self.current_state.shape != (Config.Agent.STATE_DIM,): return False, "Invalid state"
@@ -263,4 +310,4 @@ class EnhancedConsciousAgent:
         except Exception as e:
             logger.error(f"Error shutting down learn executor: {e}", exc_info=True)
 
-# --- END OF FILE orchestrator.py ---a
+# --- END OF FILE orchestrator.py ---
