@@ -5,11 +5,10 @@ import logging
 import sys
 import os
 import string
-from typing import List, Tuple, Dict, Optional
-from dataclasses import dataclass, field
+from typing import List, Tuple, Dict, Optional # Added Optional
+from dataclasses import dataclass, field # Added dataclass
 
 # --- Setup logging ---
-# ... (logging setup remains the same) ...
 log_file = "vr_avatar_ai5_run.log"
 log_format = '%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=log_format, handlers=[
@@ -86,6 +85,9 @@ class RLConfig:
     LR_ADAPTIVE_MIN_FACTOR: float = 0.2
     LR_ADAPTIVE_MAX_FACTOR: float = 1.0
     PRIORITY_ATTENTION_WEIGHT: float = 0.5
+    # --- Mood Component --- # <<< SECTION ADDED FOR CLARITY
+    MOOD_UPDATE_DECAY: float = 0.995 # <<< THE MISSING LINE
+
 
 @dataclass
 class NLPConfig:
@@ -96,9 +98,8 @@ class NLPConfig:
     TOKENIZER_PATH: str = "./tokenizer/bpe_agent_tokenizer.json"
     VOCAB_SIZE: int = 1000 # Target size, will be updated after load/train
     SPECIAL_TOKENS: List[str] = field(default_factory=lambda: ["<PAD>", "<START>", "<END>", "<UNK>"])
-    # Add defaults for sampling here if desired
-    GPT_TEMPERATURE: float = 0.7
-    GPT_TOP_P: float = 0.9
+    GPT_TEMPERATURE: float = 0.7 # Default sampling temperature
+    GPT_TOP_P: float = 0.9       # Default nucleus sampling p
 
 
 @dataclass
@@ -219,15 +220,12 @@ for i, item in enumerate(TRAIN_DATA):
     if len(current_weights) != expected_emo_len:
          item["emotion_weights"] = (current_weights + [0.0] * expected_emo_len)[:expected_emo_len]
 
-# --- Initialize Tokenizer *HERE* ---
-# This ensures tokenizer and special IDs are set before other modules might need them
+# --- Initialize Tokenizer ---
 try:
     train_or_load_tokenizer(TRAIN_DATA, MasterConfig.NLP)
 except Exception as e:
     logger.critical(f"CRITICAL: Tokenizer initialization failed during config setup: {e}", exc_info=True)
-    sys.exit(1) # Stop execution if tokenizer fails
-# --- End Tokenizer Initialization ---
-
+    sys.exit(1)
 
 # --- Config Validation ---
 if MasterConfig.Agent.STATE_DIM != MasterConfig.Agent.EMOTION_DIM + 6:
