@@ -12,15 +12,14 @@ from config import MasterConfig as Config
 from config import DEVICE, logger, TRAIN_DATA, tokenizer, tokenize, detokenize, PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID, UNK_TOKEN_ID
 from utils import is_safe
 
-# --- EmotionalModule ---
+# --- EmotionalModule (Remains the same) ---
 class EmotionalModule(nn.Module):
-    def __init__(self, input_dim: int = Config.Agent.EMOTION_DIM + 1): # Added type hint
+    def __init__(self, input_dim: int = Config.Agent.EMOTION_DIM + 1):
          super().__init__();
          self.input_dim=input_dim;
          self.fc=nn.Sequential(nn.Linear(self.input_dim, 32), nn.ReLU(), nn.Linear(32, Config.Agent.EMOTION_DIM), nn.Sigmoid());
          self.decay=0.85
-    def forward(self, state_emo_part_batch: torch.Tensor, reward_batch: torch.Tensor, prev_emotions_batch: torch.Tensor) -> torch.Tensor: # Added type hints
-        # --- Improved Shape Check and Logging ---
+    def forward(self, state_emo_part_batch: torch.Tensor, reward_batch: torch.Tensor, prev_emotions_batch: torch.Tensor) -> torch.Tensor:
         if not isinstance(state_emo_part_batch, torch.Tensor) or \
            not isinstance(reward_batch, torch.Tensor) or \
            not isinstance(prev_emotions_batch, torch.Tensor):
@@ -29,7 +28,6 @@ class EmotionalModule(nn.Module):
                  (reward_batch.shape[0] if isinstance(reward_batch, torch.Tensor) and reward_batch.ndim > 0 else 1)
             return torch.zeros(bs, Config.Agent.EMOTION_DIM, device=DEVICE)
 
-        # Batch size should now always be >= 1
         batch_size = state_emo_part_batch.shape[0]
         expected_state_shape = (batch_size, Config.Agent.EMOTION_DIM)
         expected_reward_shape = (batch_size, 1)
@@ -43,7 +41,6 @@ class EmotionalModule(nn.Module):
                           f"Got:"
                           f" State={state_emo_part_batch.shape}, Reward={reward_batch.shape}, Prev={prev_emotions_batch.shape}")
              return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
-        # --- End Improved Check ---
 
         if not is_safe(state_emo_part_batch) or not is_safe(reward_batch) or not is_safe(prev_emotions_batch): logger.warning("EmoMod Batch Unsafe."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
 
@@ -61,15 +58,14 @@ class EmotionalModule(nn.Module):
         if not is_safe(final_emotions): logger.error("EmoMod Batch Unsafe Out."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
         return final_emotions
 
-# --- SyntrixKorporator ---
+# --- SyntrixKorporator (Remains the same) ---
 class SyntrixKorporator(nn.Module):
-    """Implements the Korporator component with optimized batch processing."""
-    def __init__(self, input_dim: int, hidden_dim: int, m: int = 6): # Added type hints
+    def __init__(self, input_dim: int, hidden_dim: int, m: int = 6):
         super().__init__()
         if not isinstance(input_dim, int) or input_dim <= 0 or \
            not isinstance(hidden_dim, int) or hidden_dim <= 0: raise ValueError(f"Korporator: invalid dims.")
         self.input_dim = input_dim; self.hidden_dim = hidden_dim
-        self.metrophor = nn.Parameter(torch.randn(hidden_dim, device=DEVICE) * 0.1) # Metrophor should be hidden_dim
+        self.metrophor = nn.Parameter(torch.randn(hidden_dim, device=DEVICE) * 0.1)
         if hidden_dim < 2: self.m = 1 if hidden_dim == 1 else 0
         else: self.m = min(m, hidden_dim // 2)
         if self.m <= 0: raise ValueError(f"Korporator: m={self.m} invalid for hidden_dim={hidden_dim}.")
@@ -77,8 +73,7 @@ class SyntrixKorporator(nn.Module):
         self.Km = nn.Linear(self.k_input_dim, hidden_dim); self.Cm = nn.Linear(self.k_input_dim, hidden_dim)
         self.input_projector = nn.Sequential(nn.Linear(self.input_dim, self.hidden_dim), nn.ReLU()).to(DEVICE)
 
-    def forward(self, phi_input: torch.Tensor, psi_input: torch.Tensor, level: int = 1) -> torch.Tensor: # Added type hints
-        """ Performs Korporator operation, optimized for batches."""
+    def forward(self, phi_input: torch.Tensor, psi_input: torch.Tensor, level: int = 1) -> torch.Tensor:
         if not isinstance(phi_input, torch.Tensor) or not isinstance(psi_input, torch.Tensor): logger.warning("Korp Fwd: Invalid types."); return torch.zeros(1, self.hidden_dim, device=DEVICE)
         was_single = phi_input.ndim == 1
         phi_batch = phi_input.unsqueeze(0) if was_single else phi_input
@@ -121,15 +116,14 @@ class SyntrixKorporator(nn.Module):
         return final_structure.squeeze(0) if was_single else final_structure
 
 
-# --- StrukturKaskade ---
+# --- StrukturKaskade (Remains the same) ---
 class StrukturKaskade(nn.Module):
-    """Implements a cascade of linear layers with ReLU activations for hierarchical processing."""
-    def __init__(self, input_dim: int, hidden_dim: int, levels: int = Config.Agent.CASCADE_LEVELS): # Added type hints
+    def __init__(self, input_dim: int, hidden_dim: int, levels: int = Config.Agent.CASCADE_LEVELS):
         super().__init__()
         self.levels=max(1, int(levels))
         layers=[]
         current_dim=input_dim
-        self._output_dim=input_dim # Default output dim is input dim
+        self._output_dim=input_dim
         self.num_actual_layers=0
         self._input_dim=input_dim
 
@@ -155,7 +149,7 @@ class StrukturKaskade(nn.Module):
                 self.network=nn.Sequential(*layers);
                 self.num_actual_layers=len([l for l in layers if isinstance(l, nn.Linear)])
 
-    def forward(self, x_input: torch.Tensor) -> torch.Tensor: # Added type hints
+    def forward(self, x_input: torch.Tensor) -> torch.Tensor:
         if not isinstance(x_input, torch.Tensor): logger.warning("Kaskade NaN input"); return torch.zeros(1, self._output_dim, device=DEVICE)
         if x_input.device != DEVICE: x_input = x_input.to(DEVICE)
         if not is_safe(x_input): logger.warning("Kaskade Unsafe input"); return torch.zeros_like(x_input)
@@ -192,7 +186,7 @@ class StrukturKaskade(nn.Module):
 
 # --- SimpleGPT ---
 class SimpleGPT(nn.Module):
-    """A basic Transformer-based model using the BPE tokenizer."""
+    # ... (__init__, _get_positional_encoding, _generate_square_subsequent_mask, forward, train_model remain the same) ...
     def __init__(self, vocab_size: int = Config.NLP.VOCAB_SIZE, embed_dim: int = 64, hidden_dim: int = 128, num_heads: int = 4): # Added type hints
         super().__init__();
         logger.info(f"Initializing SimpleGPT with vocab_size={vocab_size} (from Tokenizer)")
@@ -205,7 +199,6 @@ class SimpleGPT(nn.Module):
         self.vocab_size = vocab_size; self.embed_dim = embed_dim; self.hidden_dim = hidden_dim; self.num_heads = num_heads;
         self.max_len = Config.NLP.MAX_RESPONSE_LEN
 
-        # Use PAD_TOKEN_ID from config (set after tokenizer load)
         if PAD_TOKEN_ID is None: raise ValueError("PAD_TOKEN_ID not set in config before GPT init")
         self.embedding = nn.Embedding(self.vocab_size, self.embed_dim, padding_idx=PAD_TOKEN_ID)
 
@@ -218,7 +211,6 @@ class SimpleGPT(nn.Module):
              else:
                  logger.error(f"Invalid GPT embed_dim ({embed_dim}) - no possible head count found <= {original_heads}. Falling back to 1 head.")
                  self.num_heads = 1
-
 
         try:
             encoder_layer = nn.TransformerEncoderLayer(
@@ -235,8 +227,7 @@ class SimpleGPT(nn.Module):
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN_ID)
         self.emotion_bias_layer = nn.Linear(4, self.embed_dim).to(DEVICE)
 
-    def _get_positional_encoding(self, seq_len: int, batch_size: int = 1) -> torch.Tensor: # Added type hints
-        """Generates standard sinusoidal positional encoding."""
+    def _get_positional_encoding(self, seq_len: int, batch_size: int = 1) -> torch.Tensor:
         if not isinstance(seq_len, int) or seq_len <= 0 or self.embed_dim <= 0:
             logger.warning(f"Cannot get positional encoding for seq_len={seq_len}, embed_dim={self.embed_dim}. Returning zeros.");
             return torch.zeros(batch_size, seq_len, self.embed_dim, device=DEVICE)
@@ -252,14 +243,12 @@ class SimpleGPT(nn.Module):
 
         return pe.unsqueeze(0).repeat(batch_size, 1, 1)
 
-    def _generate_square_subsequent_mask(self, sz: int) -> Optional[torch.Tensor]: # Added type hints
-        """Generates a square causal mask for the Transformer."""
+    def _generate_square_subsequent_mask(self, sz: int) -> Optional[torch.Tensor]:
         if not isinstance(sz, int) or sz <= 0: return None
         mask = torch.triu(torch.ones(sz, sz, device=DEVICE) * float('-inf'), diagonal=1)
         return mask
 
-    def forward(self, input_ids: torch.Tensor, emotion_vector: Optional[torch.Tensor] = None) -> torch.Tensor: # Added type hints
-        """Forward pass through the GPT model."""
+    def forward(self, input_ids: torch.Tensor, emotion_vector: Optional[torch.Tensor] = None) -> torch.Tensor:
         if not isinstance(input_ids, torch.Tensor) or input_ids.ndim != 2:
             if isinstance(input_ids, torch.Tensor) and input_ids.ndim == 1:
                  input_ids = input_ids.unsqueeze(0)
@@ -343,8 +332,7 @@ class SimpleGPT(nn.Module):
 
         return logits
 
-    def train_model(self, dataset: List[Dict[str, str]], epochs: int = Config.NLP.TRAIN_EPOCHS): # Type hint dataset
-        """Trains the GPT model on the provided dataset using the BPE tokenizer."""
+    def train_model(self, dataset: List[Dict[str, str]], epochs: int = Config.NLP.TRAIN_EPOCHS):
         if not dataset or not isinstance(dataset, list) or len(dataset) == 0:
             logger.warning("GPT Training skipped: Invalid or empty dataset provided."); self.eval(); return
         if tokenizer is None or PAD_TOKEN_ID is None or START_TOKEN_ID is None or END_TOKEN_ID is None:
@@ -439,9 +427,13 @@ class SimpleGPT(nn.Module):
 
         logger.info("SimpleGPT training finished."); self.eval()
 
-
-    def generate(self, context: Optional[str], emotions: Optional[torch.Tensor], max_len: int = Config.NLP.MAX_RESPONSE_LEN) -> str:
-        """Generates text based on context and emotions using the BPE tokenizer."""
+    # --- MODIFIED: Added temperature and top_p for Nucleus Sampling ---
+    def generate(self, context: Optional[str], emotions: Optional[torch.Tensor],
+                 max_len: int = Config.NLP.MAX_RESPONSE_LEN,
+                 temperature: float = 0.7, # Default temperature
+                 top_p: float = 0.9        # Default nucleus probability
+                 ) -> str:
+        """Generates text using Nucleus Sampling (Top-P)."""
         self.eval();
         if tokenizer is None or PAD_TOKEN_ID is None or START_TOKEN_ID is None or END_TOKEN_ID is None or UNK_TOKEN_ID is None:
              logger.error("Cannot generate: Tokenizer or special tokens not initialized."); return "Error: Tokenizer missing."
@@ -477,6 +469,7 @@ class SimpleGPT(nn.Module):
             else:
                  logger.warning("GPT Gen: Unsafe emotions tensor provided. Using zeros for bias.")
 
+        # --- Generation Loop with Nucleus Sampling ---
         with torch.no_grad():
             for _ in range(max_len - output_ids.size(1)):
                 current_seq_len = output_ids.size(1)
@@ -490,23 +483,65 @@ class SimpleGPT(nn.Module):
                     if not isinstance(logits, torch.Tensor) or logits.ndim != 3 or logits.shape[0] != 1 or logits.shape[1] != input_for_forward.shape[1] or logits.shape[2] != self.vocab_size:
                         logger.warning(f"GPT Gen Loop: Invalid logits shape {logits.shape}. Expected (1, {current_seq_len}, {self.vocab_size}). Breaking."); break;
 
-                    next_token_logits = logits[:, -1, :]
+                    # --- Start Nucleus Sampling Logic ---
+                    next_token_logits = logits[:, -1, :] # Logits for the next token
+
+                    # Apply Temperature
+                    if temperature > 0 and temperature != 1.0:
+                        next_token_logits = next_token_logits / temperature
+
+                    # Filter special tokens BEFORE softmax/sorting
                     next_token_logits[:, PAD_TOKEN_ID] = -float('inf');
                     next_token_logits[:, START_TOKEN_ID] = -float('inf');
                     next_token_logits[:, UNK_TOKEN_ID] = -float('inf');
 
-                    next_token = torch.argmax(next_token_logits, dim=-1)
+                    # Calculate probabilities
+                    probs = F.softmax(next_token_logits, dim=-1)
 
+                    # Sort probabilities and indices
+                    sorted_probs, sorted_indices = torch.sort(probs, descending=True, dim=-1)
+                    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+
+                    # Create mask for nucleus (tokens to keep)
+                    sorted_indices_to_remove = cumulative_probs > top_p
+                    # Shift mask to ensure the first token exceeding top_p is kept
+                    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                    sorted_indices_to_remove[..., 0] = 0 # Always keep the most probable token
+
+                    # Map sorted indices back to original vocabulary indices
+                    # Create a tensor of False, then scatter True values for indices to remove
+                    indices_to_remove = torch.zeros_like(probs, dtype=torch.bool).scatter_(
+                        dim=-1, index=sorted_indices, src=sorted_indices_to_remove
+                    )
+
+                    # Apply the mask to the original probabilities tensor
+                    probs_filtered = probs.masked_fill(indices_to_remove, 0.0)
+
+                    # Handle potential edge case where all probabilities become zero
+                    if torch.sum(probs_filtered, dim=-1) <= 1e-6:
+                        logger.warning("Top-p filtering resulted in near-zero probability sum. Using argmax fallback.")
+                        # Fallback to argmax on the *original* filtered logits (before softmax)
+                        next_token_logits[indices_to_remove] = -float('inf') # Ensure masked logits are -inf
+                        next_token = torch.argmax(next_token_logits, dim=-1)
+                    else:
+                        # Renormalize the filtered probabilities
+                        probs_renormalized = probs_filtered / torch.sum(probs_filtered, dim=-1, keepdim=True)
+                        # Sample from the renormalized distribution
+                        next_token = torch.multinomial(probs_renormalized, num_samples=1).squeeze(1)
+                    # --- End Nucleus Sampling Logic ---
+
+                    # Append generated token
                     output_ids = torch.cat([output_ids, next_token.unsqueeze(1)], dim=1)
 
+                    # Stop if END token is generated or max length is exceeded
                     if next_token.item() == END_TOKEN_ID: break
                     if output_ids.size(1) >= max_len: break
 
                 except Exception as e:
                     logger.error(f"Error in GPT generation loop step: {e}", exc_info=True); break
 
+        # --- Decode Final Output ---
         generated_indices_list = output_ids[0].cpu().tolist() if output_ids.numel() > 0 else []
-
         response = detokenize(generated_indices_list)
 
         if not response.strip():
@@ -524,4 +559,5 @@ class SimpleGPT(nn.Module):
             response = fallback_response
 
         return response.strip()
+
 # --- END OF FILE ai_modules.py ---
