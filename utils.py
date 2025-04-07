@@ -152,7 +152,6 @@ class MetaCognitiveMemory:
          priorities_float = np.array([float(p) for p in self.priorities], dtype=np.float64)
          if np.sum(priorities_float) <= 1e-9 : # Use small epsilon for sum check
              probs = np.ones_like(priorities_float) / len(priorities_float) if len(priorities_float) > 0 else None;
-             # logger.debug("Memory Sample: Zero/Neg priorities. Using uniform probabilities.") # Can be noisy
          else:
              probs = priorities_float ** Config.RL.PER_ALPHA;
              probs /= probs.sum()
