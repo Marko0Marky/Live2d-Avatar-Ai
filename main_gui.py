@@ -3,13 +3,17 @@ import html
 import logging
 import torch
 from typing import Dict, List, Optional, TYPE_CHECKING, Union
+import os # Added for save/load path checks
+import time # <-- ADDED Import
 
 from config import MasterConfig as Config
 from config import logger, DEVICE, log_file
+# Import save/load paths
+from config import AGENT_SAVE_PATH, GPT_SAVE_PATH, OPTIMIZER_SAVE_PATH, REPLAY_BUFFER_SAVE_PATH
 try:
     from PyQt5.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QGroupBox,
                                  QSlider, QLabel, QTextEdit, QSizePolicy, QMessageBox,
-                                 QPushButton, QLineEdit)
+                                 QPushButton, QLineEdit, QApplication) # <-- ADDED QApplication
     from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QEvent
     from PyQt5.QtGui import QKeyEvent, QCloseEvent
 except ImportError as e: logger.critical(f"main_gui.py: PyQt5 import failed: {e}."); raise
@@ -39,10 +43,22 @@ class EnhancedGameGUI(QMainWindow):
         self.avatar_widget.setParent(avatar_container); avatar_layout.addWidget(self.avatar_widget)
         self.hud_widget=HUDWidget(self.agent, avatar_container); self.agent.set_hud_widget(self.hud_widget); self.hud_widget.setGeometry(15, 15, 250, 280); self.hud_widget.raise_()
         main_layout.addWidget(avatar_container, 7)
-        right_panel_widget=QWidget(); right_panel_layout=QVBoxLayout(right_panel_widget); right_panel_layout.setContentsMargins(5,0,5,0); right_panel_layout.setSpacing(10)
+        right_panel_widget=QWidget(); right_panel_layout=QVBoxLayout(right_panel_widget); right_panel_layout.setContentsMargins(5, 0, 5, 0); right_panel_layout.setSpacing(10)
         self.state_widget=AIStateWidget(self.agent); right_panel_layout.addWidget(self.state_widget)
         self.control_group=self._create_control_group(); right_panel_layout.addWidget(self.control_group)
-        self.chat_group=self._create_chat_group(); right_panel_layout.addWidget(self.chat_group, 1)
+        # --- ADDED: Save/Load Button Layout ---
+        save_load_layout = QHBoxLayout()
+        self.save_button = QPushButton("Save Agent")
+        self.load_button = QPushButton("Load Agent")
+        self.save_button.setStyleSheet("QPushButton { font-size: 10px; padding: 4px 10px; background-color: #2a5d65; color: white; border-radius: 3px; border: 1px solid #1a3a40; } QPushButton:hover { background-color: #3a7d85; } QPushButton:pressed { background-color: #1a3a40; }")
+        self.load_button.setStyleSheet("QPushButton { font-size: 10px; padding: 4px 10px; background-color: #5d4037; color: white; border-radius: 3px; border: 1px solid #3e2723; } QPushButton:hover { background-color: #7d5a4f; } QPushButton:pressed { background-color: #3e2723; }")
+        self.save_button.clicked.connect(self._save_agent_state)
+        self.load_button.clicked.connect(self._load_agent_state)
+        save_load_layout.addWidget(self.save_button)
+        save_load_layout.addWidget(self.load_button)
+        right_panel_layout.addLayout(save_load_layout) # Add below controls
+        # --- END ADDED ---
+        self.chat_group=self._create_chat_group(); right_panel_layout.addWidget(self.chat_group, 1) # Chat group takes remaining space
         right_panel_widget.setMinimumWidth(340); right_panel_widget.setMaximumWidth(480); right_panel_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding); main_layout.addWidget(right_panel_widget, 3)
         self.timer=QTimer(self); self.timer.timeout.connect(self.update_game)
         # Signal connections
@@ -250,6 +266,68 @@ class EnhancedGameGUI(QMainWindow):
             event.accept()
         else:
             super().keyPressEvent(event) # Pass unhandled keys up
+
+    # --- ADDED: Save/Load Methods ---
+    def _save_agent_state(self):
+        """Handles the Save Agent button click."""
+        was_paused = self.paused
+        if not was_paused:
+            self._pause_simulation(force_pause=True) # Pause before saving
+            QApplication.processEvents() # Process pause event <--- FIXED
+            time.sleep(0.1) # Brief pause <--- FIXED
+
+        logger.info("Save button clicked. Attempting to save agent state...")
+        try:
+            self.agent.save_agent()
+            QMessageBox.information(self, "Save Successful", f"Agent state saved successfully.")
+        except Exception as e:
+            logger.error(f"Error saving agent state via GUI: {e}", exc_info=True)
+            QMessageBox.critical(self, "Save Failed", f"Could not save agent state:\n{e}")
+
+        if not was_paused:
+            self._pause_simulation() # Resume if it was running before
+
+    def _load_agent_state(self):
+        """Handles the Load Agent button click."""
+        was_paused = self.paused
+        if not was_paused:
+            self._pause_simulation(force_pause=True) # Pause before loading
+            QApplication.processEvents() # Process pause event <--- FIXED
+            time.sleep(0.1) # Brief pause <--- FIXED
+
+        logger.info("Load button clicked. Attempting to load agent state...")
+        try:
+            # Check if files exist before attempting load
+            paths_exist = all(os.path.exists(p) for p in [AGENT_SAVE_PATH, GPT_SAVE_PATH]) # Check core model files
+            if not paths_exist:
+                QMessageBox.warning(self, "Load Failed", f"Cannot load: Core model file(s) not found.\nChecked:\n{AGENT_SAVE_PATH}\n{GPT_SAVE_PATH}")
+                if not was_paused: self._pause_simulation() # Resume if paused for load
+                return
+
+            if self.agent.load_agent():
+                 QMessageBox.information(self, "Load Successful", "Agent state loaded successfully.")
+                 # Reset some runtime state after loading
+                 self.agent.last_response_emotions = self.agent.model.prev_emotions.clone().detach()
+                 self.agent.mood = torch.ones_like(self.agent.model.prev_emotions) * 0.5 # Reset mood
+                 self.agent.conversation_history.clear()
+                 self.agent.last_internal_monologue = ""
+                 self.agent.current_response = "Loaded state."
+                 # Update display immediately
+                 stats = self.agent.reflect()
+                 self.state_widget.update_display(stats, self.agent.last_response_emotions, self.agent.last_reported_loss)
+                 self.hud_widget.update_hud(self.agent.last_response_emotions, self.agent.current_response, stats)
+                 self.chat_display.clear()
+                 self.chat_display.append("<font color='#FFCC80'><i>Agent state loaded.</i></font>")
+
+            else:
+                 QMessageBox.critical(self, "Load Failed", "Failed to load agent state. Check logs for details.")
+        except Exception as e:
+            logger.error(f"Error loading agent state via GUI: {e}", exc_info=True)
+            QMessageBox.critical(self, "Load Failed", f"An unexpected error occurred during loading:\n{e}")
+
+        if not was_paused:
+            self._pause_simulation() # Resume if it was running before
+    # --- END ADDED ---
 
     def closeEvent(self, event: QCloseEvent):
         """Handles cleanup when the main window is closed."""
