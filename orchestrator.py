@@ -23,6 +23,7 @@ from graphics import Live2DCharacter
 from utils import is_safe, Experience, MetaCognitiveMemory
 
 ReflectReturnType = Dict[str, Union[float, List[float], int, str, np.ndarray]]
+# --- MODIFIED: Return 7 items ---
 TrainStepReturnType = Tuple[ReflectReturnType, float, bool, str, float, str, str]
 
 
@@ -36,29 +37,29 @@ class EnhancedConsciousAgent:
         self.st_model: Optional[SentenceTransformer] = None
         if Config.Agent.USE_LANGUAGE_EMBEDDING:
             if SENTENCE_TRANSFORMERS_AVAILABLE:
-                # Error L99: Try needs except/finally; Error L100: Indentation; Error L103, L104, L105: Expected expression
-                try: # Corrected indentation
+                try: # Corrected indentation and added except block
                     model_name = Config.NLP.SENTENCE_TRANSFORMER_MODEL
                     logger.info(f"Loading sentence transformer: {model_name}...")
                     self.st_model = SentenceTransformer(model_name, device=str(DEVICE))
-                    with torch.no_grad(): # Added no_grad for check
+                    with torch.no_grad():
                         test_emb = self.st_model.encode(["test"], convert_to_tensor=True)[0]
                     actual_dim = test_emb.shape[0]
                     expected_dim = Config.Agent.LANGUAGE_EMBEDDING_DIM
                     if actual_dim != expected_dim:
-                         logger.critical(f"FATAL: ST model dim ({actual_dim}) != Config dim ({expected_dim}).")
+                         logger.critical(f"FATAL: ST model dim ({actual_dim}) != Config dim ({expected_dim}). Check model name '{model_name}' or config LANGUAGE_EMBEDDING_DIM.")
                          sys.exit(1)
                     logger.info(f"Sentence transformer loaded to {self.st_model.device}. Output dim: {actual_dim}.")
                 except Exception as e: # Added except block
                     logger.error(f"Failed load ST model '{Config.NLP.SENTENCE_TRANSFORMER_MODEL}': {e}. Disabling.", exc_info=True)
                     self.st_model = None
                     Config.Agent.USE_LANGUAGE_EMBEDDING = False
-                    Config.Agent.__post_init__(Config.Agent)
+                    # Use dataclass method directly to trigger recalculation
+                    Config.Agent.__post_init__() # Recalculate STATE_DIM
                     logger.warning(f"Lang embedding disabled. Agent STATE_DIM recalced: {Config.Agent.STATE_DIM}")
             else:
                  logger.warning("SentenceTransformers not found. Disabling language embedding.")
                  Config.Agent.USE_LANGUAGE_EMBEDDING = False
-                 Config.Agent.__post_init__(Config.Agent)
+                 Config.Agent.__post_init__() # Recalculate STATE_DIM
                  logger.warning(f"Lang embedding disabled. Agent STATE_DIM recalced: {Config.Agent.STATE_DIM}")
         else:
              logger.info("Language embedding in state is disabled via config.")
@@ -85,7 +86,6 @@ class EnhancedConsciousAgent:
         self.current_event: Optional[str] = self.env.current_event_type
         logger.info(f"Orchestrator initialized (LangEmbed={'Enabled' if Config.Agent.USE_LANGUAGE_EMBEDDING else 'Disabled'}, StateDim={Config.Agent.STATE_DIM}).")
 
-    # ... (_get_combined_state, set_hud_widget, _run_learn_task, _check_learn_future unchanged) ...
     def _get_combined_state(self, base_state: torch.Tensor, context: str = "step") -> torch.Tensor:
         if base_state is None or not isinstance(base_state, torch.Tensor): logger.error(f"[{context}] Invalid base_state: {type(base_state)}. Zeros."); return torch.zeros(Config.Agent.STATE_DIM, device=DEVICE, dtype=torch.float32)
         base_state_dev = base_state.to(DEVICE)
@@ -103,9 +103,9 @@ class EnhancedConsciousAgent:
              return base_state_dev
 
     def set_hud_widget(self, hud_widget): self.hud_widget = hud_widget; logger.debug("HUD widget ref stored.")
-    
+
     def _run_learn_task(self) -> Optional[float]:
-        loss = None # Initialize loss to None
+        loss = None
         try:
             if len(self.model.memory) >= self.batch_size:
                  loss = self.model.learn(self.batch_size)
@@ -113,10 +113,9 @@ class EnhancedConsciousAgent:
                  loss = 0.0
         except Exception as e:
              logger.error(f"Exception in learn task thread: {e}", exc_info=True)
-             loss = -1.0 # Assign error value
-        # Removed semicolon after loss assignment
-        return loss
-    
+             loss = -1.0
+        return loss # Removed semicolon
+
     def _check_learn_future(self):
         if self.learn_future and self.learn_future.done():
             try:
@@ -139,6 +138,7 @@ class EnhancedConsciousAgent:
                 self.learn_future = None
                 self.learn_step_running = False # Removed semicolon
 
+    # --- MODIFIED: Returns 7 items ---
     def train_step(self) -> TrainStepReturnType:
         self._check_learn_future()
         if self.current_state is None or not is_safe(self.current_state) or self.current_state.shape[0] != Config.Agent.STATE_DIM:
@@ -152,6 +152,7 @@ class EnhancedConsciousAgent:
             except Exception as reset_err:
                  logger.critical(f"CRITICAL RESET FAILED: {reset_err}. Stopping.");
                  default_metrics = {'error': True, 'message':"FATAL STATE RESET", "last_monologue":"", "embedding_norm": 0.0, "base_state_norm": 0.0}
+                 # Return tuple matching TrainStepReturnType
                  return (default_metrics, -1.0, True, "FATAL STATE", self.last_reported_loss, "", "idle")
         self.total_steps += 1; self.episode_steps += 1
         state_before_step_combined = self.current_state.clone().detach()
@@ -225,8 +226,10 @@ class EnhancedConsciousAgent:
             except Exception as e:
                  logger.critical(f"CRITICAL: Failed episode reset: {e}. Stopping."); done = True;
                  default_metrics = {'error': True, 'message':"FATAL EPISODE RESET", "last_monologue":"", "embedding_norm": 0.0, "base_state_norm": 0.0}
+                 # Return tuple matching TrainStepReturnType
                  return (default_metrics, reward, done, "FATAL RESET", self.last_reported_loss, "", "idle")
         metrics_dict = self.reflect()
+        # --- MODIFIED: Return 7 items ---
         return metrics_dict, reward, done, self.current_response, self.last_reported_loss, self.last_internal_monologue, predicted_hm_label
 
     def handle_user_chat(self, user_text: str) -> str:
@@ -256,17 +259,15 @@ class EnhancedConsciousAgent:
             context_for_gpt = ""; history_turns = list(self.conversation_history)
             for speaker, text in reversed(history_turns):
                 turn = f"{speaker}: {text}\n"
-                 # Error L263: break outside loop fixed
                 if len(context_for_gpt) + len(turn) > 512:
-                    break # Correct indentation
-                context_for_gpt = turn + context_for_gpt # Correct indentation
+                    break # Corrected indentation
+                context_for_gpt = turn + context_for_gpt # Corrected indentation
             temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7); top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)
             response = self.model.gpt.generate(context=context_for_gpt, emotions=self.last_response_emotions, temperature=temp, top_p=top_p)
             self.current_response = response
             self.conversation_history.append(("AI", self.current_response))
             predicted_chat_hm_label = "idle"
             if self.current_state is not None and is_safe(self.current_state) and self.current_state.shape[0] == Config.Agent.STATE_DIM:
-                # Error L345: Try needs except/finally; Error L347: Expected expression
                 try: # Added try
                     self.model.eval()
                     with torch.no_grad():
@@ -332,10 +333,10 @@ class EnhancedConsciousAgent:
         except Exception as e: logger.error(f"Error completeness test: {e}"); details = f"Exception: {e}"
         logger.info(f"Completeness Test Result: {consistent}. Details: {details}"); return consistent, details
 
-    def update_environment(self, event_freq: float, intensities: List[float]): 
-        try: self.env.update_params(event_freq, intensities); 
+    def update_environment(self, event_freq: float, intensities: List[float]):
+        try: self.env.update_params(event_freq, intensities);
         except Exception as e: logger.error(f"Error updating env params: {e}")
-    
+
     def cleanup(self):
         logger.info("--- Orchestrator Cleanup Initiated ---")
         logger.info("Shutting down learn executor...")
