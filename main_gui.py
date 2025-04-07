@@ -31,7 +31,7 @@ class EnhancedGameGUI(QMainWindow):
         except Exception as e: logger.error(f"Failed get init env params: {e}"); self.intensities=[0.5]*Config.Agent.EMOTION_DIM; self.event_freq=0.3
         self.completeness_check_interval: int = 200; self.steps_since_last_check: int = 0
         window_title = f"Syntrometrie Conscious Agent (VrAvatar Ai5 - Chat - {DEVICE})"; self.setWindowTitle(window_title); self.setGeometry(100, 100, 1400, 800); self.setStyleSheet("QMainWindow { background-color: #181828; }")
-        # Layout setup remains the same
+        # Layout setup
         main_widget=QWidget(); self.setCentralWidget(main_widget); main_layout=QHBoxLayout(main_widget); main_layout.setContentsMargins(5,5,5,5); main_layout.setSpacing(8)
         avatar_container=QWidget(); avatar_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding); avatar_layout=QVBoxLayout(avatar_container); avatar_layout.setContentsMargins(0,0,0,0)
         self.avatar_widget = self.agent.avatar
@@ -45,7 +45,7 @@ class EnhancedGameGUI(QMainWindow):
         self.chat_group=self._create_chat_group(); right_panel_layout.addWidget(self.chat_group, 1)
         right_panel_widget.setMinimumWidth(340); right_panel_widget.setMaximumWidth(480); right_panel_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding); main_layout.addWidget(right_panel_widget, 3)
         self.timer=QTimer(self); self.timer.timeout.connect(self.update_game)
-        # Signal connections remain the same
+        # Signal connections
         self.avatar_widget.character_initialized.connect(self._handle_avatar_init); self.avatar_widget.error_occurred.connect(self._handle_avatar_error); self.state_widget.request_completeness_test.connect(self._run_manual_completeness_test)
         if hasattr(self, 'chat_input'): self.chat_input.returnPressed.connect(self.send_message); logger.debug("Connected chat_input returnPressed signal.")
         else: logger.error("CRITICAL: chat_input widget not found after _create_chat_group!")
@@ -131,8 +131,6 @@ class EnhancedGameGUI(QMainWindow):
         # Scroll chat display to the bottom
         sb = self.chat_display.verticalScrollBar(); sb.setValue(sb.maximum())
 
-
-    # --- MODIFIED: Unpack 7 items, pass predicted movement ---
     def update_game(self):
         """Main update loop: steps simulation, triggers learning, updates GUI."""
         if self.paused: return
@@ -141,13 +139,13 @@ class EnhancedGameGUI(QMainWindow):
 
             if isinstance(step_results, dict) and step_results.get('error'):
                  logger.error(f"Orchestrator error: {step_results.get('message', 'Unknown')}. Pausing."); self._pause_simulation(force_pause=True); self.state_widget.set_status(step_results.get("message", "Error!"), "#F44336"); return
-            # --- Check for 7 items ---
+            # Check for 7 items
             if not isinstance(step_results, tuple) or len(step_results) != 7:
                  logger.error(f"Orchestrator returned invalid results ({len(step_results)} items, expected 7). Pausing.")
                  self._pause_simulation(force_pause=True); self.state_widget.set_status("Step Return Error!", "#F44336")
                  return
 
-            # --- Unpack 7 items ---
+            # Unpack 7 items
             metrics, reward, done, response, loss_value, monologue, predicted_hm_label = step_results
             self.last_reward = reward; self.last_loss = loss_value
 
