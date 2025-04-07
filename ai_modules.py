@@ -7,20 +7,46 @@ import torch.nn.functional as F
 import math
 import random
 from typing import Dict, Optional, Tuple, List, Any # Added Any
+import os # Added os
 
 # Use MasterConfig and tokenizer/data variables
 from config import MasterConfig as Config
 from config import DEVICE, logger, TRAIN_DATA, tokenizer, tokenize, detokenize, PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID, UNK_TOKEN_ID
+# --- Added: Import NUM_HEAD_MOVEMENTS ---
+from config import NUM_HEAD_MOVEMENTS
+# ---
 from utils import is_safe
 
-# --- EmotionalModule (Remains the same) ---
+# --- EmotionalModule (MODIFIED for variable decay) ---
 class EmotionalModule(nn.Module):
     # Input dim is still EMOTION_DIM + 1 (reward)
     def __init__(self, input_dim: int = Config.Agent.EMOTION_DIM + 1):
          super().__init__();
          self.input_dim=input_dim;
          self.fc=nn.Sequential(nn.Linear(self.input_dim, 32), nn.ReLU(), nn.Linear(32, Config.Agent.EMOTION_DIM), nn.Sigmoid());
-         self.decay=0.85
+         # Remove single decay: # self.decay=0.85
+
+         # --- ADDED: Define different decay rates per emotion ---
+         # Lower value = faster decay (less persistence)
+         # Higher value = slower decay (more persistence)
+         # Example values (Tune these based on desired behavior!)
+         # Order: Joy, Fear, Curiosity, Frustration, Calm, Surprise (assuming this order)
+         default_decays = [0.85, 0.75, 0.90, 0.80, 0.95, 0.70]
+         num_emotions = Config.Agent.EMOTION_DIM
+
+         # Ensure the decays list matches the configured emotion dimension
+         if len(default_decays) < num_emotions:
+             logger.warning(f"EmotionalModule: Not enough default decays ({len(default_decays)}) for {num_emotions} emotions. Padding with 0.85.")
+             default_decays.extend([0.85] * (num_emotions - len(default_decays)))
+         elif len(default_decays) > num_emotions:
+             logger.warning(f"EmotionalModule: More default decays ({len(default_decays)}) than {num_emotions} emotions. Truncating.")
+             default_decays = default_decays[:num_emotions]
+
+         # Create a tensor, shape (1, EMOTION_DIM) for broadcasting
+         self.decay_rates = torch.tensor(default_decays, device=DEVICE, dtype=torch.float32).unsqueeze(0)
+         logger.info(f"EmotionalModule using variable decay rates: {self.decay_rates.cpu().numpy()}")
+         # --- END ADDED ---
+
     def forward(self, state_emo_part_batch: torch.Tensor, reward_batch: torch.Tensor, prev_emotions_batch: torch.Tensor) -> torch.Tensor:
         if not isinstance(state_emo_part_batch, torch.Tensor) or \
            not isinstance(reward_batch, torch.Tensor) or \
@@ -47,7 +73,6 @@ class EmotionalModule(nn.Module):
         if not is_safe(state_emo_part_batch) or not is_safe(reward_batch) or not is_safe(prev_emotions_batch): logger.warning("EmoMod Batch Unsafe."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
 
         try:
-            # Concatenate emotion part of state + reward
             emotion_inputs = torch.cat([state_emo_part_batch, reward_batch.float()], dim=1)
         except Exception as e: logger.error(f"EmoMod Batch Concat Err: {e}."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
 
@@ -57,11 +82,16 @@ class EmotionalModule(nn.Module):
         try: scaled_emotions = self.fc(emotion_inputs); scaled_emotions = torch.clamp(scaled_emotions, 0, 1)
         except Exception as e: logger.error(f"EmoMod Batch FC Err: {e}."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
 
-        smoothed_emotions = self.decay * prev_emotions_batch + (1 - self.decay) * scaled_emotions; final_emotions = torch.clamp(smoothed_emotions, 0, 1)
+        # --- MODIFIED: Apply element-wise decay using self.decay_rates ---
+        # Ensure decay_rates tensor broadcasts correctly across the batch dimension
+        smoothed_emotions = self.decay_rates * prev_emotions_batch + (1.0 - self.decay_rates) * scaled_emotions;
+        # --- END MODIFIED ---
+        final_emotions = torch.clamp(smoothed_emotions, 0, 1)
+
         if not is_safe(final_emotions): logger.error("EmoMod Batch Unsafe Out."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
         return final_emotions
 
-# --- SyntrixKorporator (Input is now combined STATE_DIM) ---
+# --- SyntrixKorporator (Unchanged from previous version) ---
 class SyntrixKorporator(nn.Module):
     # Input dim is the full combined state dimension
     def __init__(self, input_dim: int = Config.Agent.STATE_DIM, hidden_dim: int = Config.Agent.HIDDEN_DIM, m: int = 8): # Increased m default slightly
@@ -126,7 +156,7 @@ class SyntrixKorporator(nn.Module):
         return final_structure.squeeze(0) if was_single else final_structure
 
 
-# --- StrukturKaskade (Input/output dims handled by init, remains the same) ---
+# --- StrukturKaskade (Unchanged from previous version) ---
 class StrukturKaskade(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, levels: int = Config.Agent.CASCADE_LEVELS):
         super().__init__()
@@ -196,7 +226,7 @@ class StrukturKaskade(nn.Module):
         return output_batch.squeeze(0) if was_single_instance else output_batch
 
 
-# --- SimpleGPT (Remains the same, uses TRAIN_DATA from config) ---
+# --- SimpleGPT (Unchanged from previous version - includes save/load) ---
 class SimpleGPT(nn.Module):
     def __init__(self, vocab_size: int = Config.NLP.VOCAB_SIZE, embed_dim: int = 64, hidden_dim: int = 128, num_heads: int = 4): # Added type hints
         super().__init__();
@@ -351,7 +381,6 @@ class SimpleGPT(nn.Module):
 
         return logits
 
-    # Uses TRAIN_DATA (pre-validated) from config module
     def train_model(self, dataset: List[Dict[str, Any]], epochs: int = Config.NLP.TRAIN_EPOCHS):
         if not dataset or not isinstance(dataset, list) or len(dataset) == 0:
             logger.warning("GPT Training skipped: Invalid or empty dataset provided."); self.eval(); return
@@ -389,6 +418,7 @@ class SimpleGPT(nn.Module):
                 input_padded = input_token_ids + [PAD_TOKEN_ID] * pad_len
                 target_padded = target_token_ids + [PAD_TOKEN_ID] * pad_len
 
+                # Ensure lengths are exactly max_len after padding/potential truncation from tokenization
                 input_padded = input_padded[:self.max_len]
                 target_padded = target_padded[:self.max_len]
 
@@ -447,7 +477,6 @@ class SimpleGPT(nn.Module):
 
         logger.info("SimpleGPT training finished."); self.eval()
 
-    # Generation with Nucleus Sampling (remains the same)
     def generate(self, context: Optional[str], emotions: Optional[torch.Tensor],
                  max_len: int = Config.NLP.MAX_RESPONSE_LEN,
                  temperature: float = Config.NLP.GPT_TEMPERATURE, # Use config defaults
@@ -584,5 +613,47 @@ class SimpleGPT(nn.Module):
             response = fallback_response
 
         return response.strip()
+
+    # --- ADDED: save/load wrappers for SimpleGPT ---
+    def save_model(self, path: str):
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            torch.save({
+                'model_state_dict': self.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+            }, path)
+            logger.info(f"SimpleGPT model saved to {path}")
+        except IOError as e:
+            logger.error(f"IOError saving SimpleGPT model: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error saving SimpleGPT model: {e}", exc_info=True)
+
+    def load_model(self, path: str):
+        if not os.path.exists(path):
+            logger.warning(f"SimpleGPT model file not found: {path}. Skipping load.")
+            return False
+        try:
+            checkpoint = torch.load(path, map_location=DEVICE)
+            self.load_state_dict(checkpoint['model_state_dict'])
+            # Optionally load optimizer state if you intend to continue training
+            if 'optimizer_state_dict' in checkpoint:
+                 try:
+                     self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                 except Exception as e:
+                     logger.warning(f"Could not load SimpleGPT optimizer state (may reset learning rate etc.): {e}")
+
+            logger.info(f"SimpleGPT model loaded from {path}")
+            self.eval() # Set to eval mode after loading
+            return True
+        except FileNotFoundError:
+             logger.error(f"Error: SimpleGPT model file not found at {path}.")
+             return False
+        except KeyError as e:
+            logger.error(f"Error loading SimpleGPT state: Missing key {e}. State file might be incompatible.", exc_info=True)
+            return False
+        except Exception as e:
+            logger.error(f"Error loading SimpleGPT model: {e}", exc_info=True)
+            return False
+    # --- END ADDED ---
 
 # --- END OF FILE ai_modules.py ---
