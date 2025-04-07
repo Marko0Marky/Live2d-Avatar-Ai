@@ -92,9 +92,10 @@ class RLConfig:
     MOOD_UPDATE_DECAY: float = 0.995
     MEMORY_GATING_ENABLED: bool = True
     MEMORY_GATE_ATTENTION_THRESHOLD: float = 0.3
-    # --- MODIFIED: Head Movement Loss Weight ---
-    # Set to a non-zero value to enable training
-    HEAD_MOVEMENT_LOSS_WEIGHT: float = 0.1 # Start with a small weight
+    HEAD_MOVEMENT_LOSS_WEIGHT: float = 0.1
+    # --- ADDED: Target Network Update Params ---
+    TARGET_NETWORK_UPDATE_FREQ: int = 1000 # Steps between hard updates (if using hard)
+    TARGET_NETWORK_SOFT_UPDATE_TAU: float = 0.005 # Tau for soft updates (if using soft)
 
 
 @dataclass
@@ -126,6 +127,13 @@ class Config:
     Graphics: GraphicsConfig = field(default_factory=GraphicsConfig)
 
 MasterConfig = Config() # Instantiate the main config object
+
+# --- Paths for Saving/Loading ---
+AGENT_SAVE_PATH = "./saved_models/agent_state.pth"
+GPT_SAVE_PATH = "./saved_models/gpt_state.pth"
+OPTIMIZER_SAVE_PATH = "./saved_models/optimizer_state.pth"
+TARGET_NET_SAVE_SUFFIX = "_target" # Suffix for target network file
+REPLAY_BUFFER_SAVE_PATH = "./saved_models/replay_buffer.pkl"
 
 # --- Training Data Path & Loading ---
 TRAINING_DATA_PATH = "./train_data.json"
@@ -179,7 +187,9 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
         if unknown_labels: logger.warning(f"Unknown head movement labels encountered: {list(unknown_labels)}")
         return validated_data
     except json.JSONDecodeError as e: logger.error(f"Error decoding JSON from {path}: {e}"); return []
-    except Exception as e: logger.error(f"Error loading/validating training data from {path}: {e}"); return []
+    except FileNotFoundError: logger.error(f"Training data file not found during validation: {path}"); return []
+    except TypeError as e: logger.error(f"Type error during data validation: {e}", exc_info=True); return []
+    except Exception as e: logger.error(f"Unexpected error loading/validating training data from {path}: {e}", exc_info=True); return []
 
 
 # --- Tokenizer Setup ---
