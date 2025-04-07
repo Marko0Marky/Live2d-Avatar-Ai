@@ -6,7 +6,7 @@ import asyncio
 import logging
 import concurrent.futures
 import time
-from typing import Optional # Added Optional
+from typing import Optional
 
 # --- PyQt5 / QAsync Imports ---
 try:
@@ -15,16 +15,19 @@ try:
     from qasync import QEventLoop
 except ImportError as e:
      print(f"CRITICAL ERROR: PyQt5 or qasync import failed: {e}")
-     print("Please install PyQt5 and qasync: pip install PyQt5 qasync")
+     # --- NEW: Add sentence-transformers to install message ---
+     print("Please install PyQt5, qasync, and potentially sentence-transformers:")
+     print("  pip install PyQt5 qasync sentence-transformers")
+     # ---
      sys.exit(1)
 
 # --- Setup logging ---
-# NOTE: Logger is configured within config.py now, but we get the logger instance here.
+# Logger is configured within config.py now
 log_file = "vr_avatar_ai5_run.log" # Define log file name for potential error messages before config load
 logger = logging.getLogger(__name__) # Get root logger initially
 
 # --- Import Configuration and Core Components ---
-# IMPORTANT: Importing config now also initializes the tokenizer
+# IMPORTANT: Importing config now also initializes the tokenizer and validates config
 try:
     from config import MasterConfig as Config # Use instantiated config
     from config import DEVICE, log_file # Get definitive log_file name from config
@@ -33,7 +36,7 @@ try:
     from main_gui import EnhancedGameGUI
 except ImportError as e:
      # Catch import errors that might happen if config itself fails early
-     initial_msg = f"CRITICAL ERROR: Failed to import core modules: {e}. Check configuration and dependencies."
+     initial_msg = f"CRITICAL ERROR: Failed to import core modules: {e}. Check configuration and dependencies (PyQt5, qasync, sentence-transformers)."
      print(initial_msg)
      try:
          # Attempt to use basic logging if possible
@@ -43,7 +46,7 @@ except ImportError as e:
          pass # Ignore logging errors if logging itself failed
      sys.exit(1)
 except Exception as e:
-    # Catch other potential errors during import/config execution
+    # Catch other potential errors during import/config execution (e.g., model loading fail in orchestrator)
     initial_msg = f"CRITICAL ERROR: Unexpected error during initial imports/config setup: {e}"
     print(initial_msg)
     try:
@@ -71,6 +74,8 @@ async def main_async_loop():
     logger.info(f"Target Live2D Model Path: {Config.Graphics.MODEL_PATH}")
     logger.info(f"Log file: {log_file}")
     logger.info(f"Tokenizer Vocab Size: {Config.NLP.VOCAB_SIZE}") # Log vocab size after init
+    logger.info(f"Agent State Dimension: {Config.Agent.STATE_DIM} (Language Embedding: {'Enabled' if Config.Agent.USE_LANGUAGE_EMBEDDING else 'Disabled'})")
+
 
     window: Optional[EnhancedGameGUI] = None # Type hint window
     agent_orchestrator: Optional[EnhancedConsciousAgent] = None # Type hint orchestrator
@@ -79,10 +84,11 @@ async def main_async_loop():
 
     try:
         # Tokenizer is initialized automatically when config.py is imported.
+        # Sentence Transformer model is loaded during Orchestrator init.
 
-        # Initialize agent (which depends on tokenizer being ready) and GUI
+        # Initialize agent orchestrator (which loads models) and GUI
         logger.info("Initializing Agent Orchestrator and GUI...")
-        agent_orchestrator = EnhancedConsciousAgent()
+        agent_orchestrator = EnhancedConsciousAgent() # Handles ST model loading
         window = EnhancedGameGUI(agent_orchestrator)
         window.show()
         logger.info("Agent orchestrator and GUI initialization complete.")
@@ -91,7 +97,9 @@ async def main_async_loop():
         loop = QEventLoop(app);
         asyncio.set_event_loop(loop);
         logger.info("Starting Qt event loop integrated with asyncio...")
-        loop.run_forever() # Blocks until loop.stop()
+        # loop.run_forever() # This blocks, use await loop.run_forever() if in async context
+        await loop.run_forever() # Correct way to run in async function
+
 
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received. Initiating shutdown.")
@@ -111,44 +119,43 @@ async def main_async_loop():
         logger.info("--- Initiating Application Shutdown ---")
 
         # --- Cleanup Resources ---
-        # 1. Close Window (triggers GUI closeEvent -> orchestrator.cleanup -> avatar.cleanup)
-        if window and window.isVisible():
-            logger.debug("Closing main window...")
-            try:
-                window.close()
-                # Allow Qt to process the close event if the loop is somehow still usable
-                if loop and not loop.is_closed() and loop.is_running():
-                     logger.debug("Processing pending Qt events after window close request...")
-                     app.processEvents()
-                     time.sleep(0.1) # Brief pause to allow processing
-                else:
-                     logger.warning("Cannot process Qt events post-close, loop may be stopped/closed.")
-            except Exception as e:
-                 logger.error(f"Error during window close: {e}", exc_info=True)
-
-
-        # Orchestrator cleanup should be called via window.closeEvent()
-        # Avatar cleanup should be called via orchestrator cleanup / window close
-
-
-        # 3. Stop and close asyncio loop
+        # 1. Stop Asyncio loop FIRST to prevent new events interfering with cleanup
         if loop:
             try:
                 if loop.is_running():
                     logger.info("Stopping asyncio event loop...")
                     loop.stop()
-
                 # Short pause allows pending tasks/callbacks scheduled by stop() to potentially run
-                time.sleep(0.2)
-
+                await asyncio.sleep(0.2) # Use await sleep in async context
                 if not loop.is_closed():
                     logger.info("Closing asyncio loop object.")
                     loop.close()
                 logger.info("Asyncio loop stopped and closed.")
             except RuntimeError as re:
-                logger.warning(f"RuntimeError during loop stop/close (possibly already stopped): {re}")
+                logger.warning(f"RuntimeError during loop stop/close (possibly already stopped/closed): {re}")
             except Exception as e:
                 logger.error(f"Error stopping/closing asyncio loop: {e}", exc_info=True)
+
+
+        # 2. Close Window (triggers GUI closeEvent -> orchestrator.cleanup -> avatar.cleanup)
+        if window and window.isVisible():
+            logger.debug("Closing main window...")
+            try:
+                window.close() # This should trigger the chain of cleanups
+                # Process any pending Qt events related to closing
+                app.processEvents()
+                await asyncio.sleep(0.1) # Give closing a moment
+            except Exception as e:
+                 logger.error(f"Error during window close: {e}", exc_info=True)
+
+        # 3. Explicit Orchestrator cleanup (as a fallback if window close failed)
+        if agent_orchestrator and hasattr(agent_orchestrator, 'cleanup'):
+            try:
+                logger.info("Explicitly calling orchestrator cleanup (fallback)...")
+                agent_orchestrator.cleanup()
+            except Exception as e:
+                logger.error(f"Error during explicit orchestrator cleanup: {e}", exc_info=True)
+
 
         logger.info(f"Shutdown complete. Returning exit code: {exit_code}.")
 
@@ -162,67 +169,57 @@ if __name__ == "__main__":
         script_dir = os.path.dirname(script_path)
         if script_dir not in sys.path:
             sys.path.insert(0, script_dir)
-            # logger.debug(f"Added script directory to sys.path: {script_dir}") # Logger might not be fully configured yet
+            print(f"Debug: Added script directory to sys.path: {script_dir}") # Log might not be ready
     except NameError:
         print("Warning: __file__ not defined, using CWD for path setup.")
-        # logger.warning("__file__ not defined, using CWD for path setup.") # Logger might not be ready
         script_dir = os.getcwd()
     try:
         os.chdir(script_dir)
         print(f"Info: Changed CWD to script directory: {script_dir}")
-        # logger.info(f"Changed CWD to script directory: {script_dir}") # Logger might not be ready
     except Exception as e:
          print(f"ERROR: Failed to change CWD to script directory '{script_dir}': {e}")
          print("Warning: Proceeding without changing CWD. Relative paths might fail.")
-         # logger.error(f"Failed to change CWD to script directory '{script_dir}': {e}") # Logger might not be ready
-         # logger.warning("Proceeding without changing CWD. Relative paths might fail.")
 
 
     # --- Run Main Async Function ---
     final_exit_code = 1
     try:
-        # asyncio.run handles loop creation, running the future, and closing the loop
+        # asyncio.run handles loop creation, running the coroutine, and closing the loop
         final_exit_code = asyncio.run(main_async_loop())
 
     except RuntimeError as e:
         # Handle common asyncio loop errors, especially in IDEs like Spyder
         if "Cannot run the event loop while another loop is running" in str(e) or "no running event loop" in str(e).lower():
-             print(f"Warning: Asyncio loop issue ('{e}'). Attempting fallback Qt execution.");
-             # logger.warning(f"Asyncio loop issue ('{e}'). Attempting fallback Qt execution."); # Logger might not be fully ready
+             print(f"Warning: Asyncio loop issue ('{e}'). This can happen in some IDEs (like older Spyder versions). Trying fallback Qt execution (async learning may be limited).");
              app_fb = QApplication.instance(); app_fb = QApplication(sys.argv) if app_fb is None else app_fb; app_fb.setStyle("Fusion")
              agent_orchestrator_fb = None
              window_fb = None
              try:
-                 # Fallback doesn't need explicit tokenizer init here, happens on config import
+                 # Fallback initializes agent/GUI sequentially
                  agent_orchestrator_fb = EnhancedConsciousAgent(); window_fb = EnhancedGameGUI(agent_orchestrator_fb); window_fb.show();
-                 final_exit_code = app_fb.exec_()
+                 final_exit_code = app_fb.exec_() # Standard Qt loop
              except Exception as gui_err:
-                 print(f"CRITICAL ERROR: Fallback Init Error: {gui_err}")
-                 # logger.critical(f"Fallback Init Error: {gui_err}"); # Logger might not be ready
-                 try: QMessageBox.critical(None, "Fatal Init Error", f"Failed fallback init:\n{gui_err}");
+                 print(f"CRITICAL ERROR: Fallback Init/Execution Error: {gui_err}")
+                 try: QMessageBox.critical(None, "Fatal Fallback Error", f"Failed fallback init/run:\n{gui_err}");
                  except: pass # Ignore errors showing message box if Qt itself is broken
                  final_exit_code=1
              finally:
                   if window_fb and window_fb.isVisible(): window_fb.close() # Ensure window close is called in fallback
-                  # Cleanup might have already been called by closeEvent, but check again
+                  # Explicit cleanup in fallback
                   if agent_orchestrator_fb and hasattr(agent_orchestrator_fb, 'cleanup'):
                        try: agent_orchestrator_fb.cleanup()
-                       except Exception as clean_err: print(f"Error: Fallback cleanup error: {clean_err}") # logger might be unreliable
+                       except Exception as clean_err: print(f"Error: Fallback cleanup error: {clean_err}")
         else: # Re-raise other RuntimeErrors
              print(f"CRITICAL ERROR: Unhandled RuntimeError: {e}")
-             # logger.critical(f"Unhandled RuntimeError: {e}", exc_info=True);
              final_exit_code = 1
     except KeyboardInterrupt:
-        print("Info: KeyboardInterrupt caught at top level. Exiting cleanly.")
-        # logger.info("KeyboardInterrupt caught at top level. Exiting cleanly.")
+        print("Info: KeyboardInterrupt caught at top level. Exiting.")
         final_exit_code = 0
     except Exception as e:
         print(f"CRITICAL ERROR: Unhandled Exception at top level: {e}")
-        # logger.critical(f"Unhandled Exception at top level: {e}", exc_info=True);
         final_exit_code = 1
 
     print(f"Info: Exiting application with final code: {final_exit_code}")
-    # logger.info(f"Exiting application with final code: {final_exit_code}")
     logging.shutdown() # Ensure logs are flushed
     sys.exit(final_exit_code)
 
