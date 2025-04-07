@@ -751,12 +751,29 @@ class Live2DCharacter(QOpenGLWidget):
         
     def mousePressEvent(self, event: QMouseEvent):
         """Handles mouse clicks for interactions and toggles."""
-        if not self.model_loaded: return; self.interaction_detected.emit(); self.last_interaction_time = time.time(); button = event.button()
-        if button == Qt.MouseButton.LeftButton: self.toggle_states['blush'] = 1.0 - self.toggle_states['blush']
-        elif button == Qt.MouseButton.RightButton: self.toggle_states['wings'] = 1.0 - self.toggle_states['wings']
-        elif button == Qt.MouseButton.MiddleButton: self.toggle_states['mad'] = 1.0 - self.toggle_states['mad']
-        self.animation_params['surprise'] = {'timer': 0.0, 'duration': 1.5}; # Trigger surprise animation
-        self.setFocus() # Ensure widget has focus for potential key events
+        if not self.model_loaded: return
+
+        try:
+            # Get the button BEFORE using it in conditions
+            button = event.button()
+
+            self.interaction_detected.emit()
+            self.last_interaction_time = time.time()
+
+            # Now check the button value
+            if button == Qt.MouseButton.LeftButton:
+                self.toggle_states['blush'] = 1.0 - self.toggle_states['blush'] # Toggle blush
+            elif button == Qt.MouseButton.RightButton:
+                self.toggle_states['wings'] = 1.0 - self.toggle_states['wings'] # Toggle wings
+            elif button == Qt.MouseButton.MiddleButton:
+                self.toggle_states['mad'] = 1.0 - self.toggle_states['mad'] # Toggle mad state
+
+            self.animation_params['surprise'] = {'timer': 0.0, 'duration': 1.5}; # Trigger surprise animation
+            self.setFocus() # Ensure widget has focus for potential key events
+
+        except Exception as e:
+            # Log potential errors getting button or processing event
+            logger.error(f"Error processing mousePressEvent: {e}", exc_info=True)
 
     def enterEvent(self, event):
         """Sets mouse over flag when mouse enters the widget."""
