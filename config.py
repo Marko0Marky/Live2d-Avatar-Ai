@@ -141,6 +141,7 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
         validated_data = []
         logger.info("Validating and adjusting training data during load...")
         items_with_hm = 0
+        unknown_labels = set() # Track unknown labels found
         for i, item in enumerate(data):
             # Basic format check
             if not isinstance(item, dict) or "output" not in item:
@@ -161,8 +162,10 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
             hm_label = item.get("head_movement")
             if hm_label is not None:
                 items_with_hm += 1
-                if hm_label not in HEAD_MOVEMENT_LABELS:
-                    logger.warning(f"Item {i} in {path} has unknown head_movement label: '{hm_label}'. Valid labels: {HEAD_MOVEMENT_LABELS}. Setting to 'idle'.")
+                if hm_label not in HEAD_MOVEMENT_TO_IDX: # Use mapping directly
+                    if hm_label not in unknown_labels:
+                         logger.warning(f"Item {i} in {path} has unknown head_movement label: '{hm_label}'. Setting to 'idle'. Valid: {HEAD_MOVEMENT_LABELS}")
+                         unknown_labels.add(hm_label) # Track only the first time
                     item["head_movement"] = "idle" # Set label to default if invalid
                 # Add integer index based on the (potentially corrected) label
                 item["head_movement_idx"] = HEAD_MOVEMENT_TO_IDX.get(item["head_movement"], HEAD_MOVEMENT_TO_IDX["idle"])
@@ -173,6 +176,7 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
             validated_data.append(item) # Add validated item
 
         logger.info(f"Validated training data: {len(validated_data)} items. Found head_movement labels in {items_with_hm} items.")
+        if unknown_labels: logger.warning(f"Unknown head movement labels encountered: {list(unknown_labels)}")
         return validated_data
     except json.JSONDecodeError as e: logger.error(f"Error decoding JSON from {path}: {e}"); return []
     except Exception as e: logger.error(f"Error loading/validating training data from {path}: {e}"); return []
@@ -189,11 +193,11 @@ except ImportError:
     logger.critical("Hugging Face 'tokenizers' library not found. Please install: pip install tokenizers")
     sys.exit(1)
 tokenizer: TokenizerOptional[Tokenizer] = None
-PAD_TOKEN_ID: TokenizerOptional[int] = None
-START_TOKEN_ID: TokenizerOptional[int] = None
-END_TOKEN_ID: TokenizerOptional[int] = None
-UNK_TOKEN_ID: TokenizerOptional[int] = None
-def train_or_load_tokenizer(data: List[Dict[str, str]], config: NLPConfig) -> Tokenizer:
+PAD_TOKEN_ID: Optional[int] = None # Use Optional[int]
+START_TOKEN_ID: Optional[int] = None # Use Optional[int]
+END_TOKEN_ID: Optional[int] = None # Use Optional[int]
+UNK_TOKEN_ID: Optional[int] = None # Use Optional[int]
+def train_or_load_tokenizer(data: List[Dict[str, Any]], config: NLPConfig) -> Tokenizer: # data type hint adjusted
     global PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID, UNK_TOKEN_ID, tokenizer
     tokenizer_path = config.TOKENIZER_PATH
     os.makedirs(os.path.dirname(tokenizer_path), exist_ok=True)
@@ -208,7 +212,7 @@ def train_or_load_tokenizer(data: List[Dict[str, str]], config: NLPConfig) -> To
              loaded_tokenizer = Tokenizer(BPE(unk_token="<UNK>"))
              loaded_tokenizer.add_special_tokens(config.SPECIAL_TOKENS) # Add specials manually
         else:
-            text_corpus = [item.get(k, "") for item in data for k in ["output", "situation"] if item.get(k)] # Extract text
+            text_corpus = [item.get(k, "") for item in data for k in ["output", "situation"] if isinstance(item.get(k), str)] # Extract text safely
             if not text_corpus: logger.error("Cannot train tokenizer: No valid text found in training data."); sys.exit(1)
             bpe_tokenizer = Tokenizer(BPE(unk_token="<UNK>"))
             bpe_tokenizer.pre_tokenizer = Whitespace()
@@ -230,7 +234,8 @@ def train_or_load_tokenizer(data: List[Dict[str, str]], config: NLPConfig) -> To
     END_TOKEN_ID = tokenizer.token_to_id("<END>")
     UNK_TOKEN_ID = tokenizer.token_to_id("<UNK>")
     if None in [PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID, UNK_TOKEN_ID]:
-        logger.critical(f"Failed to get IDs for all special tokens: PAD={PAD_TOKEN_ID}, START={START_TOKEN_ID}, END={END_TOKEN_ID}, UNK={UNK_TOKEN_ID}"); sys.exit(1)
+        missing_tokens = [t for t, tid in [("<PAD>", PAD_TOKEN_ID), ("<START>", START_TOKEN_ID), ("<END>", END_TOKEN_ID), ("<UNK>", UNK_TOKEN_ID)] if tid is None]
+        logger.critical(f"Failed to get IDs for special tokens: {missing_tokens}. Check tokenizer/special tokens list."); sys.exit(1)
     logger.debug(f"Special Token IDs: PAD={PAD_TOKEN_ID}, START={START_TOKEN_ID}, END={END_TOKEN_ID}, UNK={UNK_TOKEN_ID}")
     return tokenizer
 
@@ -248,7 +253,9 @@ def tokenize(text: str, max_length: int = MasterConfig.NLP.MAX_RESPONSE_LEN - 2)
 
 def detokenize(indices: List[int]) -> str:
     if tokenizer is None: logger.error("Tokenizer not initialized."); return ""
-    if isinstance(indices, torch.Tensor): indices = indices.cpu().tolist()
+    if isinstance(indices, torch.Tensor):
+        try: indices = indices.cpu().tolist()
+        except Exception as e: logger.warning(f"Error converting tensor to list for detokenize: {e}"); return "[Tensor Conversion Error]"
     if not isinstance(indices, (list, tuple)): logger.warning(f"Invalid input to detokenize: type {type(indices)}."); return ""
     if PAD_TOKEN_ID is None or START_TOKEN_ID is None or END_TOKEN_ID is None: logger.error("Cannot detokenize: Special tokens not set."); return ""
     try: # Add try-except for tokenizer errors
