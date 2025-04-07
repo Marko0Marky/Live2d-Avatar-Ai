@@ -1,4 +1,5 @@
 # --- START OF FILE orchestrator.py ---
+import os
 import torch
 from typing import Dict, Tuple, Optional, List, Union, Deque, Any
 import concurrent.futures
@@ -8,12 +9,15 @@ import math
 from collections import deque
 import sys
 import numpy as np
+import pickle # For saving replay buffer
 
 try: from sentence_transformers import SentenceTransformer; SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError: SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 from config import MasterConfig as Config
 from config import DEVICE, logger
+# Import Save Paths
+from config import AGENT_SAVE_PATH, GPT_SAVE_PATH, OPTIMIZER_SAVE_PATH, TARGET_NET_SAVE_SUFFIX, REPLAY_BUFFER_SAVE_PATH
 # Import Head Movement Labels & Mappings
 from config import HEAD_MOVEMENT_LABELS, HEAD_MOVEMENT_TO_IDX, IDX_TO_HEAD_MOVEMENT
 from environment import EmotionalSpace
@@ -23,7 +27,6 @@ from graphics import Live2DCharacter
 from utils import is_safe, Experience, MetaCognitiveMemory
 
 ReflectReturnType = Dict[str, Union[float, List[float], int, str, np.ndarray]]
-# --- MODIFIED: Return 7 items ---
 TrainStepReturnType = Tuple[ReflectReturnType, float, bool, str, float, str, str]
 
 
@@ -37,7 +40,7 @@ class EnhancedConsciousAgent:
         self.st_model: Optional[SentenceTransformer] = None
         if Config.Agent.USE_LANGUAGE_EMBEDDING:
             if SENTENCE_TRANSFORMERS_AVAILABLE:
-                try: # Corrected indentation and added except block
+                try:
                     model_name = Config.NLP.SENTENCE_TRANSFORMER_MODEL
                     logger.info(f"Loading sentence transformer: {model_name}...")
                     self.st_model = SentenceTransformer(model_name, device=str(DEVICE))
@@ -49,7 +52,7 @@ class EnhancedConsciousAgent:
                          logger.critical(f"FATAL: ST model dim ({actual_dim}) != Config dim ({expected_dim}). Check model name '{model_name}' or config LANGUAGE_EMBEDDING_DIM.")
                          sys.exit(1)
                     logger.info(f"Sentence transformer loaded to {self.st_model.device}. Output dim: {actual_dim}.")
-                except Exception as e: # Added except block
+                except Exception as e:
                     logger.error(f"Failed load ST model '{Config.NLP.SENTENCE_TRANSFORMER_MODEL}': {e}. Disabling.", exc_info=True)
                     self.st_model = None
                     Config.Agent.USE_LANGUAGE_EMBEDDING = False
@@ -114,12 +117,12 @@ class EnhancedConsciousAgent:
         except Exception as e:
              logger.error(f"Exception in learn task thread: {e}", exc_info=True)
              loss = -1.0
-        return loss # Removed semicolon
+        return loss
 
     def _check_learn_future(self):
         if self.learn_future and self.learn_future.done():
             try:
-                loss_result = self.learn_future.result() # Removed semicolon
+                loss_result = self.learn_future.result()
                 if loss_result is not None and loss_result >= 0:
                     self.last_reported_loss = loss_result
                 elif loss_result is not None:
@@ -136,9 +139,8 @@ class EnhancedConsciousAgent:
                 self.last_reported_loss = -1.0
             finally:
                 self.learn_future = None
-                self.learn_step_running = False # Removed semicolon
+                self.learn_step_running = False
 
-    # --- MODIFIED: Returns 7 items ---
     def train_step(self) -> TrainStepReturnType:
         self._check_learn_future()
         if self.current_state is None or not is_safe(self.current_state) or self.current_state.shape[0] != Config.Agent.STATE_DIM:
@@ -152,7 +154,6 @@ class EnhancedConsciousAgent:
             except Exception as reset_err:
                  logger.critical(f"CRITICAL RESET FAILED: {reset_err}. Stopping.");
                  default_metrics = {'error': True, 'message':"FATAL STATE RESET", "last_monologue":"", "embedding_norm": 0.0, "base_state_norm": 0.0}
-                 # Return tuple matching TrainStepReturnType
                  return (default_metrics, -1.0, True, "FATAL STATE", self.last_reported_loss, "", "idle")
         self.total_steps += 1; self.episode_steps += 1
         state_before_step_combined = self.current_state.clone().detach()
@@ -184,8 +185,9 @@ class EnhancedConsciousAgent:
             try:
                 self.model.eval()
                 with torch.no_grad():
-                     outputs_s = self.model.forward(state_before_step_combined.unsqueeze(0), torch.tensor([[reward]], device=DEVICE), None)
-                     outputs_sp = self.model.forward(next_combined_state.unsqueeze(0), torch.tensor([[0.0]], device=DEVICE), None)
+                     # Use online network to estimate V(s) and target for V(s') for TD error
+                     outputs_s = self.model.forward(state_before_step_combined.unsqueeze(0), torch.tensor([[reward]], device=DEVICE), None, use_target=False)
+                     outputs_sp = self.model.forward(next_combined_state.unsqueeze(0), torch.tensor([[0.0]], device=DEVICE), None, use_target=True) # Use target=True
                      if len(outputs_s) == 13 and len(outputs_sp) == 13:
                          current_value = outputs_s[3].squeeze(); next_value = outputs_sp[3].squeeze()
                          if is_safe(current_value) and is_safe(next_value): target_val = reward + Config.RL.GAMMA * next_value * (0.0 if env_done else 1.0); initial_td_error = abs((target_val - current_value).item())
@@ -226,10 +228,8 @@ class EnhancedConsciousAgent:
             except Exception as e:
                  logger.critical(f"CRITICAL: Failed episode reset: {e}. Stopping."); done = True;
                  default_metrics = {'error': True, 'message':"FATAL EPISODE RESET", "last_monologue":"", "embedding_norm": 0.0, "base_state_norm": 0.0}
-                 # Return tuple matching TrainStepReturnType
                  return (default_metrics, reward, done, "FATAL RESET", self.last_reported_loss, "", "idle")
         metrics_dict = self.reflect()
-        # --- MODIFIED: Return 7 items ---
         return metrics_dict, reward, done, self.current_response, self.last_reported_loss, self.last_internal_monologue, predicted_hm_label
 
     def handle_user_chat(self, user_text: str) -> str:
@@ -244,6 +244,9 @@ class EnhancedConsciousAgent:
                 else: logger.warning(f"User text embed dim mismatch! Got {emb.shape}")
             except Exception as e: logger.error(f"Error embedding user text: {e}")
         self.last_text_embedding = user_text_embedding.clone().detach()
+        # --- Update combined state AFTER getting embedding ---
+        self.current_state = self._get_combined_state(self.current_base_state, "chat_input")
+        # ---
         self.conversation_history.append(("User", user_text))
         try:
             impact_vector = self.env.get_emotional_impact_from_text(user_text)
@@ -260,18 +263,19 @@ class EnhancedConsciousAgent:
             for speaker, text in reversed(history_turns):
                 turn = f"{speaker}: {text}\n"
                 if len(context_for_gpt) + len(turn) > 512:
-                    break # Corrected indentation
-                context_for_gpt = turn + context_for_gpt # Corrected indentation
+                    break
+                context_for_gpt = turn + context_for_gpt
             temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7); top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)
             response = self.model.gpt.generate(context=context_for_gpt, emotions=self.last_response_emotions, temperature=temp, top_p=top_p)
             self.current_response = response
             self.conversation_history.append(("AI", self.current_response))
             predicted_chat_hm_label = "idle"
             if self.current_state is not None and is_safe(self.current_state) and self.current_state.shape[0] == Config.Agent.STATE_DIM:
-                try: # Added try
+                try:
                     self.model.eval()
                     with torch.no_grad():
-                         outputs = self.model.forward(self.current_state, 0.0, self.model.state_history)
+                         # Use online network for chat movement prediction
+                         outputs = self.model.forward(self.current_state, 0.0, self.model.state_history, use_target=False)
                          if len(outputs) == 13:
                               hm_logits = outputs[-1]
                               if hm_logits.ndim == 1: idx = torch.argmax(hm_logits).item()
@@ -280,7 +284,7 @@ class EnhancedConsciousAgent:
                               predicted_chat_hm_label = IDX_TO_HEAD_MOVEMENT.get(idx, "idle")
                          else: logger.warning(f"Forward mismatch during chat HM prediction ({len(outputs)}).")
                     self.model.train()
-                except Exception as e: # Added except
+                except Exception as e:
                      logger.error(f"Error predicting head movement after chat: {e}")
             else: logger.warning("Skipping chat HM prediction due to invalid current_state.")
             if self.avatar and hasattr(self.avatar, 'update_predicted_movement'): self.avatar.update_predicted_movement(predicted_chat_hm_label)
@@ -296,7 +300,7 @@ class EnhancedConsciousAgent:
             current_combined_state = self.current_state
             if current_combined_state is not None and is_safe(current_combined_state) and current_combined_state.shape[0] == Config.Agent.STATE_DIM:
                 self.model.eval();
-                with torch.no_grad(): reflect_outputs = self.model.forward(current_combined_state, 0.0, self.model.state_history)
+                with torch.no_grad(): reflect_outputs = self.model.forward(current_combined_state, 0.0, self.model.state_history, use_target=False) # Use online for reflect
                 if len(reflect_outputs) == 13:
                      (emotions_int, _, _, _value, I_S, _, att_score, self_consistency, rho_score, box_score, R_acc_mean, tau_t, _) = reflect_outputs;
                      stats_dict.update({ "current_emotions_internal": emotions_int.cpu().tolist() if is_safe(emotions_int) else [0.0]*Config.Agent.EMOTION_DIM, "I_S": I_S, "att_score": att_score, "self_consistency": self_consistency, "rho_score": rho_score, "box_score": box_score, "tau_t": tau_t, "R_acc": R_acc_mean })
@@ -321,7 +325,7 @@ class EnhancedConsciousAgent:
         test_reward = 1.5; consistent = False; details = "Prerequisites failed."
         try:
             self.model.eval();
-            with torch.no_grad(): test_outputs = self.model.forward(test_state, test_reward, self.model.state_history)
+            with torch.no_grad(): test_outputs = self.model.forward(test_state, test_reward, self.model.state_history, use_target=False) # Use online
             if len(test_outputs) == 13:
                  (emotions, _, _, _, _, _, att_score, _, rho_score, box_score, R_acc, _, _) = test_outputs
                  joy_check = False; joy_val = -1.0
@@ -337,11 +341,67 @@ class EnhancedConsciousAgent:
         try: self.env.update_params(event_freq, intensities);
         except Exception as e: logger.error(f"Error updating env params: {e}")
 
+    # --- ADDED: Save/Load Methods ---
+    def save_agent(self):
+        """Orchestrates saving the agent and optionally the replay buffer."""
+        # Save models and optimizer
+        self.model.save_state(
+            agent_path=AGENT_SAVE_PATH,
+            gpt_path=GPT_SAVE_PATH,
+            optimizer_path=OPTIMIZER_SAVE_PATH,
+            target_path_suffix=TARGET_NET_SAVE_SUFFIX
+        )
+        # Save replay buffer (optional, can be large)
+        try:
+            buffer_path = REPLAY_BUFFER_SAVE_PATH
+            os.makedirs(os.path.dirname(buffer_path), exist_ok=True)
+            with open(buffer_path, 'wb') as f:
+                pickle.dump(self.model.memory, f)
+            logger.info(f"Replay buffer saved to {buffer_path}")
+        except Exception as e:
+            logger.error(f"Failed to save replay buffer: {e}", exc_info=True)
+
+    def load_agent(self):
+        """Orchestrates loading the agent and optionally the replay buffer."""
+        loaded_model = self.model.load_state(
+            agent_path=AGENT_SAVE_PATH,
+            gpt_path=GPT_SAVE_PATH,
+            optimizer_path=OPTIMIZER_SAVE_PATH,
+            target_path_suffix=TARGET_NET_SAVE_SUFFIX
+        )
+        if loaded_model:
+            # Load replay buffer (optional)
+            try:
+                buffer_path = REPLAY_BUFFER_SAVE_PATH
+                if os.path.exists(buffer_path):
+                    with open(buffer_path, 'rb') as f:
+                        self.model.memory = pickle.load(f)
+                    logger.info(f"Replay buffer loaded from {buffer_path}")
+                    # Update PER beta based on loaded agent's step count
+                    self.model.beta = Config.RL.PER_BETA_START + (1.0 - Config.RL.PER_BETA_START) * min(1.0, self.model.step_count / Config.RL.PER_BETA_FRAMES)
+                    logger.info(f"Restored Replay Buffer (Size: {len(self.model.memory)}). Adjusted PER Beta to: {self.model.beta:.4f}")
+                else:
+                    logger.warning(f"Replay buffer file not found: {buffer_path}. Starting with empty buffer.")
+            except ModuleNotFoundError:
+                 logger.error(f"Could not load replay buffer due to ModuleNotFoundError. Likely a dependency mismatch or pickled custom class issue. Starting with empty buffer.")
+                 self.model.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE) # Reinitialize
+            except EOFError:
+                logger.error(f"Error loading replay buffer: EOFError (file might be corrupted or empty). Starting with empty buffer.")
+                self.model.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE) # Reinitialize
+            except Exception as e:
+                logger.error(f"Failed to load or reinitialize replay buffer: {e}", exc_info=True)
+                self.model.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE) # Reinitialize as fallback
+        else:
+            logger.error("Agent model loading failed. Replay buffer not loaded.")
+
+        return loaded_model
+    # --- END ADDED ---
+
     def cleanup(self):
         logger.info("--- Orchestrator Cleanup Initiated ---")
         logger.info("Shutting down learn executor...")
         try:
-            self.learn_executor.shutdown(wait=True, cancel_futures=True) # Removed semicolon
+            self.learn_executor.shutdown(wait=True, cancel_futures=True)
             logger.info("Learn executor shut down.")
         except Exception as e:
              logger.error(f"Error shutting down learn executor: {e}", exc_info=True)
@@ -349,22 +409,21 @@ class EnhancedConsciousAgent:
         if self.avatar and hasattr(self.avatar, 'cleanup'):
             try:
                 logger.info("Cleaning up avatar...")
-                self.avatar.cleanup() # Removed semicolon
+                self.avatar.cleanup()
                 logger.info("Avatar cleanup complete.")
-            except Exception as e: # Correctly indented except
+            except Exception as e:
                 logger.error(f"Error avatar cleanup: {e}", exc_info=True)
 
         if self.st_model:
             try:
                 logger.info("Releasing ST model...")
                 del self.st_model
-                self.st_model = None # Removed semicolon
+                self.st_model = None
                 if DEVICE.type == 'cuda':
-                    torch.cuda.empty_cache() # Removed semicolon
+                    torch.cuda.empty_cache()
                     logger.debug("Cleared CUDA cache.")
-            except Exception as e: # Correctly indented except
+            except Exception as e:
                  logger.error(f"Error releasing ST model: {e}")
-        # Final log message correctly indented under the main function
         logger.info("--- Orchestrator Cleanup Finished ---")
 
 # --- END OF FILE orchestrator.py ---
