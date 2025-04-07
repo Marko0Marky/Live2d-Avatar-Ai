@@ -59,11 +59,11 @@ class HUDWidget(QWidget):
         self.pulse_phase: float = 0.0;
         self.pulse_timer = QTimer(self);
         self.pulse_timer.timeout.connect(self.update_pulse);
-        self.pulse_timer.start(1000 // 60)
+        self.pulse_timer.start(1000 // 60) # ~60fps pulse update
 
     def update_pulse(self):
         self.pulse_phase = (self.pulse_phase + 0.08) % (2 * math.pi);
-        self.update()
+        self.update() # Trigger repaint
 
     def update_hud(self, emotions: Optional[torch.Tensor], response: str, metrics_dict: Dict[str, float]):
         self.response = response if response else ""
@@ -72,16 +72,17 @@ class HUDWidget(QWidget):
             self.emotion_values = emotions.detach().cpu()
         else:
             if not torch.equal(self.emotion_values, torch.zeros(Config.Agent.EMOTION_DIM)):
-                logger.warning(f"HUD received invalid emotions. Resetting display.")
+                # Log only if the value changes to avoid spam
+                # logger.warning(f"HUD received invalid emotions ({type(emotions)}, shape {getattr(emotions, 'shape', 'N/A')}). Resetting display.")
                 self.emotion_values = torch.zeros(Config.Agent.EMOTION_DIM)
+        # Format metrics for display
         self.metrics = {
             "Att": metrics_dict.get("att_score", 0.0), "Rho": metrics_dict.get("rho_score", 0.0),
             "Loss": metrics_dict.get("loss", 0.0), "Box": metrics_dict.get("box_score", 0.0)
             }
-        self.update()
+        self.update() # Trigger repaint
 
     def paintEvent(self, event: QPaintEvent):
-        # ... (Paint logic remains the same) ...
         painter = QPainter(self);
         painter.setRenderHint(QPainter.RenderHint.Antialiasing);
         painter.setFont(self.font)
@@ -92,42 +93,58 @@ class HUDWidget(QWidget):
         dominant_idx = 0; intensity = 0.0
         if self.emotion_values.numel() >= Config.Agent.EMOTION_DIM:
             try: dominant_idx = torch.argmax(self.emotion_values).item(); intensity = self.emotion_values[dominant_idx].item()
-            except Exception: pass
+            except Exception: pass # Ignore errors if tensor is empty or invalid
+
+        # Calculate glow based on dominant emotion intensity
         pulse = 1.0 + 0.3 * math.sin(self.pulse_phase) * intensity;
-        glow_alpha = int(min(1.0, intensity * Config.Graphics.GLOW_INTENSITY * pulse) * 80)
+        glow_alpha = int(min(1.0, intensity * Config.Graphics.GLOW_INTENSITY * pulse) * 80) # Max alpha 80
         if glow_alpha > 10:
             glow_color_rgb = self._glow_colors_rgb[dominant_idx % len(self._glow_colors_rgb)];
             base_glow_color = QColor(*glow_color_rgb, glow_alpha);
             self.glow_pen.setColor(base_glow_color); self.glow_pen.setWidth(int(3 * pulse))
-        else: self.glow_pen.setColor(QColor(0,0,0,0)); self.glow_pen.setWidth(1)
+        else: self.glow_pen.setColor(QColor(0,0,0,0)); self.glow_pen.setWidth(1) # Transparent pen if no glow
+
+        # Helper to draw text with subtle glow behind it
         def draw_text_with_glow(p, x, y, text, base_pen):
-            if self.glow_pen.color().alpha() > 10: p.setPen(self.glow_pen); p.drawText(x + 1, y + 1, text)
-            p.setPen(base_pen); p.drawText(x, y, text)
+            if self.glow_pen.color().alpha() > 10: # Only draw glow if it's visible
+                p.setPen(self.glow_pen); p.drawText(x + 1, y + 1, text) # Offset glow slightly
+            p.setPen(base_pen); p.drawText(x, y, text) # Draw main text on top
+
+        # Draw Emotion Bars
         bar_width = min(70, rect.width() - 50); bar_height = 5; bar_spacing = 2; y_emo_start = y_pos
         for i, name in enumerate(self.emotion_names):
             value = self.emotion_values[i].item() if i < self.emotion_values.numel() else 0.0
             current_y = y_emo_start + i * (bar_height + bar_spacing + line_height)
-            label_y = current_y + line_height - 4
-            bar_x = x_pos + 30; bar_y = label_y + 3
-            if bar_y + bar_height > rect.bottom(): break
+            label_y = current_y + line_height - 4 # Adjust label position relative to bar
+            bar_x = x_pos + 30; bar_y = label_y + 3 # Adjust bar position relative to label
+            if bar_y + bar_height > rect.bottom(): break # Stop if exceeding bounds
+
             draw_text_with_glow(painter, x_pos, label_y, f"{name[:3].upper()}", self.text_pen)
+            # Draw bar background
             painter.setPen(Qt.PenStyle.NoPen); painter.setBrush(QColor(50, 50, 70, 150));
             painter.drawRoundedRect(bar_x, bar_y, bar_width, bar_height, 1, 1)
+            # Draw bar fill
             fill_width = int(value * bar_width);
             fill_color_rgb = self._glow_colors_rgb[i % len(self._glow_colors_rgb)]
             fill_color = QColor(*fill_color_rgb, 200); painter.setBrush(fill_color);
             painter.drawRoundedRect(bar_x, bar_y, fill_width, bar_height, 1, 1)
-        y_pos = bar_y + bar_height + int(line_height * 0.8)
+        y_pos = bar_y + bar_height + int(line_height * 0.8) # Update y_pos after last bar
+
+        # Draw Metrics
         if y_pos < rect.bottom() - line_height:
             metrics_text = " | ".join([f"{k}:{v:.2f}" for k, v in self.metrics.items()])
             draw_text_with_glow(painter, x_pos, y_pos, metrics_text, self.text_pen); y_pos += line_height
+
+        # Draw Response Text (wrapped)
         if self.response and y_pos < rect.bottom():
             response_text = f"> {self.response}";
-            response_rect = QRect(x_pos, y_pos, rect.width(), rect.bottom() - y_pos)
+            response_rect = QRect(x_pos, y_pos, rect.width(), rect.bottom() - y_pos) # Use remaining height
             response_flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
+            # Draw glow behind response text
             if self.glow_pen.color().alpha() > 10:
                  painter.setPen(self.glow_pen)
-                 painter.drawText(response_rect.adjusted(1, 1, 1, 1), response_flags, response_text)
+                 painter.drawText(response_rect.adjusted(1, 1, 1, 1), response_flags, response_text) # Offset glow
+            # Draw main response text
             painter.setPen(self.response_pen)
             painter.drawText(response_rect, response_flags, response_text)
 
@@ -146,12 +163,14 @@ class AIStateWidget(QWidget):
              raise AttributeError("AIStateWidget requires agent_orchestrator to have 'env' and 'mood' attributes.")
         self.agent_orchestrator = agent_orchestrator;
 
-        # ... (Rest of __init__ layout setup remains the same) ...
+        # Layout setup
         self.setMinimumWidth(300); self.setMaximumWidth(450)
         layout = QVBoxLayout(); layout.setSpacing(8); layout.setContentsMargins(10, 10, 10, 10)
         self.status_label = QLabel("Status: Initializing...");
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter);
         layout.addWidget(self.status_label)
+
+        # Emotions Group
         emotion_group = QGroupBox("Emotions (Response/Avatar)");
         emotion_layout = QVBoxLayout(); emotion_layout.setSpacing(4);
         emotion_group.setLayout(emotion_layout)
@@ -178,26 +197,32 @@ class AIStateWidget(QWidget):
             bar.setStyleSheet(f""" QProgressBar {{ border: 1px solid #555; border-radius: 4px; background: #2a2a3a; height: 14px; text-align: center; color: #FFFFFF; font-size: 9px; font-weight: bold; }} QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; margin: 1px; }} """)
             self.emotion_labels.append(label); self.emotion_bars.append(bar); hlayout.addWidget(label); hlayout.addWidget(bar); emotion_layout.addLayout(hlayout)
         layout.addWidget(emotion_group)
+
+        # Mood Group
         mood_group = QGroupBox("Mood (Slow Changing)");
         mood_layout = QVBoxLayout(); mood_layout.setSpacing(4);
         mood_group.setLayout(mood_layout)
         self.mood_labels: List[QLabel] = []; self.mood_bars: List[QProgressBar] = []
-        mood_colors_hex = ["#A5D6A7", "#EF9A9A", "#FFF59D", "#FFCC80", "#90CAF9", "#CE93D8"]
+        mood_colors_hex = ["#A5D6A7", "#EF9A9A", "#FFF59D", "#FFCC80", "#90CAF9", "#CE93D8"] # Pastel mood colors
         mood_colors_hex = (mood_colors_hex + ["#E0E0E0"] * num_emotions_to_display)[:num_emotions_to_display]
         for i in range(num_emotions_to_display):
             emotion_name = emotions_list[i] if i < len(emotions_list) else f"Emo{i+1}"
             hlayout = QHBoxLayout(); label = QLabel(f"{emotion_name}:"); label.setFixedWidth(75);
-            bar = QProgressBar(); bar.setRange(0, 100); bar.setValue(30); bar.setTextVisible(True); bar.setFormat(f"%p%")
+            bar = QProgressBar(); bar.setRange(0, 100); bar.setValue(30); bar.setTextVisible(True); bar.setFormat(f"%p%") # Default mood slightly positive/calm?
             bar_color = mood_colors_hex[i % len(mood_colors_hex)]
             bar.setStyleSheet(f""" QProgressBar {{ border: 1px solid #555; border-radius: 4px; background: #2a2a3a; height: 14px; text-align: center; color: #424242; font-size: 9px; font-weight: bold; }} QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; margin: 1px; }} """)
             self.mood_labels.append(label); self.mood_bars.append(bar); hlayout.addWidget(label); hlayout.addWidget(bar); mood_layout.addLayout(hlayout)
         layout.addWidget(mood_group)
+
+        # Stats Group
         stats_group = QGroupBox("Agent Metrics");
         stats_layout = QVBoxLayout(); stats_group.setLayout(stats_layout)
         self.stats_label = QLabel("Initializing metrics...");
         self.stats_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop); self.stats_label.setWordWrap(True);
         stats_font = QFont("Consolas", 9); self.stats_label.setFont(stats_font); stats_layout.addWidget(self.stats_label);
         layout.addWidget(stats_group)
+
+        # Completeness Test Area
         completeness_layout = QHBoxLayout();
         self.completeness_label = QLabel("Completeness: N/A");
         self.completeness_button = QPushButton("Run Test");
@@ -206,6 +231,8 @@ class AIStateWidget(QWidget):
         completeness_layout.addWidget(self.completeness_label); completeness_layout.addStretch(); completeness_layout.addWidget(self.completeness_button);
         layout.addLayout(completeness_layout)
         self.setLayout(layout)
+
+        # Stylesheet
         self.setStyleSheet(""" AIStateWidget { background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282838, stop:1 #181828); border-radius: 8px; border: 1px solid #4a4a5a; } QGroupBox { font-family: "Segoe UI", Arial; font-size: 11px; font-weight: bold; color: #00bcd4; background: rgba(40, 40, 60, 0.7); border: 1px solid #3a3a4a; border-radius: 5px; margin-top: 8px; padding: 12px 5px 5px 5px; } QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 1px 4px 1px 4px; background-color: #303040; border-radius: 3px; } QLabel { color: #cccccc; font-size: 10px; background-color: transparent; border: none; } QLabel#stats_label { color: #d0d0d0; font-size: 9px; padding: 4px; } QLabel#status_label { font-weight: bold; color: #FFA500; font-family: 'Segoe UI', Arial; font-size: 13px; padding: 5px; } QLabel#completeness_label { font-weight: bold; color: #ccc; } QPushButton { font-size: 10px; padding: 3px 8px; background-color: #007B8C; color: white; border-radius: 3px; border: 1px solid #005f6b; } QPushButton:hover { background-color: #009CB0; } QPushButton:pressed { background-color: #005f6b; } """)
         self.stats_label.setObjectName("stats_label")
         self.status_label.setObjectName("status_label")
@@ -219,18 +246,20 @@ class AIStateWidget(QWidget):
 
     # Type hint uses string forward reference 'ReflectReturnType' if TYPE_CHECKING, else Dict
     def update_display(self, stats: Union[Dict, 'ReflectReturnType'], emotions: Optional[torch.Tensor], loss: float = 0.0):
-        # ... (rest of update_display remains the same) ...
+        # Update Emotions
         expected_shape = (Config.Agent.EMOTION_DIM,)
         if emotions is not None and isinstance(emotions, torch.Tensor) and emotions.shape == expected_shape and is_safe(emotions):
              emo_cpu = emotions.detach().cpu();
              for i, bar in enumerate(self.emotion_bars):
                  if i < len(emo_cpu): bar.setValue(int(emo_cpu[i].item() * 100))
-                 else: bar.setValue(0)
+                 else: bar.setValue(0) # Should not happen if dim matches
         else:
+             # Only log if changing from non-zero to zero
              if not all(bar.value() == 0 for bar in self.emotion_bars):
-                 logger.warning(f"AIStateWidget received invalid emotions ({type(emotions)}). Resetting bars.")
+                 # logger.warning(f"AIStateWidget received invalid emotions ({type(emotions)}). Resetting bars.")
                  for bar in self.emotion_bars: bar.setValue(0)
 
+        # Update Mood
         mood_list = stats.get("current_mood", [])
         if isinstance(mood_list, list) and len(mood_list) == Config.Agent.EMOTION_DIM:
             for i, bar in enumerate(self.mood_bars):
@@ -240,9 +269,10 @@ class AIStateWidget(QWidget):
                  else: bar.setValue(0)
         else:
              if not all(bar.value() == 0 for bar in self.mood_bars):
-                  logger.warning(f"AIStateWidget received invalid mood data type/length ({type(mood_list)}). Resetting bars.")
+                  # logger.warning(f"AIStateWidget received invalid mood data type/length ({type(mood_list)}). Resetting bars.")
                   for bar in self.mood_bars: bar.setValue(0)
 
+        # Update Metrics Text
         episodes = stats.get("episode", 0); total_steps = stats.get("total_steps", 0);
         avg_reward = stats.get("avg_reward_last20", 0.0)
         I_S = stats.get("I_S", 0.0); rho_struct = stats.get("rho_struct", 0.0); att_score = stats.get("att_score", 0.0);
@@ -250,9 +280,10 @@ class AIStateWidget(QWidget):
         box_score = stats.get("box_score", 0.0); R_acc = stats.get("R_acc", 0.0)
         current_loss = loss
 
+        # Improved formatting
         stats_text = (
-            f"Steps: {total_steps:<7,} Episode: {episodes:<5} Avg Rew: {avg_reward:<+8.3f}\n"
-            f"--------------------------------------------\n"
+            f"Steps: {total_steps:<8,} Episode: {episodes:<5} Avg Rew: {avg_reward:<+8.3f}\n"
+            f"---------------------------------------------\n"
             f" I_S    : {I_S:<8.3f} | Att    : {att_score:<8.3f}\n"
             f" RhoStr : {rho_struct:<8.3f} | SelfC  : {self_consistency:<+8.3f}\n"
             f" RhoScr : {rho_score:<8.3f} | Tau(t) : {tau_t:<8.3f}\n"
@@ -260,6 +291,7 @@ class AIStateWidget(QWidget):
             f" Loss   : {current_loss:<+8.4f}" )
         self.stats_label.setText(stats_text)
 
+        # Update completeness display (using stored values)
         self.update_completeness_display(self.completeness_result, self.completeness_details)
 
 
@@ -268,16 +300,16 @@ class AIStateWidget(QWidget):
         self.completeness_details = details if details else "No details provided."
         if self.completeness_result is True:
             self.completeness_label.setText("Completeness: ✅ Yes");
-            self.completeness_label.setStyleSheet("#completeness_label { font-weight: bold; color: #4CAF50; }");
+            self.completeness_label.setStyleSheet("#completeness_label { font-weight: bold; color: #4CAF50; }"); # Green
         elif self.completeness_result is False:
             self.completeness_label.setText("Completeness: ❌ No");
-            self.completeness_label.setStyleSheet("#completeness_label { font-weight: bold; color: #F44336; }");
-        else:
+            self.completeness_label.setStyleSheet("#completeness_label { font-weight: bold; color: #F44336; }"); # Red
+        else: # None or N/A
             self.completeness_label.setText("Completeness: N/A");
-            self.completeness_label.setStyleSheet("#completeness_label { font-weight: bold; color: #ccc; }");
-        self.completeness_label.setToolTip(self.completeness_details)
+            self.completeness_label.setStyleSheet("#completeness_label { font-weight: bold; color: #ccc; }"); # Default grey
+        self.completeness_label.setToolTip(self.completeness_details) # Add tooltip with details
 
-    def set_status(self, status_text: str, color_hex: str ="#FFA500"):
+    def set_status(self, status_text: str, color_hex: str ="#FFA500"): # Orange default
         self.status_label.setText(f"Status: {status_text}")
         self.status_label.setStyleSheet(f"""QLabel#status_label {{ font-weight: bold; color: {color_hex}; font-family: 'Segoe UI', Arial; font-size: 13px; border: none; background: transparent; padding: 5px; }}""")
 
