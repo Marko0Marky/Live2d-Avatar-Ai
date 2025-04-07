@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from orchestrator import EnhancedConsciousAgent, ReflectReturnType
 
 
-# --- HUDWidget (Remains the same) ---
+# --- HUDWidget (Completed in previous response) ---
 class HUDWidget(QWidget):
     # Use string literal for forward reference
     def __init__(self, agent_orchestrator: 'EnhancedConsciousAgent', parent: Optional[QWidget] = None):
@@ -111,7 +111,7 @@ class HUDWidget(QWidget):
             p.setPen(base_pen); p.drawText(x, y, text) # Draw main text on top
 
         # Draw Emotion Bars
-        bar_width = min(70, rect.width() - 50); bar_height = 5; bar_spacing = 2; y_emo_start = y_pos
+        bar_width = min(70, rect.width() - 50); bar_height = 5; bar_spacing = 2; y_emo_start = y_pos; bar_y = y_pos # Initialize bar_y
         for i, name in enumerate(self.emotion_names):
             value = self.emotion_values[i].item() if i < self.emotion_values.numel() else 0.0
             current_y = y_emo_start + i * (bar_height + bar_spacing + line_height)
@@ -149,7 +149,7 @@ class HUDWidget(QWidget):
             painter.drawText(response_rect, response_flags, response_text)
 
 
-# --- AIStateWidget Class with Fix ---
+# --- AIStateWidget Class --- (Continuing from previous response)
 class AIStateWidget(QWidget):
     """Displays agent's core stats including emotions, mood, and metrics."""
     request_completeness_test = pyqtSignal()
@@ -158,7 +158,6 @@ class AIStateWidget(QWidget):
     def __init__(self, agent_orchestrator: 'EnhancedConsciousAgent', parent: Optional[QWidget] = None):
         super().__init__(parent)
 
-        # Runtime check for attributes needed (safer than isinstance with forward refs)
         if not hasattr(agent_orchestrator, 'env') or not hasattr(agent_orchestrator, 'mood'):
              raise AttributeError("AIStateWidget requires agent_orchestrator to have 'env' and 'mood' attributes.")
         self.agent_orchestrator = agent_orchestrator;
@@ -252,11 +251,9 @@ class AIStateWidget(QWidget):
              emo_cpu = emotions.detach().cpu();
              for i, bar in enumerate(self.emotion_bars):
                  if i < len(emo_cpu): bar.setValue(int(emo_cpu[i].item() * 100))
-                 else: bar.setValue(0) # Should not happen if dim matches
+                 else: bar.setValue(0)
         else:
-             # Only log if changing from non-zero to zero
              if not all(bar.value() == 0 for bar in self.emotion_bars):
-                 # logger.warning(f"AIStateWidget received invalid emotions ({type(emotions)}). Resetting bars.")
                  for bar in self.emotion_bars: bar.setValue(0)
 
         # Update Mood
@@ -269,7 +266,6 @@ class AIStateWidget(QWidget):
                  else: bar.setValue(0)
         else:
              if not all(bar.value() == 0 for bar in self.mood_bars):
-                  # logger.warning(f"AIStateWidget received invalid mood data type/length ({type(mood_list)}). Resetting bars.")
                   for bar in self.mood_bars: bar.setValue(0)
 
         # Update Metrics Text
@@ -280,7 +276,6 @@ class AIStateWidget(QWidget):
         box_score = stats.get("box_score", 0.0); R_acc = stats.get("R_acc", 0.0)
         current_loss = loss
 
-        # Improved formatting
         stats_text = (
             f"Steps: {total_steps:<8,} Episode: {episodes:<5} Avg Rew: {avg_reward:<+8.3f}\n"
             f"---------------------------------------------\n"
@@ -291,7 +286,6 @@ class AIStateWidget(QWidget):
             f" Loss   : {current_loss:<+8.4f}" )
         self.stats_label.setText(stats_text)
 
-        # Update completeness display (using stored values)
         self.update_completeness_display(self.completeness_result, self.completeness_details)
 
 
