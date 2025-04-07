@@ -61,13 +61,11 @@ class EmotionalSpace:
         for _ in range(Config.Agent.HISTORY_SIZE):
             self.state_history_deque.append(torch.zeros(Config.Agent.BASE_STATE_DIM, device=DEVICE, dtype=torch.float32)) # Use BASE dim
 
-        # --- CORRECTED VALIDATION ---
         # Check that the BASE state dimension matches EMOTION_DIM + 6
         expected_base_state_dim = Config.Agent.EMOTION_DIM + 6
         if Config.Agent.BASE_STATE_DIM != expected_base_state_dim:
             logger.critical(f"FATAL: Config Agent.BASE_STATE_DIM ({Config.Agent.BASE_STATE_DIM}) != expected ({expected_base_state_dim}). Fix Config.")
             sys.exit(1)
-        # --- END CORRECTION ---
 
         self._setup_emotion_keywords()
 
@@ -83,7 +81,6 @@ class EmotionalSpace:
         logger.debug("Emotion keywords set up.")
         if len(self.emotion_keywords) < Config.Agent.EMOTION_DIM: logger.warning("EmotionalSpace keyword map has fewer entries than EMOTION_DIM.")
 
-    # --- MODIFIED: Property returns BASE state history ---
     @property
     def state_history(self) -> torch.Tensor:
         """Provides the BASE state history as a stacked torch tensor."""
@@ -104,7 +101,6 @@ class EmotionalSpace:
              logger.error(f"Error stacking state history deque: {e}. Returning zeros.", exc_info=True)
              return torch.zeros(Config.Agent.HISTORY_SIZE, Config.Agent.BASE_STATE_DIM, device=DEVICE, dtype=torch.float32) # Use BASE dim
 
-    # --- MODIFIED: Reset returns BASE state ---
     def reset(self) -> torch.Tensor:
         """Resets the environment to its initial BASE state."""
         self.step_count = 0; self.event_timer = 0; self.gap_timer = Config.Env.EVENT_GAP;
@@ -117,24 +113,21 @@ class EmotionalSpace:
         initial_base_state = self._get_state(initial_emotions) # _get_state now returns BASE state
 
         if initial_base_state is not None and is_safe(initial_base_state) and initial_base_state.shape == (Config.Agent.BASE_STATE_DIM,): # Check BASE dim
-            # Don't popleft, just append. Deque handles maxlen.
             self.state_history_deque.append(initial_base_state.clone().detach())
         else:
             logger.error(f"Failed to get valid initial base state in reset. Got: {initial_base_state}. History starts with zeros.");
-            # If reset fails, use the last valid state (which is zeros here)
             initial_base_state = torch.zeros(Config.Agent.BASE_STATE_DIM, device=DEVICE, dtype=torch.float32) # Use BASE dim
             self.state_history_deque.append(initial_base_state.clone().detach())
 
         return initial_base_state # Return BASE state
 
-    # --- MODIFIED: Step returns BASE state ---
     StepReturnType = Tuple[torch.Tensor, float, bool, str, Optional[str]]
     def step(self) -> StepReturnType:
         """Performs one step of the *internal* environment simulation, returns BASE state."""
         self.step_count += 1; reward = 0.0; event_triggered = False
         context_internal = "Quiet."
 
-        # Event timing logic (remains the same)
+        # Event timing logic
         if self.event_timer > 0:
             self.event_timer -= 1;
             if self.event_timer == 0: self.current_event_type = None; context_internal = "Normal."; self.gap_timer = Config.Env.EVENT_GAP
@@ -166,15 +159,13 @@ class EmotionalSpace:
             logger.error(f"Failed generate valid base state in step. Got {base_state}. Returning previous.");
             base_state = last_valid_base_state
             if not is_safe(base_state): base_state = torch.zeros(Config.Agent.BASE_STATE_DIM, device=DEVICE) # Use BASE dim
-            reward = 0.0 # Penalize for invalid state generation?
+            reward = 0.0
         else:
-            # Add new BASE state to history deque
             self.state_history_deque.append(base_state.clone().detach())
 
         done = self.step_count >= 50000 # Simple termination condition
         return base_state, reward, done, context_internal, self.current_event_type # Return BASE state
 
-    # --- MODIFIED: _get_state returns BASE state ---
     def _get_state(self, current_emotions: torch.Tensor) -> Optional[torch.Tensor]:
         """Generates the BASE state vector (emotions + meta features)."""
         if not isinstance(current_emotions, torch.Tensor): logger.error(f"_get_state: Invalid emotion type {type(current_emotions)}."); return None
