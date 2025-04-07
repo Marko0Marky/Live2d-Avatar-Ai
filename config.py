@@ -28,35 +28,19 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 LANGUAGE_EMBEDDING_DIM = 384
 BASE_AGENT_STATE_DIM = 12
 
-# --- NEW: Head Movement Labels ---
-# Define the discrete set of head movements the agent can predict.
-# Ensure these match the strings used in train_data.json and graphics.py analysis
+# --- Head Movement Labels ---
 HEAD_MOVEMENT_LABELS = [
-    "idle", # Default/no specific movement
-    "slight_tilt",
-    "small_nod",
-    "gentle_nod",
-    "quick_nod",
-    "slow_tilt",
-    "ponder_tilt",
-    "concerned_tilt",
-    "sympathetic_tilt",
-    "curious_turn",
-    "quick_turn",
-    "negative_tilt",
-    "confused_tilt",
-    "restless_shift", # May map to amplified micro-movements
+    "idle", "slight_tilt", "small_nod", "gentle_nod", "quick_nod", "slow_tilt",
+    "ponder_tilt", "concerned_tilt", "sympathetic_tilt", "curious_turn",
+    "quick_turn", "negative_tilt", "confused_tilt", "restless_shift",
 ]
 NUM_HEAD_MOVEMENTS = len(HEAD_MOVEMENT_LABELS)
-# Create mappings for convenience
 HEAD_MOVEMENT_TO_IDX = {label: i for i, label in enumerate(HEAD_MOVEMENT_LABELS)}
 IDX_TO_HEAD_MOVEMENT = {i: label for i, label in enumerate(HEAD_MOVEMENT_LABELS)}
 logger.info(f"Defined {NUM_HEAD_MOVEMENTS} head movement labels: {HEAD_MOVEMENT_LABELS}")
-# --- End Head Movement Labels ---
-
 
 @dataclass
-class GraphicsConfig: # No changes needed here
+class GraphicsConfig:
     MODEL_PATH: str = os.path.abspath("./models/as01.model3.json")
     FPS: int = 60
     PARTICLE_COUNT: int = 25
@@ -68,12 +52,12 @@ class GraphicsConfig: # No changes needed here
     MOUTH_PARAM_DEFAULT: float = 0.0
 
 @dataclass
-class AgentConfig: # No changes needed here (STATE_DIM calculation remains)
+class AgentConfig:
     USE_LANGUAGE_EMBEDDING: bool = True
-    STATE_DIM: int = field(init=False)
+    STATE_DIM: int = field(init=False) # Calculated in __post_init__
     BASE_STATE_DIM: int = BASE_AGENT_STATE_DIM
     LANGUAGE_EMBEDDING_DIM: int = LANGUAGE_EMBEDDING_DIM
-    HIDDEN_DIM: int = 128 # Keep increased hidden dim
+    HIDDEN_DIM: int = 128
     MEMORY_SIZE: int = 10000
     HISTORY_SIZE: int = 10
     CASCADE_LEVELS: int = 3
@@ -85,10 +69,11 @@ class AgentConfig: # No changes needed here (STATE_DIM calculation remains)
 
     def __post_init__(self):
         self.STATE_DIM = self.BASE_STATE_DIM + (self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0)
-        logger.info(f"AgentConfig Calculated STATE_DIM: {self.STATE_DIM}")
+        logger.info(f"AgentConfig Calculated STATE_DIM: {self.STATE_DIM} (Base: {self.BASE_STATE_DIM}, LangEmbed: {self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0}, Enabled: {self.USE_LANGUAGE_EMBEDDING})")
+
 
 @dataclass
-class RLConfig: # Add head movement loss weight
+class RLConfig:
     GAMMA: float = 0.99
     LR: float = 0.0005
     AGENT_TRAIN_INTERVAL: int = 4
@@ -107,27 +92,27 @@ class RLConfig: # Add head movement loss weight
     MOOD_UPDATE_DECAY: float = 0.995
     MEMORY_GATING_ENABLED: bool = True
     MEMORY_GATE_ATTENTION_THRESHOLD: float = 0.3
-    # --- NEW: Head Movement Loss Weight ---
-    # Set to 0.0 initially as we are not training it via supervised loss yet
-    HEAD_MOVEMENT_LOSS_WEIGHT: float = 0.0
+    # --- MODIFIED: Head Movement Loss Weight ---
+    # Set to a non-zero value to enable training
+    HEAD_MOVEMENT_LOSS_WEIGHT: float = 0.1 # Start with a small weight
 
 
 @dataclass
-class NLPConfig: # No changes needed here
+class NLPConfig:
     SENTENCE_TRANSFORMER_MODEL: str = 'all-MiniLM-L6-v2'
     GPT_LR: float = 0.0005
     TRAIN_EPOCHS: int = 15
     MAX_RESPONSE_LEN: int = 32
     GRADIENT_CLIP_GPT: float = 1.0
     TOKENIZER_PATH: str = "./tokenizer/bpe_agent_tokenizer.json"
-    VOCAB_SIZE: int = 1000
+    VOCAB_SIZE: int = 1000 # Updated by tokenizer load/train
     SPECIAL_TOKENS: List[str] = field(default_factory=lambda: ["<PAD>", "<START>", "<END>", "<UNK>"])
     GPT_TEMPERATURE: float = 0.7
     GPT_TOP_P: float = 0.9
     CONVERSATION_HISTORY_LENGTH: int = 4
 
 @dataclass
-class EnvConfig: # No changes needed here
+class EnvConfig:
     EVENT_FREQ: float = 0.3
     EVENT_DURATION: int = 120
     EVENT_GAP: int = 40
@@ -140,7 +125,7 @@ class Config:
     Env: EnvConfig = field(default_factory=EnvConfig)
     Graphics: GraphicsConfig = field(default_factory=GraphicsConfig)
 
-MasterConfig = Config()
+MasterConfig = Config() # Instantiate the main config object
 
 # --- Training Data Path & Loading ---
 TRAINING_DATA_PATH = "./train_data.json"
@@ -172,19 +157,18 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
                 # logger.debug(f"Adjusting emotion_weights length for item {i} from {len(current_weights)} to {expected_emo_len}.")
                 item["emotion_weights"] = (current_weights + [0.0] * expected_emo_len)[:expected_emo_len]
 
-            # --- NEW: Validate head_movement labels ---
+            # Validate/Process head_movement labels
             hm_label = item.get("head_movement")
             if hm_label is not None:
                 items_with_hm += 1
                 if hm_label not in HEAD_MOVEMENT_LABELS:
                     logger.warning(f"Item {i} in {path} has unknown head_movement label: '{hm_label}'. Valid labels: {HEAD_MOVEMENT_LABELS}. Setting to 'idle'.")
-                    item["head_movement"] = "idle" # Set to default if invalid
-                # Convert label to index for potential future training use
+                    item["head_movement"] = "idle" # Set label to default if invalid
+                # Add integer index based on the (potentially corrected) label
                 item["head_movement_idx"] = HEAD_MOVEMENT_TO_IDX.get(item["head_movement"], HEAD_MOVEMENT_TO_IDX["idle"])
             else:
                 item["head_movement"] = "idle" # Set default label if missing
                 item["head_movement_idx"] = HEAD_MOVEMENT_TO_IDX["idle"] # Set default index
-            # --- End Head Movement Validation ---
 
             validated_data.append(item) # Add validated item
 
@@ -222,8 +206,7 @@ def train_or_load_tokenizer(data: List[Dict[str, str]], config: NLPConfig) -> To
         if not data:
              logger.warning("Cannot train tokenizer: No training data provided. Creating basic tokenizer.");
              loaded_tokenizer = Tokenizer(BPE(unk_token="<UNK>"))
-             # Add special tokens manually if creating basic tokenizer
-             loaded_tokenizer.add_special_tokens(config.SPECIAL_TOKENS)
+             loaded_tokenizer.add_special_tokens(config.SPECIAL_TOKENS) # Add specials manually
         else:
             text_corpus = [item.get(k, "") for item in data for k in ["output", "situation"] if item.get(k)] # Extract text
             if not text_corpus: logger.error("Cannot train tokenizer: No valid text found in training data."); sys.exit(1)
@@ -254,21 +237,31 @@ def train_or_load_tokenizer(data: List[Dict[str, str]], config: NLPConfig) -> To
 def tokenize(text: str, max_length: int = MasterConfig.NLP.MAX_RESPONSE_LEN - 2) -> List[int]:
     if tokenizer is None: logger.error("Tokenizer not initialized."); return []
     if not isinstance(text, str): logger.warning(f"Invalid input to tokenize: type {type(text)}."); return []
-    encoding = tokenizer.encode(text.lower(), add_special_tokens=False)
-    truncated_ids = encoding.ids[:max_length]
-    return truncated_ids
+    try: # Add try-except for tokenizer errors
+        encoding = tokenizer.encode(text.lower(), add_special_tokens=False)
+        truncated_ids = encoding.ids[:max_length]
+        return truncated_ids
+    except Exception as e:
+        logger.error(f"Error during tokenization of '{text[:50]}...': {e}", exc_info=True)
+        return []
+
 
 def detokenize(indices: List[int]) -> str:
     if tokenizer is None: logger.error("Tokenizer not initialized."); return ""
     if isinstance(indices, torch.Tensor): indices = indices.cpu().tolist()
     if not isinstance(indices, (list, tuple)): logger.warning(f"Invalid input to detokenize: type {type(indices)}."); return ""
     if PAD_TOKEN_ID is None or START_TOKEN_ID is None or END_TOKEN_ID is None: logger.error("Cannot detokenize: Special tokens not set."); return ""
-    special_ids_to_filter = {PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID}
-    valid_indices = [int(idx) for idx in indices if idx not in special_ids_to_filter]
-    decoded_text = tokenizer.decode(valid_indices, skip_special_tokens=True)
-    processed_text = re.sub(r'(?<=[a-zA-Z0-9])([.,!?;:])', r' \1', decoded_text) # Add space before punctuation
-    processed_text = re.sub(r'\s+', ' ', processed_text) # Normalize whitespace
-    return processed_text.strip()
+    try: # Add try-except for tokenizer errors
+        special_ids_to_filter = {PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID}
+        valid_indices = [int(idx) for idx in indices if idx is not None and idx not in special_ids_to_filter] # Check for None too
+        decoded_text = tokenizer.decode(valid_indices, skip_special_tokens=True)
+        processed_text = re.sub(r'(?<=[a-zA-Z0-9])([.,!?;:])', r' \1', decoded_text) # Add space before punctuation
+        processed_text = re.sub(r'\s+', ' ', processed_text) # Normalize whitespace
+        return processed_text.strip()
+    except Exception as e:
+        logger.error(f"Error during detokenization of indices {indices}: {e}", exc_info=True)
+        return "[Detokenization Error]"
+
 
 # --- Load data and initialize tokenizer ---
 TRAIN_DATA = load_and_validate_train_data(TRAINING_DATA_PATH) # Load and validate data
@@ -279,9 +272,10 @@ except Exception as e:
     sys.exit(1)
 
 # --- Final Config Validation ---
+# Check after __post_init__ has run
 expected_state_dim = MasterConfig.Agent.BASE_STATE_DIM + (MasterConfig.Agent.LANGUAGE_EMBEDDING_DIM if MasterConfig.Agent.USE_LANGUAGE_EMBEDDING else 0)
 if MasterConfig.Agent.STATE_DIM != expected_state_dim:
-     logger.critical(f"FATAL: Calculated Agent.STATE_DIM ({MasterConfig.Agent.STATE_DIM}) != expected ({expected_state_dim}). Fix config or __post_init__.")
+     logger.critical(f"FATAL: Calculated Agent.STATE_DIM ({MasterConfig.Agent.STATE_DIM}) mismatch with expected ({expected_state_dim}). Fix config or __post_init__.")
      sys.exit(1)
 if MasterConfig.Agent.EMOTION_DIM > MasterConfig.Agent.BASE_STATE_DIM:
     logger.critical(f"FATAL: Config Agent.EMOTION_DIM ({MasterConfig.Agent.EMOTION_DIM}) > BASE_STATE_DIM ({MasterConfig.Agent.BASE_STATE_DIM}).")
