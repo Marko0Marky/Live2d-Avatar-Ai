@@ -1,4 +1,4 @@
-# --- START OF FILE agent.py ---
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,7 +18,6 @@ from ai_modules import EmotionalModule, SyntrixKorporator, StrukturKaskade, Simp
 
 
 class ConsciousAgent(nn.Module):
-    # Error L26: Removed semicolon and fixed indentation for the whole method
     def __init__(self, state_dim: int = Config.Agent.STATE_DIM, hidden_dim: int = Config.Agent.HIDDEN_DIM, vocab_size: int = Config.NLP.VOCAB_SIZE):
         super().__init__() # Corrected indentation
         self.state_dim = state_dim
@@ -37,13 +36,12 @@ class ConsciousAgent(nn.Module):
         if self.state_dim > 0:
             possible_heads=[h for h in [16, 12, 8, 6, 4, 2, 1] if self.state_dim % h == 0]; num_heads = possible_heads[0] if possible_heads else 1
             if not possible_heads: logger.warning(f"Agent Attention fallback 1 head dim {self.state_dim}.")
-            # Error L56: Try needs except/finally; Error L57: Indentation; Error L59: Expected expression
-            try: # Corrected indentation
-                self.attention=nn.MultiheadAttention(embed_dim=self.state_dim, num_heads=num_heads, batch_first=True, dropout=0.15)
+            try: # Corrected indentation and added except block
+                self.attention = nn.MultiheadAttention(embed_dim=self.state_dim, num_heads=num_heads, batch_first=True, dropout=0.15) # Corrected indentation
                 logger.info(f"Agent Attention init {num_heads} heads dim {self.state_dim}.")
             except Exception as e: # Added except block
                 logger.error(f"Failed init Attention: {e}. Disabled.")
-                self.attention=None
+                self.attention = None
         self.feedback = nn.Linear(kaskade_out_dim, self.state_dim)
         self.value_head = nn.Linear(kaskade_out_dim, 1)
         self.head_movement_head = nn.Linear(kaskade_out_dim, NUM_HEAD_MOVEMENTS)
@@ -58,7 +56,7 @@ class ConsciousAgent(nn.Module):
         self._base_lr = Config.RL.LR
         self.state_history_deque: Deque[torch.Tensor] = deque(maxlen=Config.Agent.HISTORY_SIZE)
         # Corrected list comprehension indentation
-        for _ in range(Config.Agent.HISTORY_SIZE):
+        for _ in range(Config.Agent.HISTORY_SIZE): # Corrected indentation and use loop
             self.state_history_deque.append(torch.zeros(self.state_dim, device=DEVICE))
         self.prev_emotions = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
         self.step_count = 0
@@ -78,31 +76,27 @@ class ConsciousAgent(nn.Module):
             logger.info("Skipping initial GPT training: No valid training data.")
         logger.info(f"ConsciousAgent initialized with STATE_DIM={self.state_dim}.")
 
-    # Error L96: Indentation; Error L98: Expected expression
     @property
-    def state_history(self) -> torch.Tensor:
+    def state_history(self) -> torch.Tensor: # Corrected indentation
         if not self.state_history_deque:
             return torch.zeros(Config.Agent.HISTORY_SIZE, self.state_dim, device=DEVICE, dtype=torch.float32)
         valid_elements = True
         for t in self.state_history_deque:
-             if not isinstance(t, torch.Tensor) or t.shape != (self.state_dim,):
-                  logger.error(f"Agent history invalid shape {t.shape}, expected ({self.state_dim},).")
-                  valid_elements = False
-                  break # Added break
+            if not isinstance(t, torch.Tensor) or t.shape != (self.state_dim,):
+                logger.error(f"Agent history invalid shape {t.shape}, expected ({self.state_dim},).")
+                valid_elements = False
+                break # Added break
         if not valid_elements:
-             self.state_history_deque.clear()
-             for _ in range(Config.Agent.HISTORY_SIZE): # Use loop instead of list comp
-                 self.state_history_deque.append(torch.zeros(self.state_dim, device=DEVICE))
-             return torch.zeros(Config.Agent.HISTORY_SIZE, self.state_dim, device=DEVICE)
+            self.state_history_deque.clear()
+            for _ in range(Config.Agent.HISTORY_SIZE): # Use loop instead of list comp
+                self.state_history_deque.append(torch.zeros(self.state_dim, device=DEVICE))
+            return torch.zeros(Config.Agent.HISTORY_SIZE, self.state_dim, device=DEVICE)
         try:
             return torch.stack(list(self.state_history_deque)).to(device=DEVICE, dtype=torch.float32)
         except Exception as e:
             logger.error(f"Error stacking agent history: {e}.")
             return torch.zeros(Config.Agent.HISTORY_SIZE, self.state_dim, device=DEVICE)
 
-    # ... (compute_accessibility, forward, _get_default_outputs, step, learn methods remain structurally the same as the last correct version) ...
-    # Make sure no stray semicolons exist within these methods from copy-paste.
-    # The Pylance errors didn't point inside these methods for the last round.
     def compute_accessibility(self, history_tensor: torch.Tensor) -> torch.Tensor:
         default_matrix = torch.zeros((Config.Agent.HISTORY_SIZE, Config.Agent.HISTORY_SIZE), device=DEVICE)
         if not isinstance(history_tensor, torch.Tensor) or history_tensor.shape != (Config.Agent.HISTORY_SIZE, self.state_dim):
@@ -158,9 +152,8 @@ class ConsciousAgent(nn.Module):
             elif full_state_history_input is not None: logger.warning("Agent.forward single: Invalid external history.")
             if self.attention and history_to_use is not None and history_to_use.shape[0] == Config.Agent.HISTORY_SIZE:
                  state_seq = history_to_use.unsqueeze(0).float().detach()
-                                  # (Inside the forward method, within the try block for attention)
                  try:
-                     attn_output_b, attn_weights_b = self.attention(state_seq, state_seq, state_seq) # Removed semicolon
+                     attn_output_b, attn_weights_b = self.attention(state_seq, state_seq, state_seq)
                      if is_safe(attn_output_b) and attn_output_b.shape == (1, Config.Agent.HISTORY_SIZE, self.state_dim):
                          attn_output_context = attn_output_b[0, -1, :].detach()
                      else:
@@ -172,17 +165,16 @@ class ConsciousAgent(nn.Module):
                      attn_weights = attn_weights_b.squeeze(0)
                      if is_safe(attn_weights):
                          non_diag_mask = ~torch.eye(Config.Agent.HISTORY_SIZE, dtype=torch.bool, device=DEVICE)
-                         valid_weights = attn_weights[non_diag_mask] # Removed semicolon
+                         valid_weights = attn_weights[non_diag_mask]
                          if valid_weights.numel() > 0:
                              att_score = valid_weights.mean().item()
-                         # Removed else: pass as it's redundant
                      else:
                          logger.warning("Unsafe attention weights.")
-                 except Exception as e: # Moved except block to match the try
+                 except Exception as e:
                     logger.error(f"Error self-attention: {e}")
                     attn_output_context = discretized_state[-1] if discretized_state.ndim == 2 else discretized_state
             elif not is_batch and self.attention and history_to_use is not None: logger.warning(f"Attn skipped: History size mismatch.")
-        elif is_batch and self.attention: attn_output_context = discretized_state; pass
+        elif is_batch and self.attention: attn_output_context = discretized_state; pass # Use discretized state directly for batch context (simplification)
         if is_batch: emotion_state_part = discretized_state[:, :Config.Agent.EMOTION_DIM]; prev_emotions_for_module = self.prev_emotions.unsqueeze(0).repeat(batch_size, 1)
         else: emotion_state_part = discretized_state[:Config.Agent.EMOTION_DIM].unsqueeze(0); prev_emotions_for_module = self.prev_emotions.unsqueeze(0)
         if not is_safe(prev_emotions_for_module): prev_emotions_for_module = torch.zeros_like(prev_emotions_for_module)
@@ -210,7 +202,7 @@ class ConsciousAgent(nn.Module):
         else: logger.warning(f"Forward: Consistency shape mismatch {belief.shape} vs {belief_raw.shape}.")
         if is_batch:
             self_consistency = self_consistency_batch.mean().item(); rho_score = rho_score_batch.mean().item()
-            I_S_norm, rho_struct_val, box_score, R_acc_mean, tau_t = 0.0, 0.0, 0.0, 0.0, Config.Agent.ACCESSIBILITY_THRESHOLD;
+            I_S_norm, rho_struct_val, box_score, R_acc_mean, tau_t = 0.0, 0.0, 0.0, 0.0, Config.Agent.ACCESSIBILITY_THRESHOLD; # No single-step history metrics for batch
         else:
             self_consistency = self_consistency_batch.item(); rho_score = rho_score_batch.item()
             if history_to_use is not None:
@@ -259,14 +251,14 @@ class ConsciousAgent(nn.Module):
         if sample_result is None: logger.warning("Learn: Memory sample returned None."); return 0.0
         batch_data, indices, weights = sample_result
         states = batch_data['states']; rewards = batch_data['rewards']; next_states = batch_data['next_states']; dones = batch_data['dones']
-        target_hm_indices = batch_data.get('target_hm_idx')
+        target_hm_indices = batch_data.get('target_hm_idx') # Retrieve target indices
         if states.shape[0] != rewards.shape[0] or states.shape[0] != next_states.shape[0] or states.shape[1] != self.state_dim: logger.error(f"Learn: Batch dim/state mismatch. States: {states.shape}, Exp Dim: {self.state_dim}"); return -1.0
         current_batch_size = states.shape[0];
         if current_batch_size == 0: logger.warning("Learn: Batch size 0."); return 0.0
         try:
             zero_rewards_batch = torch.zeros_like(rewards)
             outputs = self.forward(states, zero_rewards_batch, None)
-            current_value_pred = outputs[3]; rho_score_batch = outputs[8]; box_score_batch = outputs[9]; head_movement_logits = outputs[-1]
+            current_value_pred = outputs[3]; rho_score_batch = outputs[8]; box_score_batch = outputs[9]; head_movement_logits = outputs[-1] # Get HM logits
             if not is_safe(current_value_pred) or current_value_pred.shape != (current_batch_size, 1): raise ValueError(f"Invalid V(s) shape/safety {current_value_pred.shape}")
             if isinstance(rho_score_batch, float): rho_score_tensor = torch.full((current_batch_size, 1), rho_score_batch, device=DEVICE)
             elif isinstance(rho_score_batch, torch.Tensor): rho_score_tensor = rho_score_batch.detach().clone()
@@ -280,6 +272,7 @@ class ConsciousAgent(nn.Module):
             if box_score_tensor.ndim == 1: box_score_tensor = box_score_tensor.unsqueeze(1)
             if box_score_tensor.shape != (current_batch_size, 1): raise ValueError(f"Box score tensor shape mismatch: {box_score_tensor.shape}")
             if not is_safe(box_score_tensor): raise ValueError("Unsafe box_score_tensor")
+            # Validate HM logits shape
             if not is_safe(head_movement_logits) or head_movement_logits.shape != (current_batch_size, NUM_HEAD_MOVEMENTS): raise ValueError(f"Invalid HM logits shape/safety. Got {head_movement_logits.shape}, Exp ({current_batch_size}, {NUM_HEAD_MOVEMENTS})")
         except Exception as e: logger.error(f"Error during V(s)/Metrics calculation in learn: {e}", exc_info=True); return -1.0
         next_value_pred = torch.zeros_like(rewards)
@@ -311,13 +304,15 @@ class ConsciousAgent(nn.Module):
         hm_loss_weight = Config.RL.HEAD_MOVEMENT_LOSS_WEIGHT
         if hm_loss_weight > 0 and target_hm_indices is not None and head_movement_logits.requires_grad:
             try:
-                target_hm_indices_dev = target_hm_indices.to(DEVICE).long()
+                target_hm_indices_dev = target_hm_indices.to(DEVICE).long() # Ensure Long tensor on correct device
                 if target_hm_indices_dev.shape[0] == current_batch_size:
-                    if target_hm_indices_dev.ndim > 1: target_hm_indices_dev = target_hm_indices_dev.squeeze(-1)
+                    if target_hm_indices_dev.ndim > 1: target_hm_indices_dev = target_hm_indices_dev.squeeze(-1) # Remove extra dim if present
+                    # CrossEntropyLoss expects logits (N, C) and targets (N)
                     hm_loss_func = nn.CrossEntropyLoss(reduction='none')
                     hm_loss_elementwise = hm_loss_func(head_movement_logits, target_hm_indices_dev)
-                    movement_loss = (hm_loss_elementwise * weights.squeeze(-1)).mean()
-                    if not torch.isfinite(movement_loss): logger.warning(f"Movement loss is NaN/Inf! Elementwise: {hm_loss_elementwise}, Weights: {weights.squeeze(-1)}"); movement_loss = torch.tensor(0.0, device=DEVICE)
+                    movement_loss = (hm_loss_elementwise * weights.squeeze(-1)).mean() # Apply PER weights
+                    if not torch.isfinite(movement_loss): # Check for NaN/Inf
+                        logger.warning(f"Movement loss is NaN/Inf! Elementwise: {hm_loss_elementwise}, Weights: {weights.squeeze(-1)}"); movement_loss = torch.tensor(0.0, device=DEVICE)
                 else: logger.warning(f"Learn: Mismatch batch size ({current_batch_size}) vs target HM ({target_hm_indices.shape}). Skip HM loss.")
             except Exception as hm_err: logger.error(f"Learn: Error calculating head movement loss: {hm_err}", exc_info=True); movement_loss = torch.tensor(0.0, device=DEVICE)
         total_loss = value_loss + movement_loss * hm_loss_weight
@@ -340,7 +335,7 @@ class ConsciousAgent(nn.Module):
              self.memory.update_priorities(indices, td_error.detach())
         elif not total_loss.requires_grad and abs(loss_val) > 1e-7 : logger.debug(f"Learn: Total Loss ({loss_val:.4f}) requires no grad.")
         elif not is_safe(total_loss): logger.warning(f"Learn: Unsafe total loss ({loss_val:.4f}). Skip step."); self.optimizer.zero_grad()
-        else: pass
+        else: pass # Zero loss, skip update
         if Config.RL.ADAPTIVE_LR_ENABLED and original_lrs:
             for i, param_group in enumerate(self.optimizer.param_groups):
                 if i < len(original_lrs): param_group['lr'] = original_lrs[i]
