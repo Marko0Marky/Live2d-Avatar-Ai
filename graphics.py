@@ -186,8 +186,6 @@ class Live2DCharacter(QOpenGLWidget):
         self.parameter_map: Dict[str | int, Dict] = {}
         self._failed_params: set = set()
 
-        # --- REMOVED Monologue state ---
-
         # --- NEW: Store predicted head movement label ---
         self.predicted_head_movement: Optional[str] = "idle" # Start with idle
 
@@ -319,7 +317,7 @@ class Live2DCharacter(QOpenGLWidget):
                     float dist = length(uv - 0.5); float pulse = sin(time * 1.5 + dist * 5.0) * 0.5 + 0.5;
                     float glow = smoothstep(0.5, 0.0, dist) * pulse * 0.1 * {Config.Graphics.GLOW_INTENSITY / 3.0:.3f}; finalColor += emotion_color * glow;
                     FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0);
-                }} """ # Added missing closing brace
+                }} """
             if not self.shader_program.addShaderFromSourceCode(QOpenGLShader.ShaderTypeBit.Vertex, vs_code):
                 logger.error(f"BG VS compile failed: {self.shader_program.log()}"); return False
             if not self.shader_program.addShaderFromSourceCode(QOpenGLShader.ShaderTypeBit.Fragment, fs_code):
@@ -344,7 +342,7 @@ class Live2DCharacter(QOpenGLWidget):
             position_loc = 0 # Default location
             if self.shader_program and self.shader_program.isLinked():
                  loc_check = glGetAttribLocation(self.shader_program.programId(), b"position")
-                 position_loc = loc_check if loc_check != -1 else 0 # Corrected assignment
+                 position_loc = loc_check if loc_check != -1 else 0
             else: logger.warning("BG Shader not linked, using default pos location 0.")
             glEnableVertexAttribArray(position_loc)
             glVertexAttribPointer(position_loc, 2, GL_FLOAT, GL_FALSE, 2 * ctypes.sizeof(GLfloat), ctypes.c_void_p(0))
@@ -372,7 +370,7 @@ class Live2DCharacter(QOpenGLWidget):
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
             color_offset = ctypes.c_void_p(3 * ctypes.sizeof(GLfloat))
             glEnableVertexAttribArray(1)
-            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, color_offset)
+            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, color_offset) # Use vec4 for color (RGBA)
             glBindBuffer(GL_ARRAY_BUFFER, 0)
             glBindVertexArray(0)
             logger.debug("Particle VAO/VBO created successfully.")
@@ -383,46 +381,60 @@ class Live2DCharacter(QOpenGLWidget):
             if hasattr(self, 'particle_vao') and self.particle_vao: glDeleteVertexArrays(1, [self.particle_vao]); self.particle_vao = 0
             return False
 
-    # --- USING _load_model from the user's provided version ---
+    # --- REVERTED _load_model ---
     def _load_model(self):
+        """Loads the Live2D model from the specified path (Version from Ai_Avatar_Chat-V3.py)."""
         if not os.path.exists(self.model_path):
-            logger.error(f"Model file/path not found: {self.model_path}")
-            self.error_occurred.emit(f"Model path not found: {self.model_path}")
+            logger.error(f"Model file not found: {self.model_path}")
+            self.error_occurred.emit(f"Model file not found: {self.model_path}")
             self.model_loaded = False; return
         try:
             logger.info(f"Loading Live2D model from: {self.model_path}")
+            # Use the imported Live2Dv3AppModel
             self.model = Live2Dv3AppModel()
             w, h = self.width(), self.height()
-            if w <= 0 or h <= 0: w, h = 400, 600
-            load_success = self.model.LoadModelJson(self.model_path)
-            # NOTE: The original snippet *didn't* check load_success here,
-            # but it's good practice to include it. Keeping original behaviour for now.
-            self.model.Resize(w, h)
+            if w <= 0 or h <= 0: logger.warning(f"Widget size invalid ({w}x{h}) during load. Using 400x600."); w, h = 400, 600
+            self.model.LoadModelJson(self.model_path) # NOTE: Original version did *not* check return value here.
+            self.model.Resize(w, h) # Set initial size
             self.model_loaded = True
-            logger.info(f"Loaded model: {os.path.basename(self.model_path)}")
+            logger.info(f"Loaded model: {os.path.basename(self.model_path)} (Initial size: {w}x{h})")
         except Exception as e:
-            logger.error(f"Live2D model loading failed: {e}", exc_info=True)
-            self.model = None; self.model_loaded = False;
+            logger.error(f"Model loading failed: {e}", exc_info=True)
+            self.model = None; self.model_loaded = False
             self.error_occurred.emit(f"Model load failed: {e}")
-    # --- END of specific _load_model version ---
+    # --- END of reverted _load_model ---
 
     def _create_parameter_mapper(self):
-        # ... (implementation unchanged from latest correct version) ...
-        if not self.model or not self.model_loaded: return; logger.info("Creating parameter map using heuristic defaults.")
-        self.parameter_map = { 0: {'params': ['PARAM_BODY_ANGLE_X', 'PARAM_CHEEK', 'PARAM_MOUTH_FORM', 'PARAM_EYE_L_OPEN', 'PARAM_EYE_R_OPEN'], 'mapper': lambda p, x: x*10 if 'BODY' in p else (0.5+x*0.5), 'smoothing': 0.05}, 1: {'params': ['PARAM_EYE_L_OPEN', 'PARAM_EYE_R_OPEN', 'PARAM_MOUTH_OPEN_Y', 'PARAM_BROW_L_Y', 'PARAM_BROW_R_Y'], 'mapper': lambda p, x: (1.0-x*0.5) if 'EYE' in p else (x if 'MOUTH' in p else -x*0.8), 'smoothing': 0.1}, 2: {'params': ['PARAM_BROW_L_Y', 'PARAM_BROW_R_Y', 'PARAM_EYE_BALL_X', 'PARAM_ANGLE_Z'], 'mapper': lambda p, x: x*0.5 if 'BROW' in p else (x*0.6 if 'EYE' in p else x*15), 'smoothing': 0.1}, 3: {'params': ['PARAM_BROW_L_FORM', 'PARAM_BROW_R_FORM', 'PARAM_MOUTH_FORM', 'PARAM_4'], 'mapper': lambda p, x: -x*0.8 if 'BROW' in p else (-x if 'MOUTH_F' in p else x), 'smoothing': 0.1}, 4: {'params': ['PARAM_BODY_ANGLE_X', 'PARAM_BREATH'], 'mapper': lambda p, x: x*0.1, 'smoothing': 0.05}, 5: {'params': ['PARAM_EYE_L_OPEN', 'PARAM_EYE_R_OPEN', 'PARAM_MOUTH_OPEN_Y'], 'mapper': lambda p, x: min(1.2, x*1.2), 'smoothing': 0.08}, 'cursor_x': {'params': ['PARAM_ANGLE_X', 'PARAM_EYE_BALL_X', 'PARAM_BODY_ANGLE_X', 'Param8', 'Param42'], 'mapper': lambda p, x: x*30 if 'ANGLE' in p else (x*0.8 if 'EYE' in p else x*10), 'smoothing': 0.05}, 'cursor_y': {'params': ['PARAM_ANGLE_Y', 'PARAM_EYE_BALL_Y', 'PARAM_BODY_ANGLE_Y', 'Param12', 'Param45'], 'mapper': lambda p, x: x*30 if 'ANGLE' in p else (x*0.8 if 'EYE' in p else x*10), 'smoothing': 0.05}, 'blush': {'params': ['Param'], 'mapper': lambda p, x: x, 'smoothing': 0.1}, 'wings': {'params': ['Param6'], 'mapper': lambda p, x: x, 'smoothing': 0.1}, 'mad': {'params': ['Param2'], 'mapper': lambda p, x: x, 'smoothing': 0.1}, 'confusion': {'params': ['Param4'], 'mapper': lambda p, x: x, 'smoothing': 0.1} }
+        # Implementation unchanged
+        if not self.model or not self.model_loaded: logger.error("Cannot create param map: no model."); return;
+        logger.info("Creating parameter map using heuristic defaults.")
+        self.parameter_map = {
+             0: {'params': ['PARAM_BODY_ANGLE_X', 'PARAM_CHEEK', 'PARAM_MOUTH_FORM', 'PARAM_EYE_L_OPEN', 'PARAM_EYE_R_OPEN'], 'mapper': lambda p, x: x*10 if 'BODY' in p else (0.5+x*0.5), 'smoothing': 0.05},
+             1: {'params': ['PARAM_EYE_L_OPEN', 'PARAM_EYE_R_OPEN', 'PARAM_MOUTH_OPEN_Y', 'PARAM_BROW_L_Y', 'PARAM_BROW_R_Y'], 'mapper': lambda p, x: (1.0-x*0.5) if 'EYE' in p else (x if 'MOUTH' in p else -x*0.8), 'smoothing': 0.1},
+             2: {'params': ['PARAM_BROW_L_Y', 'PARAM_BROW_R_Y', 'PARAM_EYE_BALL_X', 'PARAM_ANGLE_Z'], 'mapper': lambda p, x: x*0.5 if 'BROW' in p else (x*0.6 if 'EYE' in p else x*15), 'smoothing': 0.1},
+             3: {'params': ['PARAM_BROW_L_FORM', 'PARAM_BROW_R_FORM', 'PARAM_MOUTH_FORM', 'Param4'], 'mapper': lambda p, x: -x*0.8 if 'BROW' in p else (-x if 'MOUTH_F' in p else x), 'smoothing': 0.1}, # Param4 -> Mouth Sad? Check model.
+             4: {'params': ['PARAM_BODY_ANGLE_X', 'PARAM_BREATH'], 'mapper': lambda p, x: x*0.1, 'smoothing': 0.05},
+             5: {'params': ['PARAM_EYE_L_OPEN', 'PARAM_EYE_R_OPEN', 'PARAM_MOUTH_OPEN_Y'], 'mapper': lambda p, x: min(1.0, x*1.2), 'smoothing': 0.08}, # Clamped max to 1.0 for safety
+             'cursor_x': {'params': ['PARAM_ANGLE_X', 'PARAM_EYE_BALL_X', 'PARAM_BODY_ANGLE_X', 'Param8', 'Param42'], 'mapper': lambda p, x: x*30 if 'ANGLE' in p else (x*0.8 if 'EYE' in p else x*10), 'smoothing': 0.05}, # Param8=HairX, Param42=ArmX?
+             'cursor_y': {'params': ['PARAM_ANGLE_Y', 'PARAM_EYE_BALL_Y', 'PARAM_BODY_ANGLE_Y', 'Param12', 'Param45'], 'mapper': lambda p, x: x*30 if 'ANGLE' in p else (x*0.8 if 'EYE' in p else x*10), 'smoothing': 0.05}, # Param12=HairY, Param45=ArmY?
+             'blush': {'params': ['Param'], 'mapper': lambda p, x: x, 'smoothing': 0.1}, # Param=Blush? Check model.
+             'wings': {'params': ['Param6'], 'mapper': lambda p, x: x, 'smoothing': 0.1}, # Param6=Wings? Check model.
+             'mad': {'params': ['Param2'], 'mapper': lambda p, x: x, 'smoothing': 0.1}, # Param2=Mad? Check model.
+             'confusion': {'params': ['Param4'], 'mapper': lambda p, x: x, 'smoothing': 0.1} # Param4=Mouth Sad/Confusion? Check model.
+        }
         all_params = set();
         for cfg in self.parameter_map.values():
             if isinstance(cfg, dict):
                 all_params.update(p for p in cfg.get('params', []) if isinstance(p, str))
-        all_params.update({'PARAM_BODY_ANGLE_Z', 'Param3', 'PARAM_BREATH', 'PARAM_ANGLE_X', 'PARAM_ANGLE_Y'})
+        all_params.update({'PARAM_BODY_ANGLE_Z', 'Param3', 'PARAM_BREATH'}) # Ensure these exist
         logger.info(f"Initializing {len(all_params)} params from map/heuristics..."); self._failed_params = set(); self.default_values = {}; self.target_values = {}; self.current_values = {}; self.parameter_velocities = {}; model_param_ids = []
-        if self.model: 
-            try: model_param_ids = self.model.GetParameterIds(); 
-            except: logger.warning("GetParameterIds() failed.")
+        if self.model:
+            try: model_param_ids = self.model.GetParameterIds(); logger.debug(f"Found {len(model_param_ids)} params in model.")
+            except Exception as e: logger.warning(f"GetParameterIds() failed: {e}")
         for param_id in all_params:
             default_val = 0.0; found_in_model = False
-            if self.model and param_id in model_param_ids and hasattr(self.model, 'GetParameterDefaultValue'): 
-                try: default_val = self.model.GetParameterDefaultValue(param_id); found_in_model = True; 
+            if self.model and param_id in model_param_ids and hasattr(self.model, 'GetParameterDefaultValue'):
+                try: default_val = self.model.GetParameterDefaultValue(param_id); found_in_model = True;
                 except Exception as e: logger.warning(f"Could not get default for '{param_id}': {e}")
             if not found_in_model:
                 if 'EYE_L_OPEN' in param_id or 'EYE_R_OPEN' in param_id: default_val = Config.Graphics.EYE_PARAM_DEFAULT
@@ -430,8 +442,10 @@ class Live2DCharacter(QOpenGLWidget):
                 elif 'BREATH' in param_id: default_val = 0.5
             self.default_values[param_id] = default_val; self.target_values[param_id] = default_val; self.current_values[param_id] = default_val; self.parameter_velocities[param_id] = 0.0
             try:
-                if self.model and hasattr(self.model, 'SetParameterValue'): self.model.SetParameterValue(param_id, default_val)
-            except Exception as e: 
+                if self.model and param_id in model_param_ids and hasattr(self.model, 'SetParameterValue'): self.model.SetParameterValue(param_id, default_val)
+                elif not found_in_model: logger.debug(f"Param '{param_id}' not found in model, using heuristic default {default_val}.")
+                else: logger.debug(f"Model missing SetParameterValue for '{param_id}'.")
+            except Exception as e:
                 if param_id not in self._failed_params: logger.debug(f"Initial set fail '{param_id}': {e}"); self._failed_params.add(param_id)
         logger.info("Parameter map and initial values set.")
 
@@ -473,8 +487,8 @@ class Live2DCharacter(QOpenGLWidget):
             glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE)
             if self.shader_program and self.shader_program.isLinked() and self.quad_vao:
                 self.shader_program.bind(); self.shader_program.setUniformValue("time", self.time_elapsed); self.shader_program.setUniformValue("resolution", float(self.width()), float(self.height())); dominant_idx, intensity = 0, 0.5
-                if self.emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(self.emotions): 
-                    try: emo_cpu = self.emotions.cpu(); dominant_idx = torch.argmax(emo_cpu).item(); intensity = emo_cpu[dominant_idx].item(); 
+                if self.emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(self.emotions):
+                    try: emo_cpu = self.emotions.cpu(); dominant_idx = torch.argmax(emo_cpu).item(); intensity = emo_cpu[dominant_idx].item();
                     except: pass
                 colors_fallback = [(0.3, 1, 0.3), (1, 0.3, 0.3), (1, 1, 0.3), (1, 0.6, 0.3), (0.3, 0.8, 1), (1, 0.3, 1)]; n_emo = Config.Agent.EMOTION_DIM; colors_fallback = (colors_fallback + [(0.8, 0.8, 0.8)]*(n_emo - len(colors_fallback)))[:n_emo]; base_rgb = colors_fallback[dominant_idx % len(colors_fallback)]; final_color = [max(0.1, c * (0.5 + intensity * 0.7)) for c in base_rgb]; self.shader_program.setUniformValue("emotion_color", final_color[0], final_color[1], final_color[2])
                 glBindVertexArray(self.quad_vao); glDrawArrays(GL_TRIANGLES, 0, 6); glBindVertexArray(0); self.shader_program.release()
@@ -499,7 +513,11 @@ class Live2DCharacter(QOpenGLWidget):
             if hasattr(self, 'animation_timer') and self.animation_timer.isActive(): self.animation_timer.stop()
             glClearColor(0.3, 0.0, 0.0, 1.0); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         finally:
-            self.doneCurrent()
+            try:
+                 self.doneCurrent()
+            except Exception as e_done:
+                 logger.error(f"Error calling doneCurrent in paintGL: {e_done}")
+
 
     # --- Update and Animation Logic ---
     def _tick(self):
@@ -507,7 +525,6 @@ class Live2DCharacter(QOpenGLWidget):
         self.frame_count += 1; interval_ms = self.animation_timer.interval(); delta_time = interval_ms / 1000.0 if interval_ms > 0 else (1.0 / Config.Graphics.FPS); self.time_elapsed += delta_time
         self.particle_system.update(delta_time, self.emotions);
         self._update_animations(delta_time)
-        # Monologue analysis removed from tick
         self._update_model_parameters(delta_time)
         try: self.model.Update()
         except Exception as e: logger.error(f"Error model.Update() in _tick: {e}", exc_info=True); return
@@ -547,9 +564,7 @@ class Live2DCharacter(QOpenGLWidget):
                 self.micro_movement_target_offset_x = random.uniform(-0.5, 0.5)
                 self.micro_movement_target_offset_y = random.uniform(-0.5, 0.5)
 
-    # --- REMOVED: update_monologue and _analyze_monologue ---
-
-    # --- NEW: Method to receive predicted movement label ---
+    # --- Method to receive predicted movement label ---
     def update_predicted_movement(self, predicted_label: Optional[str]):
         """Receives the head movement label predicted by the agent."""
         if predicted_label in HEAD_MOVEMENT_LABELS:
@@ -559,13 +574,14 @@ class Live2DCharacter(QOpenGLWidget):
              # logger.warning(f"Received unknown head movement label: '{predicted_label}'. Using idle.")
              self.predicted_head_movement = "idle" # Default to idle if unknown label
 
-    # --- RENAMED and MODIFIED: Use predicted label ---
+    # --- Apply predicted movement ---
     def _apply_head_movement(self, active_targets: Dict[str, float], delta_time: float) -> Dict[str, float]:
         """Calculates and applies head angle adjustments based on PREDICTED movement label."""
         target_angle_x, target_angle_y, target_angle_z = 0.0, 0.0, 0.0
         current_time = self.time_elapsed; move_type = self.predicted_head_movement # Use predicted label
 
         # --- Map specific movement types to parameter changes ---
+        # These values might need tuning based on model sensitivity
         if move_type == "slight_tilt": target_angle_z = 3.0 * math.sin(current_time * 1.5)
         elif move_type == "small_nod": target_angle_y = 4.0 * math.sin(current_time * 4.0)
         elif move_type == "gentle_nod": target_angle_y = 5.0 * math.sin(current_time * 2.5)
@@ -576,12 +592,18 @@ class Live2DCharacter(QOpenGLWidget):
         elif move_type == "quick_turn": pulse = max(0, math.sin(current_time * 7.0) - 0.4) * 1.5; target_angle_x = 10.0 * pulse * random.choice([-1, 1])
         elif move_type == "negative_tilt": target_angle_z = -5.0 * math.sin(current_time * 2.0)
         elif move_type == "confused_tilt": target_angle_x = 4.0 * math.sin(current_time * 2.5 + 0.3); target_angle_z = -3.0 * math.sin(current_time * 1.8)
-        # 'idle' or 'restless_shift' or unknown will result in 0 target angles here
+        elif move_type == "restless_shift": target_angle_x = 2.0 * math.sin(current_time * 3.5); target_angle_z = 1.5 * math.cos(current_time * 3.0)
+        # 'idle' or unknown will result in 0 target angles here
 
-        # Additively apply targets
+        # Additively apply targets - use common parameter names
         if 'PARAM_ANGLE_X' in active_targets: active_targets['PARAM_ANGLE_X'] += target_angle_x
         if 'PARAM_ANGLE_Y' in active_targets: active_targets['PARAM_ANGLE_Y'] += target_angle_y
         if 'PARAM_ANGLE_Z' in active_targets: active_targets['PARAM_ANGLE_Z'] += target_angle_z
+        # Some models might use BODY angles instead/additionally
+        if 'PARAM_BODY_ANGLE_X' in active_targets: active_targets['PARAM_BODY_ANGLE_X'] += target_angle_x * 0.5 # Apply less to body
+        if 'PARAM_BODY_ANGLE_Y' in active_targets: active_targets['PARAM_BODY_ANGLE_Y'] += target_angle_y * 0.5
+        if 'PARAM_BODY_ANGLE_Z' in active_targets: active_targets['PARAM_BODY_ANGLE_Z'] += target_angle_z * 0.5
+
         return active_targets
 
     # --- Micro-movement application ---
@@ -590,10 +612,11 @@ class Live2DCharacter(QOpenGLWidget):
         lerp_factor = 1.0 - math.exp(-delta_time / 0.1) # Smoothing factor
         self.micro_movement_current_offset_x += (self.micro_movement_target_offset_x - self.micro_movement_current_offset_x) * lerp_factor
         self.micro_movement_current_offset_y += (self.micro_movement_target_offset_y - self.micro_movement_current_offset_y) * lerp_factor
-        # Additive application
-        if 'PARAM_ANGLE_X' in active_targets: active_targets['PARAM_ANGLE_X'] += self.micro_movement_current_offset_x
-        if 'PARAM_ANGLE_Y' in active_targets: active_targets['PARAM_ANGLE_Y'] += self.micro_movement_current_offset_y
-        if 'PARAM_ANGLE_Z' in active_targets: active_targets['PARAM_ANGLE_Z'] += self.micro_movement_current_offset_x * 0.3 # Link Z slightly to X
+        # Additive application - reduce magnitude
+        micro_magnitude = 0.5
+        if 'PARAM_ANGLE_X' in active_targets: active_targets['PARAM_ANGLE_X'] += self.micro_movement_current_offset_x * micro_magnitude
+        if 'PARAM_ANGLE_Y' in active_targets: active_targets['PARAM_ANGLE_Y'] += self.micro_movement_current_offset_y * micro_magnitude
+        if 'PARAM_ANGLE_Z' in active_targets: active_targets['PARAM_ANGLE_Z'] += self.micro_movement_current_offset_x * micro_magnitude * 0.3 # Link Z slightly to X
         return active_targets
 
 
@@ -605,10 +628,8 @@ class Live2DCharacter(QOpenGLWidget):
         # --- Layer 1: Base Procedural Animations ---
         breath_value = 0.5 + 0.5 * math.sin(self.animation_params['breath']['phase']);
         if 'PARAM_BREATH' in active_targets: active_targets['PARAM_BREATH'] = breath_value # Override default
-        # Apply idle tilt additively
         idle_tilt_val = math.sin(self.animation_params['idle']['phase']) * self.animation_params['idle']['magnitude']
         if 'PARAM_ANGLE_Z' in active_targets: active_targets['PARAM_ANGLE_Z'] += idle_tilt_val * 0.3
-        # Apply hair sway additively (adjust Param ID if needed)
         hair_sway_val = math.sin(self.animation_params['hair_sway']['phase']) * self.animation_params['hair_sway']['magnitude']
         if 'Param8' in active_targets: active_targets['Param8'] += hair_sway_val * 0.1
 
@@ -623,7 +644,6 @@ class Live2DCharacter(QOpenGLWidget):
                          for param_id in config_val.get('params', []):
                              if param_id in active_targets:
                                  mapped_value = config_val['mapper'](param_id, emotion_value)
-                                 # Decide override vs additive (e.g., angles add, opens override)
                                  if 'ANGLE' in param_id or 'FORM' in param_id:
                                      active_targets[param_id] += mapped_value - self.default_values.get(param_id, 0.0)
                                  else:
@@ -640,10 +660,8 @@ class Live2DCharacter(QOpenGLWidget):
                          for param_id in config_val_lookup.get('params', []):
                              if param_id in active_targets:
                                  mapped_value = config_val_lookup['mapper'](param_id, loop_value)
-                                 # Cursor usually overrides angles/eye ball
                                  if 'ANGLE' in param_id or 'EYE_BALL' in param_id or 'BODY' in param_id:
                                      active_targets[param_id] = mapped_value
-                                 # else: Additive cursor influence could be added here if desired
 
 
         # --- Layer 4: Toggleable States ---
@@ -653,7 +671,6 @@ class Live2DCharacter(QOpenGLWidget):
                  for param_id in config_val.get('params', []):
                      if param_id in active_targets:
                           mapped_value = config_val['mapper'](param_id, toggle_value)
-                          # Confusion adds, others override
                           if toggle_key == 'confusion': active_targets[param_id] += mapped_value
                           else: active_targets[param_id] = mapped_value
 
@@ -670,25 +687,20 @@ class Live2DCharacter(QOpenGLWidget):
         eye_params = ['PARAM_EYE_L_OPEN', 'PARAM_EYE_R_OPEN']
         for param_id in eye_params:
              if param_id in active_targets:
-                  # Apply blink multiplicatively to the *current target value*
                   active_targets[param_id] *= eye_open_value
 
         # --- Final Smoothing and Setting ---
         for param_id, target_val in active_targets.items():
             if param_id not in self.current_values: continue # Skip if param not tracked
             current_val = self.current_values[param_id];
-            # Find smoothing config (could be cached for performance)
             param_config = None
             for cfg in self.parameter_map.values():
                 if isinstance(cfg, dict) and param_id in cfg.get('params', []): param_config = cfg; break
             smoothing_alpha = param_config.get('smoothing', 0.1) if param_config else 0.1
-            # Apply exponential smoothing
             lerp_factor = 1.0 - math.exp(-delta_time / max(0.001, smoothing_alpha))
             new_current = current_val + (target_val - current_val) * lerp_factor
 
-            # Clamp values based on known ranges or heuristics
             min_val, max_val = -100.0, 100.0 # Default wide range
-            # Try getting clamps from model if available
             if self.model and hasattr(self.model, 'GetParameterMinimumValue') and hasattr(self.model, 'GetParameterMaximumValue'):
                  try: min_val = self.model.GetParameterMinimumValue(param_id); max_val = self.model.GetParameterMaximumValue(param_id)
                  except: pass # Use heuristics if SDK calls fail
@@ -705,7 +717,13 @@ class Live2DCharacter(QOpenGLWidget):
             # Set parameter in Live2D model, handle potential failures
             try:
                  if self.model and hasattr(self.model, 'SetParameterValue'): # Check model exists
-                    self.model.SetParameterValue(param_id, clamped_new_current)
+                    try:
+                        self.model.SetParameterValue(param_id, clamped_new_current) # Try simple call first
+                    except TypeError: # Handle cases expecting weight
+                        try:
+                            self.model.SetParameterValue(param_id, clamped_new_current, 1.0)
+                        except Exception as e_weight:
+                             raise RuntimeError(f"SetParameterValue failed with/without weight: {e_weight}") from e_weight
                     self._failed_params.discard(param_id) # Success, remove from failed set
                  else: # Log only if model doesn't exist or method missing
                       if param_id not in self._failed_params: logger.warning(f"Model or SetParameterValue missing for '{param_id}'"); self._failed_params.add(param_id)
@@ -727,7 +745,6 @@ class Live2DCharacter(QOpenGLWidget):
         """Handles mouse movement over the widget for cursor tracking."""
         if not self.model_loaded: return
 
-        # Assign width and height BEFORE the try block
         width, height = self.width(), self.height()
         if width <= 0 or height <= 0: return # Check dimensions early
 
@@ -744,17 +761,13 @@ class Live2DCharacter(QOpenGLWidget):
             self.toggle_states['confusion'] = min(1.0, self.toggle_states['confusion'] + 0.1) # Trigger confusion
         except Exception as e:
             logger.error(f"Error processing mouse event coordinates: {e}")
-            # Optional: Reset cursor pos or state if needed on error
-            # self.cursor_pos = (0.0, 0.0)
-            # self.cursor_history.clear()
-            return # Exit if coordinate processing fails
-        
+            return
+
     def mousePressEvent(self, event: QMouseEvent):
         """Handles mouse clicks for interactions and toggles."""
         if not self.model_loaded: return
 
         try:
-            # Get the button BEFORE using it in conditions
             button = event.button()
 
             self.interaction_detected.emit()
@@ -772,7 +785,6 @@ class Live2DCharacter(QOpenGLWidget):
             self.setFocus() # Ensure widget has focus for potential key events
 
         except Exception as e:
-            # Log potential errors getting button or processing event
             logger.error(f"Error processing mousePressEvent: {e}", exc_info=True)
 
     def enterEvent(self, event):
@@ -793,7 +805,6 @@ class Live2DCharacter(QOpenGLWidget):
             if hasattr(self, 'animation_timer') and self.animation_timer: self.animation_timer.stop()
 
             # Delete OpenGL buffers and VAOs
-            # Check if attribute exists before trying to delete
             if hasattr(self, 'quad_vao') and self.quad_vao: glDeleteVertexArrays(1, [self.quad_vao]); self.quad_vao = 0;
             if hasattr(self, 'quad_vbo') and self.quad_vbo: glDeleteBuffers(1, [self.quad_vbo]); self.quad_vbo = 0
             if hasattr(self, 'particle_vao') and self.particle_vao: glDeleteVertexArrays(1, [self.particle_vao]); self.particle_vao = 0;
@@ -807,7 +818,7 @@ class Live2DCharacter(QOpenGLWidget):
                     except Exception as e_rel: logger.error(f"Error calling model.Release(): {e_rel}")
                 self.model = None; self.model_loaded = False; logger.debug("Model reference released.")
 
-            # Release shaders (Qt might handle this, but explicit is safer)
+            # Release shaders
             if self.shader_program and hasattr(self.shader_program, 'release'): self.shader_program.release(); self.shader_program = None;
             if self.particle_shader and hasattr(self.particle_shader, 'release'): self.particle_shader.release(); self.particle_shader = None;
 
