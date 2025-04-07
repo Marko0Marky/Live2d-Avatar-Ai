@@ -1,5 +1,7 @@
 # --- START OF FILE config.py ---
 
+# --- START OF FILE config.py ---
+
 import torch
 import logging
 import sys
@@ -11,7 +13,6 @@ from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass, field
 
 # --- Logging Setup & DEVICE ---
-# ... (remain the same) ...
 log_file = "vr_avatar_ai5_run.log"
 log_format = '%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=log_format, handlers=[
@@ -37,7 +38,6 @@ BASE_AGENT_STATE_DIM = 12 # Original state dim (EMOTION_DIM + 6 meta)
 
 @dataclass
 class GraphicsConfig:
-    # ... (remains the same) ...
     MODEL_PATH: str = os.path.abspath("./models/as01.model3.json")
     FPS: int = 60
     PARTICLE_COUNT: int = 25
@@ -50,13 +50,16 @@ class GraphicsConfig:
 
 @dataclass
 class AgentConfig:
+    # --- NEW ---
+    USE_LANGUAGE_EMBEDDING: bool = True # Enable/disable language embedding in state
+
     # --- UPDATED STATE_DIM ---
-    # Combines base state + language embedding
-    STATE_DIM: int = BASE_AGENT_STATE_DIM + LANGUAGE_EMBEDDING_DIM # e.g., 12 + 384 = 396
+    # Combines base state + language embedding (if enabled)
+    STATE_DIM: int = field(init=False) # Calculate after __post_init__
     BASE_STATE_DIM: int = BASE_AGENT_STATE_DIM # Store base dim for convenience if needed
     LANGUAGE_EMBEDDING_DIM: int = LANGUAGE_EMBEDDING_DIM # Store embedding dim
 
-    HIDDEN_DIM: int = 64 # Note: Consider increasing this if STATE_DIM becomes very large
+    HIDDEN_DIM: int = 128 # Note: Increased hidden dim due to larger state
     MEMORY_SIZE: int = 10000
     HISTORY_SIZE: int = 10 # History will now contain the *combined* state
     CASCADE_LEVELS: int = 3
@@ -65,13 +68,14 @@ class AgentConfig:
     ACCESSIBILITY_THRESHOLD: float = 0.8
     ATTENTION_THRESHOLD: float = 0.65
     TAU: float = 0.1
-    # --- NEW ---
-    USE_LANGUAGE_EMBEDDING: bool = True # Enable/disable language embedding in state
+
+    def __post_init__(self):
+        self.STATE_DIM = self.BASE_STATE_DIM + (self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0)
+        logger.info(f"AgentConfig Calculated STATE_DIM: {self.STATE_DIM} (Base: {self.BASE_STATE_DIM}, LangEmbed: {self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0}, Enabled: {self.USE_LANGUAGE_EMBEDDING})")
 
 
 @dataclass
 class RLConfig:
-    # ... (remains the same) ...
     GAMMA: float = 0.99
     LR: float = 0.0005
     AGENT_TRAIN_INTERVAL: int = 4
@@ -93,11 +97,10 @@ class RLConfig:
 
 @dataclass
 class NLPConfig:
-    # ... (other NLP params remain the same) ...
     # --- NEW ---
     SENTENCE_TRANSFORMER_MODEL: str = 'all-MiniLM-L6-v2' # Model to use for embeddings
     GPT_LR: float = 0.0005
-    TRAIN_EPOCHS: int = 15
+    TRAIN_EPOCHS: int = 15 # Reduced epochs for faster startup if needed
     MAX_RESPONSE_LEN: int = 32
     GRADIENT_CLIP_GPT: float = 1.0
     TOKENIZER_PATH: str = "./tokenizer/bpe_agent_tokenizer.json"
@@ -109,7 +112,6 @@ class NLPConfig:
 
 @dataclass
 class EnvConfig:
-    # ... (remains the same) ...
     EVENT_FREQ: float = 0.3
     EVENT_DURATION: int = 120
     EVENT_GAP: int = 40
@@ -126,34 +128,55 @@ MasterConfig = Config()
 
 # --- Training Data Path & Loading ---
 TRAINING_DATA_PATH = "./train_data.json"
-def load_train_data(path: str) -> List[Dict[str, Any]]:
-    # ... (load_train_data remains the same) ...
+# Global variable to hold validated data for Agent __init__
+TRAIN_DATA: List[Dict[str, Any]] = []
+def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
     if not os.path.exists(path): logger.error(f"Training data file not found: {path}"); return []
     try:
         with open(path, 'r', encoding='utf-8') as f: data = json.load(f)
         if not isinstance(data, list): logger.error(f"Training data file {path} does not contain a valid JSON list."); return []
         logger.info(f"Successfully loaded {len(data)} training examples from {path}")
-        return data
+
+        validated_data = []
+        logger.info("Validating and adjusting training data during load...")
+        for i, item in enumerate(data):
+            if not isinstance(item, dict) or "output" not in item:
+                logger.warning(f"Invalid item format in TRAIN_DATA at index {i}. Skipping.")
+                continue
+
+            expected_emo_len = 4 # For GPT bias layer
+            current_weights = item.get("emotion_weights", []) # Default to empty list if missing
+
+            if not isinstance(current_weights, list):
+                logger.warning(f"Invalid emotion_weights type ({type(current_weights)}) in data at index {i}. Using zeros.")
+                item["emotion_weights"] = [0.0] * expected_emo_len
+            elif len(current_weights) != expected_emo_len:
+                logger.debug(f"Adjusting emotion_weights length for item {i} from {len(current_weights)} to {expected_emo_len}.")
+                item["emotion_weights"] = (current_weights + [0.0] * expected_emo_len)[:expected_emo_len]
+
+            validated_data.append(item) # Add validated item
+
+        logger.info(f"Validated training data: {len(validated_data)} items.")
+        return validated_data
     except json.JSONDecodeError as e: logger.error(f"Error decoding JSON from {path}: {e}"); return []
     except Exception as e: logger.error(f"Error loading training data from {path}: {e}"); return []
 
 # --- Tokenizer Setup ---
-# ... (tokenizer setup remains the same) ...
 try:
     from tokenizers import Tokenizer, decoders, AddedToken
     from tokenizers.models import BPE
     from tokenizers.trainers import BpeTrainer
     from tokenizers.pre_tokenizers import Whitespace
     from tokenizers.processors import TemplateProcessing
-    from typing import Optional
+    from typing import Optional as TokenizerOptional # Rename to avoid conflict
 except ImportError:
     logger.critical("Hugging Face 'tokenizers' library not found. Please install: pip install tokenizers")
     sys.exit(1)
-tokenizer: Optional[Tokenizer] = None
-PAD_TOKEN_ID: Optional[int] = None
-START_TOKEN_ID: Optional[int] = None
-END_TOKEN_ID: Optional[int] = None
-UNK_TOKEN_ID: Optional[int] = None
+tokenizer: TokenizerOptional[Tokenizer] = None
+PAD_TOKEN_ID: TokenizerOptional[int] = None
+START_TOKEN_ID: TokenizerOptional[int] = None
+END_TOKEN_ID: TokenizerOptional[int] = None
+UNK_TOKEN_ID: TokenizerOptional[int] = None
 def train_or_load_tokenizer(data: List[Dict[str, str]], config: NLPConfig) -> Tokenizer:
     global PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID, UNK_TOKEN_ID, tokenizer
     tokenizer_path = config.TOKENIZER_PATH
@@ -201,7 +224,6 @@ def tokenize(text: str, max_length: int = MasterConfig.NLP.MAX_RESPONSE_LEN - 2)
     return truncated_ids
 
 def detokenize(indices: List[int]) -> str:
-    # ... (detokenize using tokenizer.decode) ...
     if tokenizer is None: logger.error("Tokenizer not initialized."); return ""
     if isinstance(indices, torch.Tensor): indices = indices.cpu().tolist()
     if not isinstance(indices, (list, tuple)): logger.warning(f"Invalid input to detokenize: type {type(indices)}."); return ""
@@ -214,16 +236,17 @@ def detokenize(indices: List[int]) -> str:
     return processed_text.strip()
 
 # --- Load data and initialize tokenizer ---
-_loaded_data = load_train_data(TRAINING_DATA_PATH)
+TRAIN_DATA = load_and_validate_train_data(TRAINING_DATA_PATH) # Load and validate data
 try:
-    train_or_load_tokenizer(_loaded_data, MasterConfig.NLP)
+    train_or_load_tokenizer(TRAIN_DATA, MasterConfig.NLP)
 except Exception as e:
     logger.critical(f"CRITICAL: Tokenizer initialization failed during config setup: {e}", exc_info=True)
     sys.exit(1)
 
-# --- Final Config Validation ---
-if MasterConfig.Agent.STATE_DIM != MasterConfig.Agent.BASE_STATE_DIM + (MasterConfig.Agent.LANGUAGE_EMBEDDING_DIM if MasterConfig.Agent.USE_LANGUAGE_EMBEDDING else 0):
-     logger.critical(f"FATAL: Config Agent.STATE_DIM ({MasterConfig.Agent.STATE_DIM}) mismatch with BASE_STATE_DIM ({MasterConfig.Agent.BASE_STATE_DIM}) + LANGUAGE_EMBEDDING_DIM ({MasterConfig.Agent.LANGUAGE_EMBEDDING_DIM if MasterConfig.Agent.USE_LANGUAGE_EMBEDDING else 0}). Fix config.")
+# --- Final Config Validation (After post_init calculation) ---
+expected_state_dim = MasterConfig.Agent.BASE_STATE_DIM + (MasterConfig.Agent.LANGUAGE_EMBEDDING_DIM if MasterConfig.Agent.USE_LANGUAGE_EMBEDDING else 0)
+if MasterConfig.Agent.STATE_DIM != expected_state_dim:
+     logger.critical(f"FATAL: Calculated Agent.STATE_DIM ({MasterConfig.Agent.STATE_DIM}) mismatch with expected ({expected_state_dim}). Fix config or __post_init__.")
      sys.exit(1)
 if MasterConfig.Agent.EMOTION_DIM > MasterConfig.Agent.BASE_STATE_DIM:
     logger.critical(f"FATAL: Config Agent.EMOTION_DIM ({MasterConfig.Agent.EMOTION_DIM}) cannot be larger than BASE_STATE_DIM ({MasterConfig.Agent.BASE_STATE_DIM}).")
