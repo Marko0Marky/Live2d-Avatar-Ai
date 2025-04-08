@@ -186,5 +186,3 @@ Create a more robust, performant, and engaging AI-driven Live2D avatar with rich
   - Evaluate if configuration complexity warrants moving away from dataclasses in `config.py`.
 
 ---
-
-### Final Notes  
