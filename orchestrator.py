@@ -1,5 +1,4 @@
 # --- START OF FILE orchestrator.py ---
-import os
 import torch
 from typing import Dict, Tuple, Optional, List, Union, Deque, Any
 import concurrent.futures
@@ -10,6 +9,8 @@ from collections import deque
 import sys
 import numpy as np
 import pickle # For saving replay buffer
+import html # Import html for escaping
+import os # Added for save/load path checks
 
 try: from sentence_transformers import SentenceTransformer; SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError: SENTENCE_TRANSFORMERS_AVAILABLE = False
@@ -34,7 +35,7 @@ class EnhancedConsciousAgent:
     def __init__(self, train_interval: int = Config.RL.AGENT_TRAIN_INTERVAL, batch_size: int = Config.RL.AGENT_BATCH_SIZE, num_workers: int = 1):
         logger.info("Initializing Orchestrator (Async Learn + Chat + Mood + ConvHistory + MemGate + LangEmbed + HM Predict)...")
         self.env = EmotionalSpace()
-        self.model = ConsciousAgent().to(DEVICE)
+        self.model = ConsciousAgent().to(DEVICE) # Initializes TransformerGPT inside
         self.avatar = Live2DCharacter()
         logger.debug("Live2DCharacter display instance created.")
         self.st_model: Optional[SentenceTransformer] = None
@@ -170,7 +171,13 @@ class EnhancedConsciousAgent:
         if Config.Agent.USE_LANGUAGE_EMBEDDING and self.st_model:
              try:
                  monologue_context = f"Internal state: {context_internal}. Feeling:"; temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7); top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)
-                 self.last_internal_monologue = self.model.gpt.generate(monologue_context, emotions_internal, temperature=temp, top_p=top_p, max_len=16)
+                 # --- Use TransformerGPT generate ---
+                 self.last_internal_monologue = self.model.gpt.generate(
+                     context=monologue_context,
+                     emotions=emotions_internal,
+                     temperature=temp, top_p=top_p, max_len=16
+                 )
+                 # ---
                  if self.last_internal_monologue and self.last_internal_monologue != "...":
                      with torch.no_grad(): emb = self.st_model.encode([self.last_internal_monologue], convert_to_tensor=True, device=DEVICE);
                      if emb.ndim > 1: emb = emb.squeeze(0)
@@ -232,24 +239,32 @@ class EnhancedConsciousAgent:
         metrics_dict = self.reflect()
         return metrics_dict, reward, done, self.current_response, self.last_reported_loss, self.last_internal_monologue, predicted_hm_label
 
+    # --- MODIFIED handle_user_chat (with Improved Context & unescape) ---
     def handle_user_chat(self, user_text: str) -> str:
         logger.info(f"Handling user chat: '{user_text[:50]}...'")
         if not isinstance(user_text, str) or not user_text.strip(): return "..."
+
+        # --- Escape user text EARLY ---
+        safe_user_text = html.escape(user_text.replace('\n', ' ').strip())
+        # ---
+
         user_text_embedding = torch.zeros_like(self.last_text_embedding)
         if Config.Agent.USE_LANGUAGE_EMBEDDING and self.st_model:
             try:
-                with torch.no_grad(): emb = self.st_model.encode([user_text], convert_to_tensor=True, device=DEVICE);
+                with torch.no_grad(): emb = self.st_model.encode([safe_user_text], convert_to_tensor=True, device=DEVICE); # Use escaped text
                 if emb.ndim > 1: emb = emb.squeeze(0)
                 if emb.shape[0] == Config.Agent.LANGUAGE_EMBEDDING_DIM: user_text_embedding = emb.float()
                 else: logger.warning(f"User text embed dim mismatch! Got {emb.shape}")
             except Exception as e: logger.error(f"Error embedding user text: {e}")
         self.last_text_embedding = user_text_embedding.clone().detach()
-        # --- Update combined state AFTER getting embedding ---
+        # Update combined state AFTER getting embedding
         self.current_state = self._get_combined_state(self.current_base_state, "chat_input")
-        # ---
-        self.conversation_history.append(("User", user_text))
+
+        self.conversation_history.append(("User", safe_user_text)) # Store escaped text in history
+
         try:
-            impact_vector = self.env.get_emotional_impact_from_text(user_text)
+            # --- Emotion Blending ---
+            impact_vector = self.env.get_emotional_impact_from_text(safe_user_text) # Use escaped text
             current_response_emotions = self.last_response_emotions.clone().detach()
             mood_influence = 0.15
             biased_current_emotions = torch.clamp( current_response_emotions * (1.0 - mood_influence) + self.mood * mood_influence, 0.0, 1.0 )
@@ -259,22 +274,59 @@ class EnhancedConsciousAgent:
             self.last_response_emotions = blended_emotions.clone().detach()
             self.model.prev_emotions = torch.clamp(self.model.prev_emotions * 0.5 + self.last_response_emotions * 0.5, 0.0, 1.0)
             if self.avatar: self.avatar.update_emotions(self.last_response_emotions)
-            context_for_gpt = ""; history_turns = list(self.conversation_history)
+            # --- END Emotion Blending ---
+
+            # --- Context Building for GPT (Simplified - No Internal State Prefix) ---
+            context_for_gpt = ""
+            history_turns = list(self.conversation_history) # Includes the latest user turn
+            temp_hist_context = ""
+            max_hist_len = 512 # Max chars for history part
+
+            # Build history string, ending with the last AI response (if any)
             for speaker, text in reversed(history_turns):
-                turn = f"{speaker}: {text}\n"
-                if len(context_for_gpt) + len(turn) > 512:
+                turn = f"{speaker}: {text}\n" # Text is already escaped
+                if len(temp_hist_context) + len(turn) > max_hist_len:
                     break
-                context_for_gpt = turn + context_for_gpt
+                temp_hist_context = turn + temp_hist_context
+
+            # The final prompt should end with "AI:" to signal generation start
+            context_for_gpt = temp_hist_context.strip()
+            if not context_for_gpt.endswith("\nAI:"):
+                 if context_for_gpt.endswith("AI:"): # Remove trailing AI: if present before adding newline
+                      context_for_gpt = context_for_gpt[:-3].strip()
+                 context_for_gpt += "\nAI:"
+            # --- End Context Building Modification ---
+
+
+            # --- Generate Response ---
+            logger.debug(f"Context sent to GPT: '{context_for_gpt[:200]}...'")
             temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7); top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9)
-            response = self.model.gpt.generate(context=context_for_gpt, emotions=self.last_response_emotions, temperature=temp, top_p=top_p)
-            self.current_response = response
+            # Use the generate method which now includes repetition_penalty
+            raw_response = self.model.gpt.generate(
+                context=context_for_gpt,
+                emotions=self.last_response_emotions, # Still pass emotions, even if not used in prompt
+                temperature=temp,
+                top_p=top_p,
+                max_len=Config.NLP.MAX_RESPONSE_LEN
+            )
+            # --- Unescape the RAW response from the model ---
+            response_unescaped = html.unescape(raw_response)
+            # --- Clean up for storage and display ---
+            final_response_clean = response_unescaped.replace('\n', ' ').strip()
+            if not final_response_clean: final_response_clean = "..." # Fallback
+
+            self.current_response = final_response_clean # Store the clean, unescaped version
+            # --- Add the CLEAN version to history ---
             self.conversation_history.append(("AI", self.current_response))
+            # ---
+
+            # --- Predict Head Movement for Chat Response (Unchanged) ---
             predicted_chat_hm_label = "idle"
+            # ... (rest of HM prediction logic) ...
             if self.current_state is not None and is_safe(self.current_state) and self.current_state.shape[0] == Config.Agent.STATE_DIM:
                 try:
                     self.model.eval()
                     with torch.no_grad():
-                         # Use online network for chat movement prediction
                          outputs = self.model.forward(self.current_state, 0.0, self.model.state_history, use_target=False)
                          if len(outputs) == 13:
                               hm_logits = outputs[-1]
@@ -287,10 +339,18 @@ class EnhancedConsciousAgent:
                 except Exception as e:
                      logger.error(f"Error predicting head movement after chat: {e}")
             else: logger.warning("Skipping chat HM prediction due to invalid current_state.")
-            if self.avatar and hasattr(self.avatar, 'update_predicted_movement'): self.avatar.update_predicted_movement(predicted_chat_hm_label)
-            logger.debug(f"Chat response: '{response}' | Emotions: {self.last_response_emotions.cpu().numpy().round(2)} | Head Move: {predicted_chat_hm_label}")
+
+
+            # --- Update Avatar Movement ---
+            if self.avatar and hasattr(self.avatar, 'update_predicted_movement'):
+                self.avatar.update_predicted_movement(predicted_chat_hm_label)
+
+            logger.debug(f"Chat response: '{self.current_response}' | Emotions: {self.last_response_emotions.cpu().numpy().round(2)} | Head Move: {predicted_chat_hm_label}")
+            # Return the clean, unescaped response for display
             return self.current_response
         except Exception as e: logger.error(f"Error handling user chat: {e}", exc_info=True); self.current_response = "Sorry, I had trouble processing that."; return self.current_response
+    # --- END MODIFIED handle_user_chat ---
+
 
     def reflect(self) -> ReflectReturnType:
         stats_dict: ReflectReturnType = { "avg_reward_last20": 0.0, "total_steps": self.total_steps, "episode": self.episode_count, "current_emotions_internal": [0.0]*Config.Agent.EMOTION_DIM, "current_emotions_response": [0.0]*Config.Agent.EMOTION_DIM, "current_mood": [0.0]*Config.Agent.EMOTION_DIM, "last_monologue": self.last_internal_monologue, "I_S": 0.0, "rho_struct": 0.0, "att_score": 0.0, "self_consistency": 0.0, "rho_score": 0.0, "box_score": 0.0, "tau_t": 0.0, "R_acc": 0.0, "loss": self.last_reported_loss, "rho_struct_mem_short": 0.0, "rho_struct_mem_long": 0.0, "embedding_norm": 0.0, "base_state_norm": 0.0 }
@@ -341,13 +401,13 @@ class EnhancedConsciousAgent:
         try: self.env.update_params(event_freq, intensities);
         except Exception as e: logger.error(f"Error updating env params: {e}")
 
-    # --- ADDED: Save/Load Methods ---
+    # --- Save/Load Methods ---
     def save_agent(self):
         """Orchestrates saving the agent and optionally the replay buffer."""
         # Save models and optimizer
         self.model.save_state(
             agent_path=AGENT_SAVE_PATH,
-            gpt_path=GPT_SAVE_PATH,
+            gpt_path=GPT_SAVE_PATH, # Should point to a directory now
             optimizer_path=OPTIMIZER_SAVE_PATH,
             target_path_suffix=TARGET_NET_SAVE_SUFFIX
         )
@@ -365,7 +425,7 @@ class EnhancedConsciousAgent:
         """Orchestrates loading the agent and optionally the replay buffer."""
         loaded_model = self.model.load_state(
             agent_path=AGENT_SAVE_PATH,
-            gpt_path=GPT_SAVE_PATH,
+            gpt_path=GPT_SAVE_PATH, # Should point to a directory now
             optimizer_path=OPTIMIZER_SAVE_PATH,
             target_path_suffix=TARGET_NET_SAVE_SUFFIX
         )
@@ -378,10 +438,13 @@ class EnhancedConsciousAgent:
                         self.model.memory = pickle.load(f)
                     logger.info(f"Replay buffer loaded from {buffer_path}")
                     # Update PER beta based on loaded agent's step count
-                    self.model.beta = Config.RL.PER_BETA_START + (1.0 - Config.RL.PER_BETA_START) * min(1.0, self.model.step_count / Config.RL.PER_BETA_FRAMES)
+                    # Ensure PER_BETA_FRAMES is not zero to avoid division error
+                    beta_frames = Config.RL.PER_BETA_FRAMES if Config.RL.PER_BETA_FRAMES > 0 else 1
+                    self.model.beta = Config.RL.PER_BETA_START + (1.0 - Config.RL.PER_BETA_START) * min(1.0, self.model.step_count / beta_frames)
                     logger.info(f"Restored Replay Buffer (Size: {len(self.model.memory)}). Adjusted PER Beta to: {self.model.beta:.4f}")
                 else:
                     logger.warning(f"Replay buffer file not found: {buffer_path}. Starting with empty buffer.")
+                    self.model.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE) # Reinitialize if not found
             except ModuleNotFoundError:
                  logger.error(f"Could not load replay buffer due to ModuleNotFoundError. Likely a dependency mismatch or pickled custom class issue. Starting with empty buffer.")
                  self.model.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE) # Reinitialize
@@ -395,13 +458,17 @@ class EnhancedConsciousAgent:
             logger.error("Agent model loading failed. Replay buffer not loaded.")
 
         return loaded_model
-    # --- END ADDED ---
+    # --- END Save/Load ---
 
     def cleanup(self):
         logger.info("--- Orchestrator Cleanup Initiated ---")
         logger.info("Shutting down learn executor...")
         try:
-            self.learn_executor.shutdown(wait=True, cancel_futures=True)
+            # Wait a very short time for any potentially running future
+            if self.learn_future and not self.learn_future.done():
+                 logger.debug("Waiting briefly for learn future before shutdown...")
+                 concurrent.futures.wait([self.learn_future], timeout=0.5)
+            self.learn_executor.shutdown(wait=True, cancel_futures=True) # Request cancellation
             logger.info("Learn executor shut down.")
         except Exception as e:
              logger.error(f"Error shutting down learn executor: {e}", exc_info=True)
