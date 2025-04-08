@@ -6,46 +6,56 @@ import torch.optim as optim
 import torch.nn.functional as F
 import math
 import random
-from typing import Dict, Optional, Tuple, List, Any # Added Any
-import os # Added os
+from typing import Dict, Optional, Tuple, List, Any
+import os
+import logging # Ensure logging is imported if not already
 
-# Use MasterConfig and tokenizer/data variables
+# --- transformers imports ---
+try:
+    # Use datasets library for easier handling (pip install datasets)
+    from datasets import Dataset
+    from transformers import (
+        AutoModelForCausalLM,
+        AutoTokenizer,
+        Trainer,
+        TrainingArguments,
+        DataCollatorForLanguageModeling,
+        AddedToken # Keep AddedToken if needed elsewhere, maybe not here
+    )
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    # Keep logger defined globally if possible, or pass it in
+    try:
+        from config import logger
+        logger.critical("Fine-tuning requires 'transformers' and 'datasets' libraries. Please install: pip install transformers datasets accelerate")
+    except ImportError:
+        print("CRITICAL: Fine-tuning requires 'transformers' and 'datasets' libraries. Please install: pip install transformers datasets accelerate")
+    TRANSFORMERS_AVAILABLE = False
+# --- END imports ---
+
+
+# Use MasterConfig
 from config import MasterConfig as Config
-from config import DEVICE, logger, TRAIN_DATA, tokenizer, tokenize, detokenize, PAD_TOKEN_ID, START_TOKEN_ID, END_TOKEN_ID, UNK_TOKEN_ID
-# --- Added: Import NUM_HEAD_MOVEMENTS ---
-from config import NUM_HEAD_MOVEMENTS
-# ---
+from config import DEVICE, logger, TRAIN_DATA # Keep TRAIN_DATA for potential fine-tuning
+from config import NUM_HEAD_MOVEMENTS # Keep if other modules need it
 from utils import is_safe
 
-# --- EmotionalModule (MODIFIED for variable decay) ---
+# --- EmotionalModule (with variable decay - unchanged from last step) ---
 class EmotionalModule(nn.Module):
-    # Input dim is still EMOTION_DIM + 1 (reward)
     def __init__(self, input_dim: int = Config.Agent.EMOTION_DIM + 1):
          super().__init__();
          self.input_dim=input_dim;
          self.fc=nn.Sequential(nn.Linear(self.input_dim, 32), nn.ReLU(), nn.Linear(32, Config.Agent.EMOTION_DIM), nn.Sigmoid());
-         # Remove single decay: # self.decay=0.85
-
-         # --- ADDED: Define different decay rates per emotion ---
-         # Lower value = faster decay (less persistence)
-         # Higher value = slower decay (more persistence)
-         # Example values (Tune these based on desired behavior!)
-         # Order: Joy, Fear, Curiosity, Frustration, Calm, Surprise (assuming this order)
          default_decays = [0.85, 0.75, 0.90, 0.80, 0.95, 0.70]
          num_emotions = Config.Agent.EMOTION_DIM
-
-         # Ensure the decays list matches the configured emotion dimension
          if len(default_decays) < num_emotions:
              logger.warning(f"EmotionalModule: Not enough default decays ({len(default_decays)}) for {num_emotions} emotions. Padding with 0.85.")
              default_decays.extend([0.85] * (num_emotions - len(default_decays)))
          elif len(default_decays) > num_emotions:
              logger.warning(f"EmotionalModule: More default decays ({len(default_decays)}) than {num_emotions} emotions. Truncating.")
              default_decays = default_decays[:num_emotions]
-
-         # Create a tensor, shape (1, EMOTION_DIM) for broadcasting
          self.decay_rates = torch.tensor(default_decays, device=DEVICE, dtype=torch.float32).unsqueeze(0)
          logger.info(f"EmotionalModule using variable decay rates: {self.decay_rates.cpu().numpy()}")
-         # --- END ADDED ---
 
     def forward(self, state_emo_part_batch: torch.Tensor, reward_batch: torch.Tensor, prev_emotions_batch: torch.Tensor) -> torch.Tensor:
         if not isinstance(state_emo_part_batch, torch.Tensor) or \
@@ -55,12 +65,10 @@ class EmotionalModule(nn.Module):
             bs = state_emo_part_batch.shape[0] if isinstance(state_emo_part_batch, torch.Tensor) else \
                  (reward_batch.shape[0] if isinstance(reward_batch, torch.Tensor) and reward_batch.ndim > 0 else 1)
             return torch.zeros(bs, Config.Agent.EMOTION_DIM, device=DEVICE)
-
         batch_size = state_emo_part_batch.shape[0]
         expected_state_shape = (batch_size, Config.Agent.EMOTION_DIM)
         expected_reward_shape = (batch_size, 1)
         expected_prev_shape = (batch_size, Config.Agent.EMOTION_DIM)
-
         if state_emo_part_batch.shape != expected_state_shape or \
            reward_batch.shape != expected_reward_shape or \
            prev_emotions_batch.shape != expected_prev_shape:
@@ -69,45 +77,34 @@ class EmotionalModule(nn.Module):
                           f"Got:"
                           f" State={state_emo_part_batch.shape}, Reward={reward_batch.shape}, Prev={prev_emotions_batch.shape}")
              return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
-
         if not is_safe(state_emo_part_batch) or not is_safe(reward_batch) or not is_safe(prev_emotions_batch): logger.warning("EmoMod Batch Unsafe."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
-
         try:
             emotion_inputs = torch.cat([state_emo_part_batch, reward_batch.float()], dim=1)
         except Exception as e: logger.error(f"EmoMod Batch Concat Err: {e}."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
-
-        expected_input_dim = self.fc[0].in_features # Should be EMOTION_DIM + 1
+        expected_input_dim = self.fc[0].in_features
         if emotion_inputs.shape != (batch_size, expected_input_dim): logger.error(f"EmoMod Batch Dim Err after concat. Exp: {(batch_size, expected_input_dim)}, Got: {emotion_inputs.shape}"); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
-
         try: scaled_emotions = self.fc(emotion_inputs); scaled_emotions = torch.clamp(scaled_emotions, 0, 1)
         except Exception as e: logger.error(f"EmoMod Batch FC Err: {e}."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
-
-        # --- MODIFIED: Apply element-wise decay using self.decay_rates ---
-        # Ensure decay_rates tensor broadcasts correctly across the batch dimension
         smoothed_emotions = self.decay_rates * prev_emotions_batch + (1.0 - self.decay_rates) * scaled_emotions;
-        # --- END MODIFIED ---
         final_emotions = torch.clamp(smoothed_emotions, 0, 1)
-
         if not is_safe(final_emotions): logger.error("EmoMod Batch Unsafe Out."); return torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE)
         return final_emotions
 
-# --- SyntrixKorporator (Unchanged from previous version) ---
+# --- SyntrixKorporator ---
 class SyntrixKorporator(nn.Module):
-    # Input dim is the full combined state dimension
-    def __init__(self, input_dim: int = Config.Agent.STATE_DIM, hidden_dim: int = Config.Agent.HIDDEN_DIM, m: int = 8): # Increased m default slightly
+    def __init__(self, input_dim: int = Config.Agent.STATE_DIM, hidden_dim: int = Config.Agent.HIDDEN_DIM, m: int = 8):
         super().__init__()
         if not isinstance(input_dim, int) or input_dim <= 0 or \
            not isinstance(hidden_dim, int) or hidden_dim <= 0: raise ValueError(f"Korporator: invalid dims (in={input_dim}, hidden={hidden_dim}).")
         self.input_dim = input_dim; self.hidden_dim = hidden_dim
         self.metrophor = nn.Parameter(torch.randn(hidden_dim, device=DEVICE) * 0.1)
         if hidden_dim < 2: self.m = 1 if hidden_dim == 1 else 0
-        else: self.m = min(m, hidden_dim // 2) # Ensure m <= hidden_dim / 2
+        else: self.m = min(m, hidden_dim // 2)
         if self.m <= 0: raise ValueError(f"Korporator: m={self.m} invalid for hidden_dim={hidden_dim}.")
         self.k_input_dim = self.m * 2
         self.Km = nn.Linear(self.k_input_dim, hidden_dim); self.Cm = nn.Linear(self.k_input_dim, hidden_dim)
-        # Projector takes the full combined state dimension
         self.input_projector = nn.Sequential(nn.Linear(self.input_dim, self.hidden_dim), nn.ReLU()).to(DEVICE)
-        logger.debug(f"Korporator initialized: input_dim={self.input_dim}, hidden_dim={self.hidden_dim}, m={self.m}")
+        #logger.debug(f"Korporator initialized: input_dim={self.input_dim}, hidden_dim={self.hidden_dim}, m={self.m}")
 
     def forward(self, phi_input: torch.Tensor, psi_input: torch.Tensor, level: int = 1) -> torch.Tensor:
         if not isinstance(phi_input, torch.Tensor) or not isinstance(psi_input, torch.Tensor): logger.warning("Korp Fwd: Invalid types."); return torch.zeros(1, self.hidden_dim, device=DEVICE)
@@ -116,14 +113,12 @@ class SyntrixKorporator(nn.Module):
         psi_batch = psi_input.unsqueeze(0) if was_single else psi_input
         batch_size = phi_batch.shape[0]
 
-        # Check input shape against combined STATE_DIM
         if psi_batch.shape[0] != batch_size or phi_batch.shape[1] != self.input_dim or psi_batch.shape[1] != self.input_dim:
              logger.error(f"Korp Fwd Batch: Shape mismatch. Phi={phi_batch.shape}, Psi={psi_batch.shape}, Expected Input Dim={self.input_dim}. Returning zeros.");
              return torch.zeros(batch_size, self.hidden_dim, device=DEVICE)
         if not is_safe(phi_batch) or not is_safe(psi_batch): logger.warning("Korp Fwd Batch: Unsafe inputs."); return torch.zeros(batch_size, self.hidden_dim, device=DEVICE)
 
         try:
-             # Project the full combined states
              hidden_phi = self.input_projector(phi_batch);
              hidden_psi = self.input_projector(psi_batch)
         except Exception as e: logger.error(f"Korp Fwd Batch: Projection error: {e}."); return torch.zeros(batch_size, self.hidden_dim, device=DEVICE)
@@ -132,17 +127,15 @@ class SyntrixKorporator(nn.Module):
 
         current_structure = self.metrophor.unsqueeze(0).repeat(batch_size, 1)
         if not is_safe(current_structure): logger.warning("Korp Fwd Batch: Unsafe metrophor."); current_structure = torch.zeros(batch_size, self.hidden_dim, device=DEVICE)
-        m = self.m # Use the calculated m
+        m = self.m
 
         for i in range(max(1, level)):
             try:
-                # Use first m dimensions of the *hidden* representation
                 phi_part = hidden_phi[:, :m]; psi_part = hidden_psi[:, :m]
                 combined_comp = torch.cat((phi_part, psi_part), dim=1)
                 composition_result = torch.relu(self.Cm(combined_comp))
                 if not is_safe(composition_result) or composition_result.shape[1] != self.hidden_dim: logger.warning(f"Korp L{i+1}: Unsafe compose."); composition_result = torch.zeros_like(current_structure)
 
-                # Use first m dimensions of the *current structure* and *composition result*
                 struct_part = current_structure[:, :m]; comp_res_part = composition_result[:, :m]
                 combined_coup = torch.cat((struct_part, comp_res_part), dim=1)
                 coupled_structure = torch.relu(self.Km(combined_coup))
@@ -156,7 +149,7 @@ class SyntrixKorporator(nn.Module):
         return final_structure.squeeze(0) if was_single else final_structure
 
 
-# --- StrukturKaskade (Unchanged from previous version) ---
+# --- StrukturKaskade ---
 class StrukturKaskade(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, levels: int = Config.Agent.CASCADE_LEVELS):
         super().__init__()
@@ -188,7 +181,7 @@ class StrukturKaskade(nn.Module):
             else:
                 self.network=nn.Sequential(*layers);
                 self.num_actual_layers=len([l for l in layers if isinstance(l, nn.Linear)])
-            logger.debug(f"Kaskade initialized: input_dim={self._input_dim}, output_dim={self._output_dim}, levels={self.levels}, actual_layers={self.num_actual_layers}")
+            #logger.debug(f"Kaskade initialized: input_dim={self._input_dim}, output_dim={self._output_dim}, levels={self.levels}, actual_layers={self.num_actual_layers}")
 
 
     def forward(self, x_input: torch.Tensor) -> torch.Tensor:
@@ -226,434 +219,301 @@ class StrukturKaskade(nn.Module):
         return output_batch.squeeze(0) if was_single_instance else output_batch
 
 
-# --- SimpleGPT (Unchanged from previous version - includes save/load) ---
-class SimpleGPT(nn.Module):
-    def __init__(self, vocab_size: int = Config.NLP.VOCAB_SIZE, embed_dim: int = 64, hidden_dim: int = 128, num_heads: int = 4): # Added type hints
-        super().__init__();
-        logger.info(f"Initializing SimpleGPT with vocab_size={vocab_size} (from Tokenizer)")
-        if not isinstance(vocab_size, int) or vocab_size <= 0 or \
-           not isinstance(embed_dim, int) or embed_dim <= 0 or \
-           not isinstance(hidden_dim, int) or hidden_dim <= 0 or \
-           not isinstance(num_heads, int) or num_heads <= 0:
-            raise ValueError(f"GPT: vocab_size ({vocab_size}), embed_dim ({embed_dim}), hidden_dim ({hidden_dim}), and num_heads ({num_heads}) must be positive integers.")
+# --- TransformerGPT Class (Includes fine-tuning logic and updated generate) ---
+class TransformerGPT:
+    def __init__(self, model_name: str = Config.NLP.HUGGINGFACE_MODEL):
+        if not TRANSFORMERS_AVAILABLE:
+            logger.critical("Hugging Face 'transformers' library not found or import failed. TransformerGPT cannot be initialized.")
+            raise ImportError("transformers library is required for TransformerGPT")
 
-        self.vocab_size = vocab_size; self.embed_dim = embed_dim; self.hidden_dim = hidden_dim; self.num_heads = num_heads;
-        self.max_len = Config.NLP.MAX_RESPONSE_LEN
-
-        if PAD_TOKEN_ID is None: raise ValueError("PAD_TOKEN_ID not set in config before GPT init")
-        self.embedding = nn.Embedding(self.vocab_size, self.embed_dim, padding_idx=PAD_TOKEN_ID)
-
-        if embed_dim % num_heads != 0:
-             original_heads = num_heads;
-             possible_heads = [h for h in range(original_heads, 0, -1) if embed_dim % h == 0]
-             if possible_heads:
-                 self.num_heads = possible_heads[0];
-                 logger.warning(f"GPT embed_dim ({embed_dim}) not divisible by num_heads ({original_heads}). Adjusting heads to {self.num_heads}.")
-             else:
-                 logger.error(f"Invalid GPT embed_dim ({embed_dim}) - no possible head count found <= {original_heads}. Falling back to 1 head.")
-                 self.num_heads = 1
+        logger.info(f"Initializing TransformerGPT with model: {model_name}")
+        self.model_name = model_name
+        self.device = DEVICE
+        self.model: Optional[AutoModelForCausalLM] = None
+        self.tokenizer: Optional[AutoTokenizer] = None
+        self.pad_token_id: Optional[int] = None
+        self.start_token_id: Optional[int] = None
+        self.end_token_id: Optional[int] = None
 
         try:
-            encoder_layer = nn.TransformerEncoderLayer(
-                d_model=embed_dim, nhead=self.num_heads, dim_feedforward=hidden_dim,
-                batch_first=True, dropout=0.1, activation=F.relu
-            )
-            self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=2)
+            # Load tokenizer
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            # Add special tokens if they don't exist, mapping to standard names
+            special_tokens_to_add = {}
+            if self.tokenizer.pad_token is None: special_tokens_to_add['pad_token'] = '<PAD>'
+            if self.tokenizer.bos_token is None: special_tokens_to_add['bos_token'] = '<START>'
+            if self.tokenizer.eos_token is None: special_tokens_to_add['eos_token'] = '<END>'
+            if self.tokenizer.unk_token is None: special_tokens_to_add['unk_token'] = '<UNK>'
+
+            num_added_toks = 0
+            if special_tokens_to_add:
+                 num_added_toks = self.tokenizer.add_special_tokens(special_tokens_to_add)
+                 if num_added_toks > 0:
+                     logger.info(f"Added {num_added_toks} special tokens ({list(special_tokens_to_add.keys())}) to tokenizer.")
+
+            # Load model
+            self.model = AutoModelForCausalLM.from_pretrained(model_name).to(self.device)
+            # Resize embeddings if new tokens were added
+            if num_added_toks > 0:
+                self.model.resize_token_embeddings(len(self.tokenizer))
+                logger.info("Resized model token embeddings.")
+
+            # Set tokenizer pad token id if it was initially None
+            if self.tokenizer.pad_token is None and self.tokenizer.eos_token is not None:
+                logger.warning("Tokenizer missing pad token, using EOS token as pad token.")
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+
+            # Check and assign essential token IDs
+            if self.tokenizer.pad_token_id is None: raise ValueError("PAD token ID could not be determined.")
+            if self.tokenizer.bos_token_id is None: raise ValueError("BOS/START token ID could not be determined.")
+            if self.tokenizer.eos_token_id is None: raise ValueError("EOS/END token ID could not be determined.")
+
+            self.pad_token_id = self.tokenizer.pad_token_id
+            self.start_token_id = self.tokenizer.bos_token_id
+            self.end_token_id = self.tokenizer.eos_token_id
+
+            logger.info(f"Transformer model '{model_name}' and tokenizer loaded successfully.")
+            self.model.eval() # Set to eval mode initially
+
+        except OSError as e:
+             logger.critical(f"Could not load Hugging Face model/tokenizer '{model_name}'. Is it a valid model name and are you online? Error: {e}", exc_info=True)
+             raise RuntimeError(f"Failed to load HF model: {model_name}") from e
         except Exception as e:
-             logger.critical(f"Failed to initialize Transformer Encoder Layer/Stack: {e}", exc_info=True);
-             raise RuntimeError("Transformer initialization failed") from e
-
-        self.output = nn.Linear(self.embed_dim, self.vocab_size)
-        self.optimizer = optim.Adam(self.parameters(), lr=Config.NLP.GPT_LR)
-        self.loss_fn = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN_ID)
-        # Ensure bias layer input matches validated data (first 4 emotion weights)
-        self.emotion_bias_layer = nn.Linear(4, self.embed_dim).to(DEVICE)
-
-    def _get_positional_encoding(self, seq_len: int, batch_size: int = 1) -> torch.Tensor:
-        if not isinstance(seq_len, int) or seq_len <= 0 or self.embed_dim <= 0:
-            logger.warning(f"Cannot get positional encoding for seq_len={seq_len}, embed_dim={self.embed_dim}. Returning zeros.");
-            return torch.zeros(batch_size, seq_len, self.embed_dim, device=DEVICE)
-
-        position = torch.arange(seq_len, dtype=torch.float, device=DEVICE).unsqueeze(1);
-        div_term = torch.exp(torch.arange(0, self.embed_dim, 2, dtype=torch.float, device=DEVICE) * (-math.log(10000.0) / self.embed_dim))
-
-        pe = torch.zeros(seq_len, self.embed_dim, device=DEVICE);
-        pe[:, 0::2] = torch.sin(position * div_term)
-        num_cos_terms = pe[:, 1::2].shape[1]
-        if num_cos_terms > 0:
-            pe[:, 1::2] = torch.cos(position * div_term[:num_cos_terms])
-
-        return pe.unsqueeze(0).repeat(batch_size, 1, 1)
-
-    def _generate_square_subsequent_mask(self, sz: int) -> Optional[torch.Tensor]:
-        if not isinstance(sz, int) or sz <= 0: return None
-        mask = torch.triu(torch.ones(sz, sz, device=DEVICE) * float('-inf'), diagonal=1)
-        return mask
-
-    def forward(self, input_ids: torch.Tensor, emotion_vector: Optional[torch.Tensor] = None) -> torch.Tensor:
-        if not isinstance(input_ids, torch.Tensor) or input_ids.ndim != 2:
-            if isinstance(input_ids, torch.Tensor) and input_ids.ndim == 1:
-                 input_ids = input_ids.unsqueeze(0)
-            else:
-                 shape_info = input_ids.shape if isinstance(input_ids, torch.Tensor) else 'N/A'
-                 raise ValueError(f"Invalid GPT input_ids: Expected 2D Tensor (Batch, Seq), got {type(input_ids)} shape {shape_info}")
-
-        batch_size, seq_len = input_ids.shape
-        if seq_len == 0:
-            logger.warning("GPT Forward: Received empty input sequence (seq_len=0). Returning empty logits.");
-            return torch.zeros(batch_size, 0, self.vocab_size, device=DEVICE)
-        if input_ids.device != DEVICE: input_ids = input_ids.to(DEVICE)
-
-        try:
-            embedded = self.embedding(input_ids) * math.sqrt(self.embed_dim);
-            pos_encoding = self._get_positional_encoding(seq_len, batch_size);
-            x = embedded + pos_encoding;
-        except IndexError as e:
-             max_id = input_ids.max().item() if input_ids.numel() > 0 else 'N/A'
-             logger.error(f"GPT Forward: Embedding IndexError (likely invalid token ID {max_id} outside [0, {self.vocab_size-1}]): {e}. Input shape: {input_ids.shape}. Returning zeros.");
-             return torch.zeros(batch_size, seq_len, self.vocab_size, device=DEVICE)
-        except Exception as e:
-             logger.error(f"GPT Forward: Error during embedding/positional encoding: {e}", exc_info=True);
-             return torch.zeros(batch_size, seq_len, self.vocab_size, device=DEVICE)
-        if not is_safe(x):
-            logger.warning("GPT Forward: Unsafe tensor after embedding+pos encoding. Using zeros."); x = torch.zeros_like(x)
-
-        if emotion_vector is not None:
-             if not isinstance(emotion_vector, torch.Tensor):
-                 try: emotion_vector = torch.tensor(emotion_vector, dtype=torch.float32)
-                 except Exception: logger.warning("GPT Forward: Could not convert emotion_vector. Ignoring bias."); emotion_vector=None
-
-             if emotion_vector is not None:
-                emotion_vector = emotion_vector.to(DEVICE)
-                if not is_safe(emotion_vector):
-                     logger.warning("GPT Forward: Unsafe emotion vector provided. Ignoring bias.")
-                else:
-                    if emotion_vector.ndim == 1: emotion_vector = emotion_vector.unsqueeze(0)
-                    if emotion_vector.shape[0] != batch_size:
-                         logger.warning(f"GPT Emotion vector batch size mismatch ({emotion_vector.shape[0]} vs {batch_size}). Broadcasting first element.")
-                         if emotion_vector.shape[0] > 0:
-                             emotion_vector = emotion_vector[0].unsqueeze(0).repeat(batch_size, 1)
-                         else:
-                             # Default to zeros if broadcasting fails
-                             emotion_vector = torch.zeros(batch_size, 4, device=DEVICE) # Use 4 features
-
-                    num_features_for_bias = 4 # Use 4 features for bias
-                    # Ensure the emotion vector has at least 4 features
-                    if emotion_vector.shape[1] < num_features_for_bias:
-                         pad_size = num_features_for_bias - emotion_vector.shape[1]
-                         emo_for_bias = F.pad(emotion_vector, (0, pad_size))
-                         logger.debug(f"Padding emotion vector from {emotion_vector.shape[1]} to {num_features_for_bias}")
-                    else:
-                        emo_for_bias = emotion_vector[:, :num_features_for_bias]
-
-
-                    if emo_for_bias.shape[1] != num_features_for_bias:
-                        logger.error(f"GPT Emotion Bias: Incorrect number of features after selection/padding. Expected {num_features_for_bias}, got {emo_for_bias.shape[1]}. Skipping bias.")
-                    else:
-                        try:
-                            emotion_bias = self.emotion_bias_layer(emo_for_bias.float()).unsqueeze(1).repeat(1, seq_len, 1)
-                            if is_safe(emotion_bias):
-                                x = x + emotion_bias * 0.2
-                            else:
-                                logger.warning("GPT Forward: Calculated emotion bias is unsafe. Skipping.")
-                        except Exception as e:
-                            logger.warning(f"GPT Forward: Failed to apply emotion bias: {e}", exc_info=False)
-
-        tgt_mask = self._generate_square_subsequent_mask(seq_len);
-        if PAD_TOKEN_ID is None: raise ValueError("PAD_TOKEN_ID not set before forward pass")
-        padding_mask = (input_ids == PAD_TOKEN_ID)
-
-        try:
-             transformer_output = self.transformer_encoder(x, mask=tgt_mask, src_key_padding_mask=padding_mask);
-             if not is_safe(transformer_output):
-                 logger.warning("GPT Forward: Unsafe output from Transformer Encoder. Returning zeros."); return torch.zeros(batch_size, seq_len, self.vocab_size, device=DEVICE)
-        except Exception as e:
-             logger.error(f"Error occurred in GPT Transformer Encoder: {e}", exc_info=True);
-             return torch.zeros(batch_size, seq_len, self.vocab_size, device=DEVICE)
-
-        try:
-             logits = self.output(transformer_output);
-             if not is_safe(logits):
-                 logger.warning("GPT Forward: Unsafe output logits. Returning zeros."); return torch.zeros(batch_size, seq_len, self.vocab_size, device=DEVICE)
-        except Exception as e:
-             logger.error(f"Error occurred in GPT Output Layer: {e}", exc_info=True);
-             return torch.zeros(batch_size, seq_len, self.vocab_size, device=DEVICE)
-
-        return logits
+             logger.critical(f"Unexpected error loading TransformerGPT: {e}", exc_info=True)
+             raise RuntimeError("Failed to initialize TransformerGPT") from e
 
     def train_model(self, dataset: List[Dict[str, Any]], epochs: int = Config.NLP.TRAIN_EPOCHS):
-        if not dataset or not isinstance(dataset, list) or len(dataset) == 0:
-            logger.warning("GPT Training skipped: Invalid or empty dataset provided."); self.eval(); return
-        if tokenizer is None or PAD_TOKEN_ID is None or START_TOKEN_ID is None or END_TOKEN_ID is None:
-             logger.error("GPT Training skipped: Tokenizer or special tokens not initialized."); self.eval(); return
+         """Fine-tunes the Hugging Face model using the Trainer API."""
+         if not TRANSFORMERS_AVAILABLE:
+             logger.error("Cannot fine-tune: transformers library not available.")
+             return
+         if not self.model or not self.tokenizer:
+             logger.error("Cannot fine-tune: Model or Tokenizer not initialized.")
+             return
+         if not dataset:
+             logger.warning("Cannot fine-tune: No training data provided.")
+             return
 
-        logger.info(f"Starting SimpleGPT training for {epochs} epochs with {len(dataset)} samples (BPE Tokenizer)..."); self.train()
+         logger.info(f"Starting fine-tuning for '{self.model_name}'...")
+         self.model.train()
 
-        for epoch in range(epochs):
-            total_loss = 0; num_batches = 0; processed_samples = 0
-            random.shuffle(dataset) # Shuffle the validated data
-            for i, data_item in enumerate(dataset):
-                # Data is already validated in config.py load_and_validate
-                output_text = data_item.get("output", "")
-                emotion_weights = data_item.get("emotion_weights", [0.0]*4) # Use validated weights
+         # 1. Prepare Dataset using datasets library for better handling
+         try:
+            formatted_texts = []
+            for item in dataset:
+                output = item.get("output", "")
+                situation = item.get("situation", "")
+                # Example formatting: Combine situation and output for Causal LM
+                # Add BOS/EOS tokens to frame the sequence
+                text = f"{self.tokenizer.bos_token}{situation} >> {output}{self.tokenizer.eos_token}"
+                if output: # Only include if there's an output
+                    formatted_texts.append({"text": text})
 
-                # Tokenization
-                try:
-                    token_ids_content = tokenize(output_text, max_length=self.max_len - 2)
-                    token_ids = [START_TOKEN_ID] + token_ids_content + [END_TOKEN_ID]
-                except Exception as e:
-                    logger.warning(f"Skipping item {i}: Error tokenizing '{output_text}': {e}"); continue
+            if not formatted_texts:
+                 logger.error("Cannot fine-tune: No text data generated from dataset.")
+                 self.model.eval(); return
 
-                if len(token_ids) <= 2: continue # Skip empty or only special tokens
+            hf_dataset = Dataset.from_list(formatted_texts)
+            logger.info(f"Created Hugging Face dataset with {len(hf_dataset)} samples.")
 
-                input_token_ids = token_ids[:-1]
-                target_token_ids = token_ids[1:]
-                current_len = len(input_token_ids)
+         except Exception as e:
+             logger.error(f"Error creating Hugging Face dataset: {e}", exc_info=True)
+             self.model.eval(); return
 
-                # Padding
-                pad_len = self.max_len - current_len
-                if pad_len < 0:
-                    logger.error(f"GPT Train: Negative padding length ({pad_len}) for item {i}. Skipping."); continue
+         # 2. Tokenize Dataset using map for efficiency
+         def tokenize_function(examples):
+             # Tokenize texts, truncation is important
+             return self.tokenizer(examples["text"], truncation=True, padding=False) # Don't pad here, collator will handle it
 
-                input_padded = input_token_ids + [PAD_TOKEN_ID] * pad_len
-                target_padded = target_token_ids + [PAD_TOKEN_ID] * pad_len
+         try:
+             tokenized_dataset = hf_dataset.map(tokenize_function, batched=True, num_proc=4, remove_columns=["text"]) # Use multiple procs
+             logger.info("Tokenized dataset using map.")
+         except Exception as e:
+             logger.error(f"Error tokenizing dataset map: {e}", exc_info=True)
+             self.model.eval(); return
 
-                # Ensure lengths are exactly max_len after padding/potential truncation from tokenization
-                input_padded = input_padded[:self.max_len]
-                target_padded = target_padded[:self.max_len]
+         # 3. Block Processing (Group texts into blocks)
+         block_size = 128 # Adjust based on model/memory
+         def group_texts(examples):
+             # Concatenate all texts.
+             concatenated_examples = {k: sum(examples[k], []) for k in examples.keys()}
+             total_length = len(concatenated_examples[list(examples.keys())[0]])
+             # We drop the small remainder
+             if total_length >= block_size:
+                total_length = (total_length // block_size) * block_size
+             else: # Handle case where total length < block_size
+                 total_length = 0
+             # Split by chunks of block_size.
+             result = {
+                 k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+                 for k, t in concatenated_examples.items()
+             }
+             result["labels"] = result["input_ids"].copy()
+             return result
 
-                # Tensor creation
-                try:
-                    input_tensor = torch.tensor([input_padded], dtype=torch.long, device=DEVICE);
-                    target_tensor = torch.tensor([target_padded], dtype=torch.long, device=DEVICE);
-                except Exception as e:
-                    logger.error(f"GPT Train: Error creating tensors for item {i}: {e}. Skipping."); continue
+         try:
+             lm_datasets = tokenized_dataset.map(group_texts, batched=True, num_proc=4)
+             logger.info(f"Processed dataset into blocks of size {block_size}. New size: {len(lm_datasets)}")
+             if len(lm_datasets) == 0:
+                 logger.error("Dataset processing resulted in 0 blocks. Check block_size and data length.")
+                 self.model.eval(); return
+         except Exception as e:
+             logger.error(f"Error grouping texts: {e}", exc_info=True)
+             self.model.eval(); return
 
-                if input_tensor.shape != (1, self.max_len) or target_tensor.shape != (1, self.max_len):
-                     logger.error(f"GPT Train: Shape mismatch after padding for item {i} ({input_tensor.shape}, {target_tensor.shape}). Expected (1, {self.max_len}). Skipping."); continue
 
-                # Emotion input tensor (already validated as list of 4 floats)
-                try:
-                    emotions_input = torch.tensor([emotion_weights], device=DEVICE, dtype=torch.float32)
-                except Exception as e:
-                    logger.warning(f"Skipping item {i}: Failed to create emotion tensor from {emotion_weights}: {e}. Using zeros.");
-                    emotions_input = torch.zeros(1, 4, device=DEVICE)
+         # 4. Data Collator
+         data_collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=False)
 
-                # Training Step
-                try:
-                    self.optimizer.zero_grad();
-                    logits = self(input_ids=input_tensor, emotion_vector=emotions_input)
+         # 5. Training Arguments
+         output_dir = Config.GPT_SAVE_PATH # Use path from config
+         training_args = TrainingArguments(
+             output_dir=output_dir,
+             overwrite_output_dir=True,
+             num_train_epochs=epochs,
+             per_device_train_batch_size=4,  # Lower if OOM
+             gradient_accumulation_steps=4, # Increase if lowering batch size
+             save_strategy="epoch",
+             save_total_limit=2,
+             logging_steps=50,
+             learning_rate=Config.NLP.GPT_LR,
+             weight_decay=0.01,
+             warmup_ratio=0.1,
+             fp16=torch.cuda.is_available(), # Use mixed precision if possible
+             report_to="none",
+             label_names=["labels"] # Important for Trainer
+         )
 
-                    logits_view = logits.view(-1, self.vocab_size);
-                    target_view = target_tensor.view(-1)
+         # 6. Initialize Trainer
+         trainer = Trainer(
+             model=self.model,
+             args=training_args,
+             train_dataset=lm_datasets, # Use the processed dataset
+             data_collator=data_collator,
+         )
 
-                    if logits_view.shape[0] != target_view.shape[0]:
-                        logger.error(f"GPT Train: Shape mismatch logits {logits_view.shape} vs target {target_view.shape} item {i}. Skipping.");
-                        continue
+         # 7. Train
+         logger.info("Starting Hugging Face model fine-tuning...")
+         try:
+             train_result = trainer.train()
+             logger.info("Fine-tuning finished.")
+             trainer.save_model() # Save final model to output_dir
+             self.tokenizer.save_pretrained(training_args.output_dir) # Save tokenizer too
+             logger.info(f"Fine-tuned model saved to {training_args.output_dir}")
 
-                    loss = self.loss_fn(logits_view, target_view)
+             # Log metrics
+             metrics = train_result.metrics
+             logger.info(f"TrainOutput: {metrics}")
 
-                    if is_safe(loss) and loss.requires_grad:
-                        loss.backward();
-                        torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=Config.NLP.GRADIENT_CLIP_GPT);
-                        self.optimizer.step();
-                        total_loss += loss.item(); num_batches += 1; processed_samples += 1
-                    elif not loss.requires_grad and abs(loss.item()) > 1e-7:
-                         logger.debug(f"Loss requires no grad: {loss.item()}")
-                         pass # Allow zero loss without grad
-                    elif not is_safe(loss):
-                        logger.warning(f"Unsafe loss detected ({loss.item()}) during training epoch {epoch+1}, item {i}. Skipping gradient update.");
-                        self.optimizer.zero_grad()
+         except Exception as e:
+             logger.error(f"Error during fine-tuning: {e}", exc_info=True)
 
-                except Exception as e:
-                    logger.error(f"Error during GPT training step for item {i}: {e}", exc_info=True);
-                    self.optimizer.zero_grad() # Zero grad even on error
+         self.model.eval() # Set back to eval mode
 
-            if num_batches > 0:
-                avg_loss = total_loss / num_batches;
-                logger.info(f"GPT Training Epoch {epoch + 1}/{epochs}, Processed Samples: {processed_samples}/{len(dataset)}, Avg Loss: {avg_loss:.4f}")
-            else:
-                logger.warning(f"GPT Training Epoch {epoch + 1}/{epochs}: No valid batches processed.")
-
-        logger.info("SimpleGPT training finished."); self.eval()
-
-    def generate(self, context: Optional[str], emotions: Optional[torch.Tensor],
+    def generate(self, context: Optional[str], emotions: Optional[torch.Tensor]=None, # Emotions used for prompt building now
                  max_len: int = Config.NLP.MAX_RESPONSE_LEN,
-                 temperature: float = Config.NLP.GPT_TEMPERATURE, # Use config defaults
-                 top_p: float = Config.NLP.GPT_TOP_P
-                 ) -> str:
-        """Generates text using Nucleus Sampling (Top-P)."""
-        self.eval();
-        if tokenizer is None or PAD_TOKEN_ID is None or START_TOKEN_ID is None or END_TOKEN_ID is None or UNK_TOKEN_ID is None:
-             logger.error("Cannot generate: Tokenizer or special tokens not initialized."); return "Error: Tokenizer missing."
+                 temperature: float = Config.NLP.GPT_TEMPERATURE,
+                 top_p: float = Config.NLP.GPT_TOP_P,
+                 num_beams: int = 1,
+                 repetition_penalty: float = 1.15, # <-- Penalty added
+                ) -> str:
+        """Generates text using the Hugging Face model's generate method."""
+        if not self.model or not self.tokenizer:
+            logger.error("Cannot generate: Model or Tokenizer not initialized.")
+            return "[Generation Error: Model not ready]"
+        self.model.eval()
 
-        input_ids: List[int] = [START_TOKEN_ID]
-
-        if context and isinstance(context, str) and context.strip():
-            try:
-                # Limit context length fed to tokenizer
-                context_tokens = tokenize(context, max_length=self.max_len // 2) # Use own max_len
-                input_ids.extend(context_tokens)
-            except Exception as e:
-                logger.error(f"GPT Gen: Error tokenizing context '{context}': {e}. Using START only.")
-
-        input_ids = input_ids[:max_len - 1] # Ensure space for at least one generated token + END
-        if not input_ids: input_ids = [START_TOKEN_ID]
+        prompt = context if context else "" # Context should already be formatted
+        if not prompt: prompt = self.tokenizer.bos_token if self.tokenizer.bos_token else ""
 
         try:
-            output_ids = torch.tensor([input_ids], dtype=torch.long, device=DEVICE)
+            model_max_len = getattr(self.model.config, 'n_ctx', 512)
+            max_prompt_len = model_max_len - max_len - 10
+            if max_prompt_len <= 0: max_prompt_len = model_max_len // 2
+
+            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_prompt_len).to(self.device)
+            input_length = inputs.input_ids.shape[1]
+            max_new_tokens = max(5, max_len)
+
+            with torch.no_grad():
+                output_sequences = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    num_beams=num_beams,
+                    do_sample=(num_beams == 1),
+                    temperature=temperature if num_beams == 1 and temperature > 0 else 1.0,
+                    top_p=top_p if num_beams == 1 and top_p < 1.0 else None,
+                    repetition_penalty=repetition_penalty,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    bos_token_id=self.tokenizer.bos_token_id,
+                )
+
+            generated_ids = output_sequences[0, input_length:]
+            response = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
+
         except Exception as e:
-            logger.error(f"GPT Gen: Failed create input tensor from IDs {input_ids}: {e}. Fallback."); return "..."
-
-        emotions_input = torch.zeros(1, 4, device=DEVICE) # Expect 4 features for bias layer
-        if emotions is not None and isinstance(emotions, torch.Tensor):
-            if emotions.device != DEVICE: emotions = emotions.to(DEVICE)
-            if is_safe(emotions):
-                emo_flat = emotions.flatten()
-                num_features = emo_flat.numel()
-                if num_features >= 4:
-                     emotions_input = emo_flat[:4].unsqueeze(0).float()
-                elif num_features > 0:
-                     padded_emo = F.pad(emo_flat, (0, 4 - num_features))
-                     emotions_input = padded_emo.unsqueeze(0).float()
-                # else: use zeros initialized above
-            else:
-                 logger.warning("GPT Gen: Unsafe emotions tensor provided. Using zeros for bias.")
-
-        # --- Generation Loop with Nucleus Sampling ---
-        with torch.no_grad():
-            for _ in range(max_len - output_ids.size(1)): # Iterate up to max_len
-                current_seq_len = output_ids.size(1)
-                if current_seq_len == 0: logger.warning("GPT Gen Loop: Sequence empty. Breaking."); break
-                if current_seq_len >= max_len: logger.debug("GPT Gen Loop: Max length reached."); break
-
-                try:
-                    input_for_forward = output_ids
-                    logits = self(input_ids=input_for_forward, emotion_vector=emotions_input)
-
-                    if not isinstance(logits, torch.Tensor) or logits.ndim != 3 or logits.shape[0] != 1 or logits.shape[1] != input_for_forward.shape[1] or logits.shape[2] != self.vocab_size:
-                        logger.warning(f"GPT Gen Loop: Invalid logits shape {logits.shape}. Expected (1, {current_seq_len}, {self.vocab_size}). Breaking."); break;
-
-                    # --- Start Nucleus Sampling Logic ---
-                    next_token_logits = logits[:, -1, :] # Logits for the next token
-
-                    # Apply Temperature
-                    if temperature > 0 and temperature != 1.0:
-                        next_token_logits = next_token_logits / temperature
-
-                    # Filter special tokens BEFORE softmax/sorting
-                    next_token_logits[:, PAD_TOKEN_ID] = -float('inf');
-                    next_token_logits[:, START_TOKEN_ID] = -float('inf');
-                    next_token_logits[:, UNK_TOKEN_ID] = -float('inf');
-                    # Optional: filter END token until some length is reached?
-                    # if current_seq_len < 5: next_token_logits[:, END_TOKEN_ID] = -float('inf')
-
-
-                    # Calculate probabilities
-                    probs = F.softmax(next_token_logits, dim=-1)
-
-                    # Sort probabilities and indices
-                    sorted_probs, sorted_indices = torch.sort(probs, descending=True, dim=-1)
-                    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
-
-                    # Create mask for nucleus (tokens to keep)
-                    sorted_indices_to_remove = cumulative_probs > top_p
-                    # Shift mask to ensure the first token exceeding top_p is kept
-                    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
-                    sorted_indices_to_remove[..., 0] = 0 # Always keep the most probable token
-
-                    # Map sorted indices back to original vocabulary indices
-                    # Create a tensor of False, then scatter True values for indices to remove
-                    indices_to_remove = torch.zeros_like(probs, dtype=torch.bool).scatter_(
-                        dim=-1, index=sorted_indices, src=sorted_indices_to_remove
-                    )
-
-                    # Apply the mask to the original probabilities tensor
-                    probs_filtered = probs.masked_fill(indices_to_remove, 0.0)
-
-                    # Handle potential edge case where all probabilities become zero
-                    if torch.sum(probs_filtered, dim=-1) <= 1e-6:
-                        # logger.warning("Top-p filtering resulted in near-zero probability sum. Using argmax fallback.")
-                        # Fallback to argmax on the *original* filtered logits (before softmax)
-                        next_token_logits_masked = next_token_logits.masked_fill(indices_to_remove, -float('inf')) # Ensure masked logits are -inf
-                        next_token = torch.argmax(next_token_logits_masked, dim=-1)
-                    else:
-                        # Renormalize the filtered probabilities
-                        probs_renormalized = probs_filtered / torch.sum(probs_filtered, dim=-1, keepdim=True)
-                        # Sample from the renormalized distribution
-                        next_token = torch.multinomial(probs_renormalized, num_samples=1).squeeze(1)
-                    # --- End Nucleus Sampling Logic ---
-
-                    # Append generated token
-                    output_ids = torch.cat([output_ids, next_token.unsqueeze(1)], dim=1)
-
-                    # Stop if END token is generated or max length is exceeded
-                    if next_token.item() == END_TOKEN_ID: break
-                    if output_ids.size(1) >= max_len: break
-
-                except Exception as e:
-                    logger.error(f"Error in GPT generation loop step: {e}", exc_info=True); break
-
-        # --- Decode Final Output ---
-        generated_indices_list = output_ids[0].cpu().tolist() if output_ids.numel() > 0 else []
-        response = detokenize(generated_indices_list)
+            logger.error(f"Error during HF model generation: {e}", exc_info=True)
+            response = "[Generation Error]"
 
         if not response.strip():
-            fallback_response = "..."
-            logger.debug("GPT generated an empty/whitespace response. Using fallback.")
-            if emotions is not None and emotions.numel() >= Config.Agent.EMOTION_DIM and is_safe(emotions):
-                try:
-                    emo_cpu = emotions.cpu()
-                    dominant_emotion_idx = torch.argmax(emo_cpu).item()
-                    fallback_responses = ["Hmm.", "Okay.", "I see.", "Really?", "Well...", "Oh!"]
-                    if 0 <= dominant_emotion_idx < len(fallback_responses):
-                        fallback_response = fallback_responses[dominant_emotion_idx % len(fallback_responses)]
-                except Exception as e:
-                    logger.warning(f"Error selecting fallback based on emotion: {e}")
-            response = fallback_response
+             response = "..."
+             logger.warning("GPT generated an empty string after decoding.")
 
         return response.strip()
 
-    # --- ADDED: save/load wrappers for SimpleGPT ---
-    def save_model(self, path: str):
-        try:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            torch.save({
-                'model_state_dict': self.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict(),
-            }, path)
-            logger.info(f"SimpleGPT model saved to {path}")
-        except IOError as e:
-            logger.error(f"IOError saving SimpleGPT model: {e}", exc_info=True)
-        except Exception as e:
-            logger.error(f"Error saving SimpleGPT model: {e}", exc_info=True)
+    def save_model(self, path: str): # Wrapper for consistency
+         if not self.model or not self.tokenizer:
+             logger.error("Cannot save HF model: Not initialized.")
+             return
+         try:
+            logger.info(f"Saving HF model and tokenizer to {path}...")
+            os.makedirs(path, exist_ok=True)
+            self.model.save_pretrained(path)
+            self.tokenizer.save_pretrained(path)
+            logger.info("HF model and tokenizer saved.")
+         except Exception as e:
+             logger.error(f"Failed to save HF model/tokenizer: {e}", exc_info=True)
 
-    def load_model(self, path: str):
-        if not os.path.exists(path):
-            logger.warning(f"SimpleGPT model file not found: {path}. Skipping load.")
+    def load_model(self, path: str): # Wrapper for consistency
+        if not TRANSFORMERS_AVAILABLE:
+            logger.error("Cannot load HF model: transformers library not available.")
             return False
-        try:
-            checkpoint = torch.load(path, map_location=DEVICE)
-            self.load_state_dict(checkpoint['model_state_dict'])
-            # Optionally load optimizer state if you intend to continue training
-            if 'optimizer_state_dict' in checkpoint:
-                 try:
-                     self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-                 except Exception as e:
-                     logger.warning(f"Could not load SimpleGPT optimizer state (may reset learning rate etc.): {e}")
+        # Use the specific path from config for loading fine-tuned model if it exists
+        load_path = Config.GPT_SAVE_PATH if os.path.isdir(Config.GPT_SAVE_PATH) else self.model_name
 
-            logger.info(f"SimpleGPT model loaded from {path}")
-            self.eval() # Set to eval mode after loading
+        # If path is still a model name (not a directory), proceed to load from Hub
+        if not os.path.isdir(load_path):
+             logger.warning(f"Fine-tuned model directory not found at '{Config.GPT_SAVE_PATH}'. Attempting to load base model '{self.model_name}' from Hub.")
+             load_path = self.model_name # Fallback to base model name
+             # Check again if path exists now (it shouldn't if it's a model name)
+             if os.path.isdir(load_path):
+                 logger.error(f"Unexpected directory found for base model name '{load_path}'. Load failed.")
+                 return False
+
+        try:
+            logger.info(f"Loading HF model and tokenizer from {load_path}...")
+            self.model = AutoModelForCausalLM.from_pretrained(load_path).to(self.device)
+            self.tokenizer = AutoTokenizer.from_pretrained(load_path)
+
+            # Re-assign special token IDs after loading (crucial!)
+            if self.tokenizer.pad_token is None and self.tokenizer.eos_token is not None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            if self.tokenizer.pad_token_id is None: raise ValueError("PAD token ID missing after load.")
+            if self.tokenizer.bos_token_id is None: raise ValueError("BOS token ID missing after load.")
+            if self.tokenizer.eos_token_id is None: raise ValueError("EOS token ID missing after load.")
+            self.pad_token_id = self.tokenizer.pad_token_id
+            self.start_token_id = self.tokenizer.bos_token_id
+            self.end_token_id = self.tokenizer.eos_token_id
+            logger.info(f"HF model and tokenizer loaded successfully from {load_path}.")
+            self.model.eval()
             return True
-        except FileNotFoundError:
-             logger.error(f"Error: SimpleGPT model file not found at {path}.")
-             return False
-        except KeyError as e:
-            logger.error(f"Error loading SimpleGPT state: Missing key {e}. State file might be incompatible.", exc_info=True)
-            return False
+        except OSError as e:
+            logger.error(f"OSError loading HF model/tokenizer from {load_path}. Model name/path likely incorrect or requires internet. Error: {e}", exc_info=True)
+            self.model = None; self.tokenizer = None; return False
         except Exception as e:
-            logger.error(f"Error loading SimpleGPT model: {e}", exc_info=True)
-            return False
-    # --- END ADDED ---
+             logger.error(f"Failed to load HF model/tokenizer from {load_path}: {e}", exc_info=True)
+             self.model = None; self.tokenizer = None; return False
+
 
 # --- END OF FILE ai_modules.py ---
