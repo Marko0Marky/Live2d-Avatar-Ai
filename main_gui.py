@@ -2,7 +2,7 @@
 import html
 import logging
 import torch
-from typing import Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 import os # Added for save/load path checks
 import time # Added for sleep in save/load handlers
 
@@ -19,7 +19,7 @@ try:
 except ImportError as e: logger.critical(f"main_gui.py: PyQt5 import failed: {e}."); raise
 
 if TYPE_CHECKING:
-    from orchestrator import EnhancedConsciousAgent, ReflectReturnType
+    from orchestrator import EnhancedConsciousAgent, ReflectReturnType, TrainStepReturnType
 
 from graphics import Live2DCharacter
 from gui_widgets import HUDWidget, AIStateWidget
@@ -135,7 +135,8 @@ class EnhancedGameGUI(QMainWindow):
         self.chat_display.append(f"<font color='#90CAF9'><b>You:</b> {html.escape(user_text)}</font>"); self.chat_input.clear()
         try:
             ai_response = self.agent.handle_user_chat(user_text);
-            self.chat_display.append(f"<font color='#FFF59D'><b>AI:</b> {html.escape(ai_response)}</font>")
+            # The response from handle_user_chat is already unescaped and cleaned
+            self.chat_display.append(f"<font color='#FFF59D'><b>AI:</b> {html.escape(ai_response)}</font>") # Escape again for display
             # Update state/HUD after chat interaction
             stats = self.agent.reflect(); response_emotions = self.agent.last_response_emotions
             if not isinstance(response_emotions, torch.Tensor) or not is_safe(response_emotions): logger.warning("Invalid resp emo send_msg."); response_emotions = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
@@ -151,17 +152,21 @@ class EnhancedGameGUI(QMainWindow):
         """Main update loop: steps simulation, triggers learning, updates GUI."""
         if self.paused: return
         try:
-            step_results = self.agent.train_step()
+            step_results: Union[Tuple, Dict] = self.agent.train_step()
 
+            # Type check the return value first
             if isinstance(step_results, dict) and step_results.get('error'):
                  logger.error(f"Orchestrator error: {step_results.get('message', 'Unknown')}. Pausing."); self._pause_simulation(force_pause=True); self.state_widget.set_status(step_results.get("message", "Error!"), "#F44336"); return
-            # Check for 7 items
             if not isinstance(step_results, tuple) or len(step_results) != 7:
-                 logger.error(f"Orchestrator returned invalid results ({len(step_results)} items, expected 7). Pausing.")
+                 logger.error(f"Orchestrator returned invalid results (Type: {type(step_results)}, Items: {len(step_results) if isinstance(step_results, tuple) else 'N/A'}, Expected 7). Pausing.")
                  self._pause_simulation(force_pause=True); self.state_widget.set_status("Step Return Error!", "#F44336")
                  return
 
-            # Unpack 7 items
+            # Now safe to unpack the tuple
+            metrics: 'ReflectReturnType'
+            response: str
+            monologue: str
+            predicted_hm_label: str
             metrics, reward, done, response, loss_value, monologue, predicted_hm_label = step_results
             self.last_reward = reward; self.last_loss = loss_value
 
@@ -172,17 +177,23 @@ class EnhancedGameGUI(QMainWindow):
             # ---
 
             # Update Avatar Emotions
-            chat_emotions = self.agent.last_response_emotions # Use emotions tied to last response for display
-            if not isinstance(chat_emotions, torch.Tensor) or not is_safe(chat_emotions):
-                 logger.warning("Invalid response emotions update_game."); chat_emotions = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
+            # Use the emotions associated with the latest response (could be internal monologue or chat reply)
+            response_emotions = self.agent.last_response_emotions
+            if not isinstance(response_emotions, torch.Tensor) or not is_safe(response_emotions):
+                 logger.warning("Invalid response emotions update_game."); response_emotions = torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
             if self.avatar_widget and hasattr(self.avatar_widget, 'update_emotions'):
-                self.avatar_widget.update_emotions(chat_emotions)
+                self.avatar_widget.update_emotions(response_emotions)
 
             # Update State/HUD Widgets
-            self.state_widget.update_display(metrics, chat_emotions, loss_value) # metrics includes monologue now
+            self.state_widget.update_display(metrics, response_emotions, loss_value) # metrics includes monologue now
             hud_metrics = { "att_score": metrics.get("att_score", 0.0), "rho_score": metrics.get("rho_score", 0.0), "loss": loss_value, "box_score": metrics.get("box_score", 0.0) }
             # HUD shows the agent's *latest* response (which could be from internal step or chat)
-            self.hud_widget.update_hud(chat_emotions, self.agent.current_response, hud_metrics)
+            self.hud_widget.update_hud(response_emotions, self.agent.current_response, hud_metrics)
+
+            # Display internal monologue if it exists and is not just placeholder
+            if monologue and monologue != "...":
+                self.chat_display.append(f"<font color='#BDBDBD'><i>AI Thought: {html.escape(monologue)}</i></font>")
+                sb = self.chat_display.verticalScrollBar(); sb.setValue(sb.maximum())
 
             # Periodic checks and episode handling
             self.steps_since_last_check += 1
