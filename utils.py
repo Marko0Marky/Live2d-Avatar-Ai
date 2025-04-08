@@ -4,9 +4,24 @@ import numpy as np
 from collections import deque, namedtuple
 import random
 import logging
+import sys
+import os
+import re # Import re for detokenize
 from typing import Optional, Dict, Tuple, List, Deque, Union, Any
 
-from config import logger, DEVICE, MasterConfig as Config
+# --- ADDED: Tokenizer Imports ---
+try:
+    from tokenizers import Tokenizer, decoders, AddedToken
+    from tokenizers.models import BPE
+    from tokenizers.trainers import BpeTrainer
+    from tokenizers.pre_tokenizers import Whitespace
+    from typing import Optional as TokenizerOptional # Rename to avoid conflict
+    TOKENIZERS_LIB_AVAILABLE = True
+except ImportError:
+    TOKENIZERS_LIB_AVAILABLE = False
+# --- END ADDED ---
+
+from config import logger, DEVICE, MasterConfig as Config, NLPConfig, TRAIN_DATA # Import specific config classes needed
 # --- Import Head Movement Labels ---
 from config import HEAD_MOVEMENT_TO_IDX # Needed for default index
 
@@ -27,17 +42,17 @@ def is_safe(tensor: Optional[Union[torch.Tensor , np.ndarray]]) -> bool:
     if isinstance(tensor, np.ndarray):
         if np.issubdtype(tensor.dtype, np.number):
             return not (np.isnan(tensor).any() or np.isinf(tensor).any())
-        else: return True
+        else: return True # Non-numeric numpy arrays are considered safe
     elif isinstance(tensor, torch.Tensor):
-        if not torch.is_floating_point(tensor) and not torch.is_complex(tensor) and not hasattr(tensor, 'is_signed') : return True
-        if tensor.numel() == 0: return True
-        if torch.is_floating_point(tensor) or torch.is_complex(tensor):
-             return torch.isfinite(tensor).all()
-        return True
+        # Check for floating point types before calling isfinite
+        if tensor.is_floating_point() or tensor.is_complex():
+            if tensor.numel() == 0: return True # Empty tensor is safe
+            return torch.isfinite(tensor).all()
+        return True # Non-floating point tensors are considered safe
     else:
-        try: tensor_conv = torch.tensor(tensor, device='cpu')
-        except Exception: return False
-        return is_safe(tensor_conv)
+        try: tensor_conv = torch.tensor(tensor, device='cpu') # Try converting to tensor
+        except Exception: return False # Conversion failed
+        return is_safe(tensor_conv) # Recursive call
 
 
 class MetronicLattice:
@@ -47,7 +62,7 @@ class MetronicLattice:
         self.dim = dim
         if not isinstance(tau, (float, int)) or tau <= 1e-6: logger.warning(f"Lattice invalid tau value {tau}. Using default 0.1."); self.tau = 0.1
         else: self.tau = float(tau)
-        logger.debug(f"MetronicLattice initialized with dim={self.dim}, tau={self.tau}")
+        #logger.debug(f"MetronicLattice initialized with dim={self.dim}, tau={self.tau}") # Can be noisy
 
     def discretize(self, x: torch.Tensor) -> torch.Tensor:
         if not isinstance(x, torch.Tensor):
@@ -89,7 +104,6 @@ class MetaCognitiveMemory:
         # Get default index for 'idle' once
         self.idle_hm_idx = HEAD_MOVEMENT_TO_IDX.get("idle", 0)
 
-    # --- MODIFIED: Accept and store head_movement_idx ---
     def add(self, experience: Experience):
         """Adds an experience to memory, validating and converting to CPU."""
         if not isinstance(experience, Experience):
@@ -100,7 +114,7 @@ class MetaCognitiveMemory:
         try:
             state=experience.state; belief=experience.belief; reward=experience.reward
             next_state=experience.next_state; done=experience.done
-            td_error=experience.td_error; hm_idx=experience.head_movement_idx # Unpack new field
+            td_error=experience.td_error; hm_idx=experience.head_movement_idx
 
             # Validate state
             if not isinstance(state, torch.Tensor): raise TypeError("State must be a Tensor")
@@ -144,7 +158,6 @@ class MetaCognitiveMemory:
 
     def __len__(self) -> int: return len(self.long_term)
 
-    # --- MODIFIED: Retrieve and batch head_movement_idx ---
     def sample(self, batch_size: int, beta: float = Config.RL.PER_BETA_START) -> Optional[Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor]]:
          """Samples a batch using Prioritized Experience Replay (PER)."""
          if len(self.long_term) < batch_size: return None
@@ -168,7 +181,6 @@ class MetaCognitiveMemory:
          weights = (total_samples * probs[indices]) ** (-beta); weights /= weights.max();
          weights_tensor = torch.tensor(weights, dtype=torch.float32, device=DEVICE).unsqueeze(1)
 
-         # --- MODIFIED: Add head_movement_idx_list ---
          states_list, beliefs_list, rewards_list, next_states_list, dones_list, head_movement_idx_list = [], [], [], [], [], []
          valid_count = 0; skipped_count = 0
          default_belief = torch.zeros(Config.Agent.HIDDEN_DIM, device=DEVICE) # Pre-create default belief
@@ -194,7 +206,6 @@ class MetaCognitiveMemory:
 
          try:
              states_batch=torch.stack(states_list); beliefs_batch=torch.stack(beliefs_list); rewards_batch=torch.tensor(rewards_list,dtype=torch.float32,device=DEVICE).unsqueeze(1); next_states_batch=torch.stack(next_states_list); dones_batch=torch.tensor(dones_list,dtype=torch.bool,device=DEVICE).unsqueeze(1)
-             # --- MODIFIED: Create head_movement_idx tensor ---
              head_movement_idx_batch = torch.tensor(head_movement_idx_list, dtype=torch.long, device=DEVICE) # Target indices should be Long
 
              # Final safety check
@@ -240,5 +251,119 @@ class MetaCognitiveMemory:
 
     def get_short_term_norm(self) -> float: return self.get_belief_norm(self.short_term)
     def get_long_term_norm(self) -> float: return self.get_belief_norm(self.long_term)
+
+
+# --- BPE Tokenizer Variables and Functions (Moved from config.py) ---
+bpe_tokenizer: TokenizerOptional[Tokenizer] = None
+BPE_PAD_TOKEN_ID: Optional[int] = None
+BPE_START_TOKEN_ID: Optional[int] = None
+BPE_END_TOKEN_ID: Optional[int] = None
+BPE_UNK_TOKEN_ID: Optional[int] = None
+
+def train_or_load_bpe_tokenizer(data: List[Dict[str, Any]], config: NLPConfig) -> Optional[Tokenizer]:
+    """Loads or trains the BPE tokenizer. Returns None if loading/training fails."""
+    global BPE_PAD_TOKEN_ID, BPE_START_TOKEN_ID, BPE_END_TOKEN_ID, BPE_UNK_TOKEN_ID, bpe_tokenizer
+
+    if not TOKENIZERS_LIB_AVAILABLE:
+        logger.error("Cannot load/train BPE tokenizer: 'tokenizers' library not installed.")
+        return None
+
+    tokenizer_path = config.TOKENIZER_PATH
+    if not tokenizer_path:
+        logger.warning("BPE Tokenizer path not set in config. Skipping BPE tokenizer.")
+        return None
+
+    os.makedirs(os.path.dirname(tokenizer_path), exist_ok=True)
+    special_token_objects = [AddedToken(token, single_word=True) for token in config.SPECIAL_TOKENS]
+
+    loaded_tokenizer: Optional[Tokenizer] = None
+    try:
+        if os.path.exists(tokenizer_path):
+            logger.info(f"Loading existing BPE tokenizer from {tokenizer_path}")
+            loaded_tokenizer = Tokenizer.from_file(tokenizer_path)
+        else:
+            logger.info(f"BPE Tokenizer not found at {tokenizer_path}. Training a new one...")
+            if not data:
+                 logger.warning("Cannot train BPE tokenizer: No training data provided. Skipping."); return None
+
+            text_corpus = [item.get(k, "") for item in data for k in ["output", "situation"] if isinstance(item.get(k), str)] # Extract text safely
+            if not text_corpus: logger.error("Cannot train BPE tokenizer: No valid text found in training data."); return None
+
+            temp_bpe_tokenizer = Tokenizer(BPE(unk_token="<UNK>"))
+            temp_bpe_tokenizer.pre_tokenizer = Whitespace()
+            temp_bpe_tokenizer.decoder = decoders.BPEDecoder()
+            # Use vocab size from config, BpeTrainer handles it
+            trainer = BpeTrainer(vocab_size=config.VOCAB_SIZE, special_tokens=special_token_objects)
+            logger.info(f"Training BPE tokenizer with target vocab size {config.VOCAB_SIZE} and {len(special_token_objects)} special tokens...")
+            temp_bpe_tokenizer.train_from_iterator(text_corpus, trainer=trainer)
+            logger.info(f"BPE Tokenizer training complete.")
+            temp_bpe_tokenizer.save(tokenizer_path)
+            logger.info(f"BPE Tokenizer saved to {tokenizer_path}")
+            loaded_tokenizer = temp_bpe_tokenizer
+
+        if loaded_tokenizer:
+            if loaded_tokenizer.decoder is None: logger.warning("Loaded BPE tokenizer missing decoder, setting BPEDecoder."); loaded_tokenizer.decoder = decoders.BPEDecoder()
+            actual_vocab_size = loaded_tokenizer.get_vocab_size()
+            # config.VOCAB_SIZE = actual_vocab_size # Don't overwrite config if HF is primary
+            logger.info(f"BPE Tokenizer ready. Actual Vocab size: {actual_vocab_size}")
+            bpe_tokenizer = loaded_tokenizer
+            BPE_PAD_TOKEN_ID = bpe_tokenizer.token_to_id("<PAD>")
+            BPE_START_TOKEN_ID = bpe_tokenizer.token_to_id("<START>")
+            BPE_END_TOKEN_ID = bpe_tokenizer.token_to_id("<END>")
+            BPE_UNK_TOKEN_ID = bpe_tokenizer.token_to_id("<UNK>")
+            if None in [BPE_PAD_TOKEN_ID, BPE_START_TOKEN_ID, BPE_END_TOKEN_ID, BPE_UNK_TOKEN_ID]:
+                missing_tokens = [t for t, tid in [("<PAD>", BPE_PAD_TOKEN_ID), ("<START>", BPE_START_TOKEN_ID), ("<END>", BPE_END_TOKEN_ID), ("<UNK>", BPE_UNK_TOKEN_ID)] if tid is None]
+                logger.error(f"Failed to get IDs for BPE special tokens: {missing_tokens}.");
+                bpe_tokenizer = None # Invalidate tokenizer if specials are missing
+                return None
+            logger.debug(f"BPE Special Token IDs: PAD={BPE_PAD_TOKEN_ID}, START={BPE_START_TOKEN_ID}, END={BPE_END_TOKEN_ID}, UNK={BPE_UNK_TOKEN_ID}")
+            return bpe_tokenizer
+        else:
+            return None
+
+    except Exception as e:
+         logger.error(f"Error during BPE tokenizer loading/training: {e}", exc_info=True)
+         bpe_tokenizer = None
+         return None
+
+# --- BPE Tokenization functions (Keep separate in case needed elsewhere) ---
+def tokenize_bpe(text: str, max_length: int = Config.NLP.MAX_RESPONSE_LEN - 2) -> List[int]:
+    if bpe_tokenizer is None: logger.error("BPE Tokenizer not initialized for tokenize_bpe."); return []
+    if not isinstance(text, str): logger.warning(f"Invalid input to tokenize_bpe: type {type(text)}."); return []
+    try:
+        encoding = bpe_tokenizer.encode(text.lower(), add_special_tokens=False)
+        truncated_ids = encoding.ids[:max_length]
+        return truncated_ids
+    except Exception as e:
+        logger.error(f"Error during BPE tokenization of '{text[:50]}...': {e}", exc_info=True)
+        return []
+
+def detokenize_bpe(indices: List[int]) -> str:
+    if bpe_tokenizer is None: logger.error("BPE Tokenizer not initialized for detokenize_bpe."); return ""
+    if isinstance(indices, torch.Tensor):
+        try: indices = indices.cpu().tolist()
+        except Exception as e: logger.warning(f"Error converting tensor to list for detokenize_bpe: {e}"); return "[Tensor Conversion Error]"
+    if not isinstance(indices, (list, tuple)): logger.warning(f"Invalid input to detokenize_bpe: type {type(indices)}."); return ""
+    if BPE_PAD_TOKEN_ID is None or BPE_START_TOKEN_ID is None or BPE_END_TOKEN_ID is None: logger.error("Cannot detokenize_bpe: Special tokens not set."); return ""
+    try:
+        special_ids_to_filter = {BPE_PAD_TOKEN_ID, BPE_START_TOKEN_ID, BPE_END_TOKEN_ID}
+        valid_indices = [int(idx) for idx in indices if idx is not None and idx not in special_ids_to_filter] # Check for None too
+        decoded_text = bpe_tokenizer.decode(valid_indices, skip_special_tokens=True)
+        processed_text = re.sub(r'(?<=[a-zA-Z0-9])([.,!?;:])', r' \1', decoded_text)
+        processed_text = re.sub(r'\s+', ' ', processed_text)
+        return processed_text.strip()
+    except Exception as e:
+        logger.error(f"Error during BPE detokenization of indices {indices}: {e}", exc_info=True)
+        return "[Detokenization Error]"
+
+def initialize_bpe_tokenizer(data: List[Dict[str, Any]], config: NLPConfig):
+    """Call this once during startup to initialize the BPE tokenizer."""
+    logger.info("Initializing BPE tokenizer...")
+    if train_or_load_bpe_tokenizer(data, config) is None:
+        logger.warning("BPE tokenizer initialization failed or was skipped.")
+    else:
+        logger.info("BPE tokenizer initialized successfully.")
+# --- END ADDED ---
+
 
 # --- END OF FILE utils.py ---
