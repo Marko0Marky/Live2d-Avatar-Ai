@@ -305,7 +305,10 @@ class TransformerGPT:
                 situation = item.get("situation", "")
                 # Example formatting: Combine situation and output for Causal LM
                 # Add BOS/EOS tokens to frame the sequence
-                text = f"{self.tokenizer.bos_token}{situation} >> {output}{self.tokenizer.eos_token}"
+                # Ensure BOS/EOS exist in the tokenizer
+                bos = self.tokenizer.bos_token if self.tokenizer.bos_token else ""
+                eos = self.tokenizer.eos_token if self.tokenizer.eos_token else ""
+                text = f"{bos}{situation} >> {output}{eos}"
                 if output: # Only include if there's an output
                     formatted_texts.append({"text": text})
 
@@ -348,6 +351,7 @@ class TransformerGPT:
                  k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
                  for k, t in concatenated_examples.items()
              }
+             # IMPORTANT: Create labels for Causal LM
              result["labels"] = result["input_ids"].copy()
              return result
 
@@ -380,7 +384,7 @@ class TransformerGPT:
              weight_decay=0.01,
              warmup_ratio=0.1,
              fp16=torch.cuda.is_available(), # Use mixed precision if possible
-             report_to="none",
+             report_to="none", # Disable wanbd/etc logging by default
              label_names=["labels"] # Important for Trainer
          )
 
@@ -423,32 +427,43 @@ class TransformerGPT:
             return "[Generation Error: Model not ready]"
         self.model.eval()
 
-        prompt = context if context else "" # Context should already be formatted
-        if not prompt: prompt = self.tokenizer.bos_token if self.tokenizer.bos_token else ""
+        # Use provided context directly. Orchestrator should format it.
+        prompt = context if context else ""
+        # If prompt is empty, start with BOS token
+        if not prompt and self.tokenizer.bos_token:
+             prompt = self.tokenizer.bos_token
 
         try:
-            model_max_len = getattr(self.model.config, 'n_ctx', 512)
-            max_prompt_len = model_max_len - max_len - 10
-            if max_prompt_len <= 0: max_prompt_len = model_max_len // 2
+            # Determine max length for prompt based on model's capacity and desired output length
+            model_max_len = getattr(self.model.config, 'n_positions', 512) # Use n_positions or n_ctx
+            # Ensure max_len is reasonable
+            max_output_len = max(5, min(max_len, model_max_len // 2))
+            # Leave some buffer for safety
+            max_prompt_len = model_max_len - max_output_len - 10
+            if max_prompt_len <= 0: max_prompt_len = model_max_len // 2 # Fallback if max_len is too large
 
             inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_prompt_len).to(self.device)
             input_length = inputs.input_ids.shape[1]
-            max_new_tokens = max(5, max_len)
+
+            # Ensure EOS token is used for padding if PAD is not set correctly
+            gen_pad_token_id = self.pad_token_id if self.pad_token_id is not None else self.end_token_id
 
             with torch.no_grad():
+                # Use generate method with updated parameters
                 output_sequences = self.model.generate(
                     **inputs,
-                    max_new_tokens=max_new_tokens,
+                    max_new_tokens=max_output_len,
                     num_beams=num_beams,
-                    do_sample=(num_beams == 1),
+                    do_sample=(num_beams == 1 and temperature > 0), # Sample only if temp > 0 and not using beam search
                     temperature=temperature if num_beams == 1 and temperature > 0 else 1.0,
                     top_p=top_p if num_beams == 1 and top_p < 1.0 else None,
                     repetition_penalty=repetition_penalty,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id,
-                    bos_token_id=self.tokenizer.bos_token_id,
+                    pad_token_id=gen_pad_token_id, # Use determined pad token ID
+                    eos_token_id=self.end_token_id, # Use EOS token ID
+                    # bos_token_id=self.start_token_id, # Typically not needed in generate args
                 )
 
+            # Extract only the generated part, excluding the prompt
             generated_ids = output_sequences[0, input_length:]
             response = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
 
@@ -479,17 +494,23 @@ class TransformerGPT:
         if not TRANSFORMERS_AVAILABLE:
             logger.error("Cannot load HF model: transformers library not available.")
             return False
-        # Use the specific path from config for loading fine-tuned model if it exists
-        load_path = Config.GPT_SAVE_PATH if os.path.isdir(Config.GPT_SAVE_PATH) else self.model_name
 
-        # If path is still a model name (not a directory), proceed to load from Hub
+        # Determine the actual path to load from
+        # Priority: Provided path (if it's a directory), Config.GPT_SAVE_PATH, Base model name
+        load_path = path # Start with the provided path argument
         if not os.path.isdir(load_path):
-             logger.warning(f"Fine-tuned model directory not found at '{Config.GPT_SAVE_PATH}'. Attempting to load base model '{self.model_name}' from Hub.")
-             load_path = self.model_name # Fallback to base model name
-             # Check again if path exists now (it shouldn't if it's a model name)
-             if os.path.isdir(load_path):
-                 logger.error(f"Unexpected directory found for base model name '{load_path}'. Load failed.")
-                 return False
+            logger.debug(f"Provided path '{load_path}' is not a directory. Checking config save path...")
+            config_save_path = Config.GPT_SAVE_PATH
+            if os.path.isdir(config_save_path):
+                logger.info(f"Loading fine-tuned model from config save path: {config_save_path}")
+                load_path = config_save_path
+            else:
+                logger.warning(f"Neither provided path '{path}' nor config save path '{config_save_path}' found. Attempting to load base model '{self.model_name}' from Hub.")
+                load_path = self.model_name # Fallback to base model name
+                # Check again if path exists now (it shouldn't if it's a model name)
+                if os.path.isdir(load_path):
+                    logger.error(f"Unexpected directory found for base model name '{load_path}'. Load failed.")
+                    return False
 
         try:
             logger.info(f"Loading HF model and tokenizer from {load_path}...")
