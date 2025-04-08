@@ -4,7 +4,7 @@ import logging
 import torch
 from typing import Dict, List, Optional, TYPE_CHECKING, Union
 import os # Added for save/load path checks
-import time # <-- ADDED Import
+import time # Added for sleep in save/load handlers
 
 from config import MasterConfig as Config
 from config import logger, DEVICE, log_file
@@ -13,7 +13,7 @@ from config import AGENT_SAVE_PATH, GPT_SAVE_PATH, OPTIMIZER_SAVE_PATH, REPLAY_B
 try:
     from PyQt5.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QGroupBox,
                                  QSlider, QLabel, QTextEdit, QSizePolicy, QMessageBox,
-                                 QPushButton, QLineEdit, QApplication) # <-- ADDED QApplication
+                                 QPushButton, QLineEdit, QApplication) # Added QApplication
     from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QEvent
     from PyQt5.QtGui import QKeyEvent, QCloseEvent
 except ImportError as e: logger.critical(f"main_gui.py: PyQt5 import failed: {e}."); raise
@@ -273,8 +273,8 @@ class EnhancedGameGUI(QMainWindow):
         was_paused = self.paused
         if not was_paused:
             self._pause_simulation(force_pause=True) # Pause before saving
-            QApplication.processEvents() # Process pause event <--- FIXED
-            time.sleep(0.1) # Brief pause <--- FIXED
+            QApplication.processEvents() # Process pause event
+            time.sleep(0.1) # Brief pause
 
         logger.info("Save button clicked. Attempting to save agent state...")
         try:
@@ -292,17 +292,23 @@ class EnhancedGameGUI(QMainWindow):
         was_paused = self.paused
         if not was_paused:
             self._pause_simulation(force_pause=True) # Pause before loading
-            QApplication.processEvents() # Process pause event <--- FIXED
-            time.sleep(0.1) # Brief pause <--- FIXED
+            QApplication.processEvents() # Process pause event
+            time.sleep(0.1) # Brief pause
 
         logger.info("Load button clicked. Attempting to load agent state...")
         try:
-            # Check if files exist before attempting load
-            paths_exist = all(os.path.exists(p) for p in [AGENT_SAVE_PATH, GPT_SAVE_PATH]) # Check core model files
-            if not paths_exist:
-                QMessageBox.warning(self, "Load Failed", f"Cannot load: Core model file(s) not found.\nChecked:\n{AGENT_SAVE_PATH}\n{GPT_SAVE_PATH}")
+            # Check if files/dirs exist before attempting load
+            # Agent state is critical, GPT less so (can use base model)
+            agent_path_exists = os.path.exists(AGENT_SAVE_PATH)
+            gpt_path_exists = os.path.isdir(GPT_SAVE_PATH) # Check if directory exists for HF
+
+            if not agent_path_exists:
+                QMessageBox.warning(self, "Load Failed", f"Cannot load: Agent state file not found.\nExpected: {AGENT_SAVE_PATH}")
                 if not was_paused: self._pause_simulation() # Resume if paused for load
                 return
+            if not gpt_path_exists:
+                logger.warning(f"GPT save directory not found ({GPT_SAVE_PATH}). Will use base HF model.")
+                # No critical error, agent.load_agent handles missing GPT load
 
             if self.agent.load_agent():
                  QMessageBox.information(self, "Load Successful", "Agent state loaded successfully.")
