@@ -1,4 +1,6 @@
 # --- START OF FILE config.py ---
+
+# --- START OF FILE config.py ---
 import torch
 import logging
 import sys
@@ -26,7 +28,8 @@ logging.getLogger('OpenGL').setLevel(logging.WARNING); logging.getLogger('PyQt5'
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 LANGUAGE_EMBEDDING_DIM = 384
-BASE_AGENT_STATE_DIM = 12
+# BASE_AGENT_STATE_DIM = 12 # Original
+BASE_AGENT_STATE_DIM = 6 + 6 # Updated: EMOTION_DIM (6) + META_FEATURES (6)
 
 # --- Head Movement Labels ---
 HEAD_MOVEMENT_LABELS = [
@@ -69,6 +72,12 @@ class AgentConfig:
 
     def __post_init__(self):
         """Recalculates STATE_DIM based on other parameters."""
+        # Validate BASE_STATE_DIM against required components
+        expected_base_dim = self.EMOTION_DIM + 6 # 6 meta features in environment._get_state
+        if self.BASE_STATE_DIM != expected_base_dim:
+            logger.critical(f"FATAL CONFIG ERROR: AgentConfig.BASE_STATE_DIM ({self.BASE_STATE_DIM}) does not match required base dimension ({expected_base_dim} = {self.EMOTION_DIM} emotions + 6 meta features). Adjust BASE_STATE_DIM in config.py.")
+            sys.exit(1)
+
         self.STATE_DIM = self.BASE_STATE_DIM + (self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0)
         logger.info(f"AgentConfig Calculated STATE_DIM: {self.STATE_DIM} (Base: {self.BASE_STATE_DIM}, LangEmbed: {self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0}, Enabled: {self.USE_LANGUAGE_EMBEDDING})")
 
@@ -103,7 +112,7 @@ class RLConfig:
 class NLPConfig:
     SENTENCE_TRANSFORMER_MODEL: str = 'all-MiniLM-L6-v2'
     HUGGINGFACE_MODEL: str = "distilgpt2" # Or "gpt2", "microsoft/DialoGPT-small", etc.
-    GPT_LR: float = 0.0005 # LR for separate fine-tuning if using TransformerGPT Trainer
+    GPT_LR: float = 5e-5 # Typical LR for fine-tuning Transformers (was 0.0005)
     TRAIN_EPOCHS: int = 3 # Epochs for fine-tuning or SimpleGPT pre-training
     MAX_RESPONSE_LEN: int = 40 # Max length for generated responses
     GRADIENT_CLIP_GPT: float = 1.0 # Grad clip for GPT training/fine-tuning
@@ -169,12 +178,14 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
                 continue
 
             # Validate/Adjust emotion_weights (Keep for potential SimpleGPT fallback or other uses)
-            expected_emo_len = 4
+            # Use AgentConfig.EMOTION_DIM for expected length
+            expected_emo_len = MasterConfig.Agent.EMOTION_DIM # Use the actual config value
             current_weights = item.get("emotion_weights", [])
             if not isinstance(current_weights, list):
                 logger.warning(f"Invalid emotion_weights type ({type(current_weights)}) in data at index {i}. Using zeros.")
                 item["emotion_weights"] = [0.0] * expected_emo_len
             elif len(current_weights) != expected_emo_len:
+                logger.warning(f"Emotion_weights length mismatch in data at index {i}. Expected {expected_emo_len}, got {len(current_weights)}. Padding/truncating.")
                 item["emotion_weights"] = (current_weights + [0.0] * expected_emo_len)[:expected_emo_len]
 
             # Validate/Process head_movement labels
