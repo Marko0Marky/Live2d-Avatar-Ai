@@ -183,13 +183,25 @@ class MetaCognitiveMemory:
 
          states_list, beliefs_list, rewards_list, next_states_list, dones_list, head_movement_idx_list = [], [], [], [], [], []
          valid_count = 0; skipped_count = 0
-         default_belief = torch.zeros(Config.Agent.HIDDEN_DIM, device=DEVICE) # Pre-create default belief
+         # Dynamically determine expected belief dim from agent config or first sample
+         expected_belief_dim = Config.Agent.HIDDEN_DIM # Use config as default
+         # Find first valid belief to confirm dim
+         first_valid_belief = next((exp.belief for exp in [self.long_term[i] for i in indices] if exp.belief is not None), None)
+         if first_valid_belief is not None:
+             expected_belief_dim = first_valid_belief.shape[0]
+         default_belief = torch.zeros(expected_belief_dim, device=DEVICE) # Pre-create default belief with correct dim
 
          for idx in indices:
              exp = self.long_term[idx]
              try:
                  state_dev = exp.state.to(DEVICE);
-                 belief_dev = exp.belief.to(DEVICE) if exp.belief is not None else default_belief
+                 # Handle belief: use default if None or shape mismatch
+                 if exp.belief is not None and exp.belief.shape[0] == expected_belief_dim:
+                     belief_dev = exp.belief.to(DEVICE)
+                 else:
+                     if exp.belief is not None: logger.warning(f"Belief shape mismatch for index {idx}. Got {exp.belief.shape}, expected ({expected_belief_dim},). Using default.")
+                     belief_dev = default_belief
+
                  next_state_dev = exp.next_state.to(DEVICE)
                  hm_idx = exp.head_movement_idx # Retrieve index
 
