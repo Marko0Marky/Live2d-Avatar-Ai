@@ -4,21 +4,24 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
-from typing import Tuple, Dict, Optional, List, Union, Deque, Any
+from typing import Tuple, Dict, Optional, List, Union, Deque, Any, sys
 import os # Import os for save/load
+
 
 # Use MasterConfig object and tokenizer variables
 from config import MasterConfig as Config
 # Use TRAIN_DATA loaded in config.py
-from config import DEVICE, logger, TRAIN_DATA, tokenizer, tokenize, detokenize, START_TOKEN_ID, END_TOKEN_ID, PAD_TOKEN_ID
+from config import DEVICE, logger, TRAIN_DATA # Keep TRAIN_DATA
+# --- REMOVED BPE tokenizer imports ---
 # Import save/load paths
 from config import AGENT_SAVE_PATH, GPT_SAVE_PATH, OPTIMIZER_SAVE_PATH, TARGET_NET_SAVE_SUFFIX
 # --- Import Head Movement Labels ---
 from config import HEAD_MOVEMENT_LABELS, NUM_HEAD_MOVEMENTS, IDX_TO_HEAD_MOVEMENT, HEAD_MOVEMENT_TO_IDX
 # ---
 from utils import MetronicLattice, MetaCognitiveMemory, is_safe, Experience
-from ai_modules import EmotionalModule, SyntrixKorporator, StrukturKaskade, SimpleGPT
-
+# --- MODIFIED: Import TransformerGPT instead of SimpleGPT ---
+from ai_modules import EmotionalModule, SyntrixKorporator, StrukturKaskade, TransformerGPT
+# ---
 
 class ConsciousAgent(nn.Module):
     def __init__(self, state_dim: int = Config.Agent.STATE_DIM, hidden_dim: int = Config.Agent.HIDDEN_DIM, vocab_size: int = Config.NLP.VOCAB_SIZE):
@@ -26,8 +29,9 @@ class ConsciousAgent(nn.Module):
         self.state_dim = state_dim
         self.base_state_dim = Config.Agent.BASE_STATE_DIM
         self.hidden_dim = hidden_dim
-        self.vocab_size = vocab_size
-        logger.info(f"Agent Init: Combined State Dim={state_dim}, Base State Dim={self.base_state_dim}, Hidden Dim={hidden_dim}, Vocab Size={vocab_size}")
+        # Vocab size may not be directly used if using TransformerGPT's tokenizer
+        self.vocab_size = vocab_size # Keep for potential fallback/reference
+        logger.info(f"Agent Init: Combined State Dim={state_dim}, Base State Dim={self.base_state_dim}, Hidden Dim={hidden_dim}")
         if self.base_state_dim > self.state_dim: raise ValueError("AgentConfig BASE_STATE_DIM cannot be larger than STATE_DIM")
 
         # --- Online Networks ---
@@ -68,15 +72,28 @@ class ConsciousAgent(nn.Module):
 
         # --- Other Components ---
         self.memory = MetaCognitiveMemory(capacity=Config.Agent.MEMORY_SIZE)
-        self.gpt = SimpleGPT(vocab_size=Config.NLP.VOCAB_SIZE, embed_dim=64, hidden_dim=128, num_heads=4) # Keep SimpleGPT for now
+        # --- MODIFIED: Instantiate TransformerGPT ---
+        try:
+            self.gpt = TransformerGPT() # Instantiate the new wrapper
+            logger.info(f"Using TransformerGPT with model: {Config.NLP.HUGGINGFACE_MODEL}")
+        except Exception as e:
+             logger.critical(f"CRITICAL: Failed to initialize TransformerGPT: {e}. Cannot continue.")
+             sys.exit(1)
+        # --- END MODIFIED ---
 
-        # --- Optimizer (Optimizes ONLINE networks only) ---
+        # --- Optimizer (Optimizes ONLINE agent networks ONLY) ---
+        # --- REMOVED self.gpt.parameters() ---
         online_params = list(self.korporator.parameters()) + list(self.kaskade.parameters()) + \
                        list(self.feedback.parameters()) + list(self.emotional_module.parameters()) + \
                        list(self.value_head.parameters()) + list(self.head_movement_head.parameters())
         if self.attention: online_params.extend(list(self.attention.parameters()))
+        # Ensure all parameters require gradients
+        online_params = [p for p in online_params if p.requires_grad]
+        if not online_params:
+             logger.warning("Agent optimizer created with NO trainable parameters!")
         self.optimizer = optim.Adam(online_params, lr=Config.RL.LR)
         self._base_lr = Config.RL.LR
+        # --- END MODIFIED ---
 
         # --- State Tracking ---
         self.state_history_deque: Deque[torch.Tensor] = deque(maxlen=Config.Agent.HISTORY_SIZE)
@@ -88,18 +105,10 @@ class ConsciousAgent(nn.Module):
         beta_frames: int = Config.RL.PER_BETA_FRAMES
         self.beta_increment: float = (1.0 - self.beta) / beta_frames if beta_frames > 0 else 0.0
 
-        # --- Initial GPT Training ---
-        if TRAIN_DATA and tokenizer is not None:
-            try:
-                logger.info("Starting initial GPT training...")
-                self.gpt.train_model(TRAIN_DATA, epochs=Config.NLP.TRAIN_EPOCHS)
-                logger.info("Initial GPT training complete.")
-            except Exception as e:
-                logger.error(f"Error initial GPT training: {e}", exc_info=True)
-        elif tokenizer is None:
-            logger.warning("Skipping initial GPT training: Tokenizer not initialized.")
-        else:
-            logger.info("Skipping initial GPT training: No valid training data.")
+        # --- REMOVED Initial GPT Training Call ---
+        # Fine-tuning the HF model is a separate, more involved process.
+        # logger.info("Skipping initial GPT training in agent init (handled separately or uses pre-trained).")
+        # --- END REMOVED ---
 
         logger.info(f"ConsciousAgent initialized with STATE_DIM={self.state_dim} (Target Networks ENABLED)")
 
@@ -305,7 +314,6 @@ class ConsciousAgent(nn.Module):
         return (current_emotions, belief, feedback_signal, value, *metrics_float, head_movement_logits)
 
     def _get_default_outputs(self, batch_size=1) -> ForwardReturnType:
-         # ... (implementation unchanged) ...
          zero_emo = torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE) if batch_size > 1 else torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
          kaskade_out_dim = getattr(self.kaskade, '_output_dim', self.hidden_dim); zero_belief = torch.zeros(batch_size, kaskade_out_dim, device=DEVICE) if batch_size > 1 else torch.zeros(kaskade_out_dim, device=DEVICE)
          zero_feedback = torch.zeros(batch_size, self.state_dim, device=DEVICE) if batch_size > 1 else torch.zeros(self.state_dim, device=DEVICE)
@@ -461,7 +469,11 @@ class ConsciousAgent(nn.Module):
              self.memory.update_priorities(indices, td_error.detach())
 
              # --- Update Target Network (using soft updates) ---
-             self.soft_update_target_networks()
+             self.soft_update_target_networks() # Use soft update by default
+
+             # --- Optional: Hard update every N steps ---
+             # if self.step_count % Config.RL.TARGET_NETWORK_UPDATE_FREQ == 0:
+             #      self.update_target_network()
 
         elif not total_loss.requires_grad and abs(loss_val) > 1e-7 : logger.debug(f"Learn: Total Loss ({loss_val:.4f}) requires no grad.")
         elif not is_safe(total_loss): logger.warning(f"Learn: Unsafe total loss ({loss_val:.4f}). Skip step."); self.optimizer.zero_grad()
@@ -481,7 +493,8 @@ class ConsciousAgent(nn.Module):
         logger.info(f"Saving agent state to {agent_path}...")
         try:
             os.makedirs(os.path.dirname(agent_path), exist_ok=True)
-            os.makedirs(os.path.dirname(gpt_path), exist_ok=True)
+            # GPT path is now a directory for HF models
+            # os.makedirs(os.path.dirname(gpt_path), exist_ok=True) # Handled by gpt.save_model
             os.makedirs(os.path.dirname(optimizer_path), exist_ok=True)
 
             # Save Online networks
@@ -511,7 +524,7 @@ class ConsciousAgent(nn.Module):
             torch.save(target_state, target_agent_path)
 
 
-            # Save GPT separately
+            # Save GPT separately (wrapper handles directory vs file)
             self.gpt.save_model(gpt_path)
 
             # Save Optimizer
@@ -563,7 +576,7 @@ class ConsciousAgent(nn.Module):
                 logger.warning("Target state file missing, performing hard copy from loaded online networks.")
                 self.update_target_network()
 
-            # Load GPT separately
+            # Load GPT separately (wrapper handles directory vs file)
             gpt_loaded = self.gpt.load_model(gpt_path)
             if not gpt_loaded: logger.warning("GPT model failed to load.")
 
@@ -576,6 +589,8 @@ class ConsciousAgent(nn.Module):
                                 list(self.feedback.parameters()) + list(self.emotional_module.parameters()) + \
                                 list(self.value_head.parameters()) + list(self.head_movement_head.parameters())
                  if self.attention: online_params.extend(list(self.attention.parameters()))
+                 # Ensure only trainable parameters are linked
+                 online_params = [p for p in online_params if p.requires_grad]
                  self.optimizer.param_groups[0]['params'] = online_params
             else:
                  logger.warning(f"Optimizer state file not found: {optimizer_path}. Optimizer not loaded (will start fresh).")
