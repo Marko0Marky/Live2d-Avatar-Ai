@@ -4,7 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
-from typing import Tuple, Dict, Optional, List, Union, Deque, Any, sys
+from typing import Tuple, Dict, Optional, List, Union, Deque, Any
+import sys # Import sys for exit
 import os # Import os for save/load
 
 
@@ -107,7 +108,7 @@ class ConsciousAgent(nn.Module):
 
         # --- REMOVED Initial GPT Training Call ---
         # Fine-tuning the HF model is a separate, more involved process.
-        # logger.info("Skipping initial GPT training in agent init (handled separately or uses pre-trained).")
+        logger.info("Skipping initial GPT training in agent init (handled separately or uses pre-trained).")
         # --- END REMOVED ---
 
         logger.info(f"ConsciousAgent initialized with STATE_DIM={self.state_dim} (Target Networks ENABLED)")
@@ -343,7 +344,17 @@ class ConsciousAgent(nn.Module):
              except Exception as e: logger.error(f"Error predicting head movement: {e}"); predicted_hm_label = "idle"
 
              # Generate response
-             try: response_context = context if context else "..."; temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7); top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9); response = self.gpt.generate(response_context, current_emotions, temperature=temp, top_p=top_p)
+             try:
+                 response_context = context if context else "...";
+                 temp = getattr(Config.NLP, 'GPT_TEMPERATURE', 0.7);
+                 top_p = getattr(Config.NLP, 'GPT_TOP_P', 0.9);
+                 # Call TransformerGPT generate
+                 response = self.gpt.generate(
+                     context=response_context,
+                     emotions=current_emotions, # Pass emotions for potential use in prompt building inside generate
+                     temperature=temp,
+                     top_p=top_p
+                 )
              except Exception as e: logger.error(f"Error GPT gen step: {e}"); response = "..."
 
              # Update history (only in non-batch mode)
@@ -374,15 +385,21 @@ class ConsciousAgent(nn.Module):
             outputs_online = self.forward(states, torch.zeros_like(rewards), None, use_target=False)
             current_value_pred = outputs_online[3]
             head_movement_logits = outputs_online[-1]
+            # --- Get metrics directly from the tuple returned by forward ---
+            self_consistency_batch = outputs_online[7]
             rho_score_batch = outputs_online[8]
             box_score_batch = outputs_online[9]
+            # ---
 
             if not is_safe(current_value_pred) or current_value_pred.shape != (current_batch_size, 1): raise ValueError(f"Invalid Online V(s) shape/safety {current_value_pred.shape}")
             if not is_safe(head_movement_logits) or head_movement_logits.shape != (current_batch_size, NUM_HEAD_MOVEMENTS): raise ValueError(f"Invalid Online HM logits shape/safety {head_movement_logits.shape}")
 
-            # Process metrics tensors
-            rho_score_tensor = torch.tensor(rho_score_batch, device=DEVICE).view(-1, 1) if isinstance(rho_score_batch, float) else rho_score_batch.detach()
-            box_score_tensor = torch.tensor(box_score_batch, device=DEVICE).view(-1, 1) if isinstance(box_score_batch, float) else box_score_batch.detach()
+            # --- Process metrics scalars/tensors ---
+            # Assuming forward now returns tensors for batch metrics
+            rho_score_tensor = rho_score_batch.detach()
+            box_score_tensor = box_score_batch.detach()
+            # ---
+
             if not is_safe(rho_score_tensor) or rho_score_tensor.shape != (current_batch_size, 1): raise ValueError("Invalid Rho score tensor")
             if not is_safe(box_score_tensor) or box_score_tensor.shape != (current_batch_size, 1): raise ValueError("Invalid Box score tensor")
 
@@ -591,7 +608,13 @@ class ConsciousAgent(nn.Module):
                  if self.attention: online_params.extend(list(self.attention.parameters()))
                  # Ensure only trainable parameters are linked
                  online_params = [p for p in online_params if p.requires_grad]
-                 self.optimizer.param_groups[0]['params'] = online_params
+                 # Clear existing param groups and add the correct one
+                 self.optimizer.param_groups.clear()
+                 self.optimizer.add_param_group({'params': online_params})
+                 # Restore learning rate from config (state dict might save old LR)
+                 for g in self.optimizer.param_groups: g['lr'] = Config.RL.LR
+                 self._base_lr = Config.RL.LR # Also reset base LR tracker
+                 logger.info("Optimizer parameters re-linked and LR reset.")
             else:
                  logger.warning(f"Optimizer state file not found: {optimizer_path}. Optimizer not loaded (will start fresh).")
 
