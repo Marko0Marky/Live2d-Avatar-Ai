@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from orchestrator import EnhancedConsciousAgent, ReflectReturnType
 
 
-# --- HUDWidget (Completed in previous response) ---
+# --- HUDWidget ---
 class HUDWidget(QWidget):
     # Use string literal for forward reference
     def __init__(self, agent_orchestrator: 'EnhancedConsciousAgent', parent: Optional[QWidget] = None):
@@ -149,7 +149,7 @@ class HUDWidget(QWidget):
             painter.drawText(response_rect, response_flags, response_text)
 
 
-# --- AIStateWidget Class --- (Continuing from previous response)
+# --- AIStateWidget Class ---
 class AIStateWidget(QWidget):
     """Displays agent's core stats including emotions, mood, and metrics."""
     request_completeness_test = pyqtSignal()
@@ -251,9 +251,10 @@ class AIStateWidget(QWidget):
              emo_cpu = emotions.detach().cpu();
              for i, bar in enumerate(self.emotion_bars):
                  if i < len(emo_cpu): bar.setValue(int(emo_cpu[i].item() * 100))
-                 else: bar.setValue(0)
+                 else: bar.setValue(0) # Should not happen if dim matches
         else:
              if not all(bar.value() == 0 for bar in self.emotion_bars):
+                 # logger.warning(f"AIStateWidget received invalid emotions ({type(emotions)}). Resetting bars.")
                  for bar in self.emotion_bars: bar.setValue(0)
 
         # Update Mood
@@ -266,6 +267,7 @@ class AIStateWidget(QWidget):
                  else: bar.setValue(0)
         else:
              if not all(bar.value() == 0 for bar in self.mood_bars):
+                  # logger.warning(f"AIStateWidget received invalid mood data type/length ({type(mood_list)}). Resetting bars.")
                   for bar in self.mood_bars: bar.setValue(0)
 
         # Update Metrics Text
