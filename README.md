@@ -1,5 +1,3 @@
-Certainly! Below is an updated version of your GitHub README that incorporates the latest Mermaid graphs using the correct GitHub Markdown syntax. The Mermaid diagrams are embedded directly into the README file and will render properly on GitHub.
-
 ---
 
 # Live2D Avatar AI Agent  
