@@ -1,3 +1,4 @@
+```mermaid
 graph TB
     %% Global Styling
     classDef foundation fill:#EAECEE,stroke:#AEB6BF,stroke-width:2px,color:black,font-size:14px
