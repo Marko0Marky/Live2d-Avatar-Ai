@@ -87,7 +87,7 @@ For a deeper dive into the architecture, check out the [Mermaid Diagrams](#archi
     # Optional: Create requirements file
     # pip freeze > requirements.txt
     ```
--   **(CRITICAL) Live2D Core**: Download the native Cubism Core library (`.dll`/`.so`/`.dylib`) for your OS from the [Live2D Website](https://www.live2d.com/en/download/cubism-sdk/download-native/) and place it in the project root OR ensure it's discoverable in your system's library path. Check [live2d-py](https://github.com/GreatFruitOmsk/live2d-py) for details.
+-   **(CRITICAL) Live2D Core**: Download the native Cubism Core library (`.dll`/`.so`/`.dylib`) for your OS from the [Live2D Website](https://www.live2d.com/en/download/cubism-sdk/download-native/) and place it in the project root OR ensure it's discoverable in your system's library path. Check [live2d-py](https://github.com/Arkueid/live2d-py/blob/main/README.en.md) for details.
 -   **(Recommended)** **CUDA-enabled GPU**: For reasonable performance, especially for fine-tuning and Sentence Transformer embeddings. Ensure matching PyTorch CUDA version.
 
 ### Setup
