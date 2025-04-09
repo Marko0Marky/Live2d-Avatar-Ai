@@ -1,5 +1,3 @@
-# --- START OF FILE README.md ---
-
 # Live2D Avatar AI Agent
 ### Powered by the Syntrometrie Framework
 
@@ -317,5 +315,3 @@ Feel free to open an issue on GitHub if you encounter problems or have suggestio
 <!-- Optional: Add License -->
 <!-- ## License -->
 <!-- This project is licensed under the MIT License - see the LICENSE file for details. -->
-
-# --- END OF FILE README.md ---
