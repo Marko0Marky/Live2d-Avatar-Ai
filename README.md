@@ -175,48 +175,24 @@ Tweak `config.py`:
 ### 1. Core Agent Loop & Interaction
 
 ```mermaid
-graph LR
-    subgraph Environment
-        E1[Internal Events] --> E2(EmotionalSpace);
-        U1[User Chat] --> E2;
-        E2 --> O1["Orchestrator\n(Base State)"];
-    end
-
-    subgraph Orchestrator
-        O1 --> O2{State Combiner};
-        O3["Sentence\nTransformer"] -->|Embedding| O2;
-        O2 -->|Combined State| A1["Agent.step()"];
-        A3[Agent Output] --> O4{Process Output};
-        O4 -->|HM Label| G1[Avatar Widget];
-        O4 -->|Response Emos| G1;
-        O4 -->|Response Text| UI1[Chat Display];
-        O4 -->|Metrics| UI2[State/HUD Widgets];
-        O5["Store Experience\n(State, HM_Idx, TD_Error...)"] --> M1[Memory];
-        O6{"Trigger Learn?"} -->|If Interval| L1["Async Learn Task"];
-    end
-
-    subgraph Agent
-        A1 --> A2[Agent Internals\n(Lattice, Korp, Kask, Emo...)];
-        A2 --> A3;
-    end
-
-    subgraph Memory_Learning
-        M1 --> L1;
-        L1 -->|Batch| A4["Agent.learn()\n(DDQN, PER)"];
-        A4 -->|"Loss Update"| A5[Agent Online Nets];
-        A4 -->|"Priority Update"| M1;
-        A4 -->|"Soft Update"| A6[Agent Target Nets];
-    end
-
-    subgraph GUI
-        G1; UI1; UI2;
-    end
-
-    style Agent fill:#f9d,stroke:#333,stroke-width:2px
-    style Orchestrator fill:#ccf,stroke:#333,stroke-width:2px
-    style Memory_Learning fill:#dfd,stroke:#333,stroke-width:2px
-    style Environment fill:#fec,stroke:#333,stroke-width:2px
-    style GUI fill:#ddd,stroke:#333,stroke-width:2px
+graph TD
+    Agent_Model["ConsciousAgent (DDQN)"] --> EmoModule["Emotional Module"]
+    Agent_Model -->|"Reward (r)"| EmoModule
+    Agent_Model -->|"Prev Emotions"| EmoModule
+    EmoModule -->|"Updated Emotions"| StateProcMerge["State w/ Updated Emotions"]
+    Agent_Model -->|"Other State Components"| StateProcMerge
+    StateProcMerge --> Lattice["MetronicLattice"]
+    Lattice --> Korporator["SyntrixKorporator"]
+    Korporator --> Kaskade["StrukturKaskade"]
+    Kaskade --> ValueHead["Value Head (V(s))"]
+    Kaskade --> HMHead["Head Movement Head (Supervised)"]
+    ValueHead --> Agent_Learn["DDQN Value Loss"]
+    HMHead --> Agent_Step_Out["Select HM Label (ArgMax)"]
+    Agent_Model -->|"State History (H)"| Accessibility["Compute Accessibility\n(R_acc)"]
+    Accessibility --> BoxScore["Compute Box Score"]
+    BoxScore --> Agent_Learn
+    Kaskade --> Consistency["Compute Consistency\n(rho_score)"]
+    Consistency --> Agent_Learn["Intrinsic Reward Calc"]
 ```
 
 ### 2. Syntrometrie Framework (Conceptual)
@@ -277,7 +253,6 @@ graph TD
         A7 --> D5
     end
 ```
-*(Note: Mermaid diagrams render automatically on GitHub)*
 
 ---
 
