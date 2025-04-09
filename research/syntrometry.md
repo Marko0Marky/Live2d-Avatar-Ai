@@ -1,93 +1,84 @@
-```mermaid
-graph TD
+graph TB
+    %% Global Styling
+    classDef foundation fill:#EAECEE,stroke:#AEB6BF,stroke-width:2px,color:black,font-size:14px
+    classDef structure fill:#E8DAEF,stroke:#A569BD,stroke-width:2px,color:black,font-size:14px
+    classDef geometry fill:#D6EAF8,stroke:#5DADE2,stroke-width:2px,color:black,font-size:14px
+    classDef emergence fill:#D5F5E3,stroke:#58D68D,stroke-width:2px,color:black,font-size:14px
+    classDef computation fill:#FCF3CF,stroke:#F4D03F,stroke-width:2px,color:black,font-size:14px
+
     %% Foundational Layer
-    subgraph "A: Foundational Subjective Logic (Ch 1)"
-        A1["Primordial Experience\n(ästhetische Empirie)"] --> A2{"Reflection Synthesis (Endo/Exo)"}
-        A2 --> A3["Subjective Aspect (S)\n(Mental State Snapshot)"]
-        A3 --> A4["Predicate Bands (P_n = [f_q]_n)\n(Features/Inputs)"]
-        A3 --> A5["Dialectic Qualifiers (D_n = [d_q]_n)\n(Emphasis/Nuance)"]
-        A3 --> A6["Coordination (K_n = E_n F(ζ_n, z_n))\n(Coherence Filter)"]
+    subgraph "A: Foundational Logic"
+        A1["Primordial Exp.\n(ästhetische Empirie)"]:::foundation --> A2["Reflection Synthesis\n(Endo/Exo)"]:::foundation
+        A2 --> A3["Subjective Aspect (S)\n(Mental State)"]:::foundation
+        A3 --> A4["Predicates P_n = [f_q]_n"]:::foundation
+        A3 --> A5["Dialectics D_n = [d_q]_n"]:::foundation
+        A3 --> A6["Coordination K_n = E_n F(ζ_n, z_n)"]:::foundation
         A4 --> A6
         A5 --> A6
-        %% Antagonismen influence Dialectics
-        A7["Antagonismen\n(Logical Tensions)"] --> A5
-        A3 --> A8["Aspect Systems (A = α(S))\n(Relativistic Views)"]
-        A9["Categories / Apodiktic Elements (γ)\n(Invariant Grounding)"] --> A3
+        A7["Antagonismen\n(Logical Tensions)"]:::foundation --> A5
+        A3 --> A8["Aspect Systems A = α(S)"]:::foundation
+        A9["Categories γ\n(Invariant Grounding)"]:::foundation --> A3
     end
 
     %% Recursive Structure Layer
-    subgraph "B: Syntrix - Recursive Hierarchy (Ch 2-3)"
-        B1["Metrophor (a ≡ (a_i)_n)\n(Base Propositions/Qualia)"] --> B2{"Synkolator Functor (F)\n(Generates L_{k+1} from L_k)"}
-        B2 -- "Creates Levels" --> B3["Syntrix Levels (L_k = F^k(L0))\n(Hierarchical Mental Constructs)"]
-        B3 -- "Forms" --> B4["Syntrix\n(Union L_k)\n⟨{, a, m⟩"]
-        B5["Recursive Definition\n(a = ⟨{, a, m⟩)"] -- "Governs" --> B2
-        B6["Normalization\n(Stabilizes Recursion)\n(.)_p, ρ/|A_p|"] -- "Stabilizes" --> B2
-        %% How levels connect
-        B7["Hierarchical Coordination\n(K_Syntrix = ∏ K_n)"] --> B4
-        %% Apodictic elements ground the Metrophor
+    subgraph "B: Recursive Hierarchy"
+        B1["Metrophor a ≡ (a_i)_n\n(Base Qualia)"]:::structure --> B2["Synkolator Functor F\nGenerates L_{k+1} from L_k"]:::structure
+        B2 --> B3["Syntrix Levels L_k = F^k(L0)\n(Hierarchical Constructs)"]:::structure
+        B3 --> B4["Syntrix\n(Union L_k)\n⟨{, a, m⟩"]:::structure
+        B5["Recursive Def.\na = ⟨{, a, m⟩"]:::structure --> B2
+        B6["Normalization\n(Stabilizes Recursion)"]:::structure --> B2
+        B7["Hierarchical Coord.\nK_Syntrix = ∏ K_n"]:::structure --> B4
         A9 --> B1
     end
 
     %% Geometric Layer
-    subgraph "C: Geometric Structure & Dynamics (Ch 8-11)"
-        %% Syntrix structure relates to H12 (Bidirectional Link)
-        C1["12D Hyperspace (H12)\n(Underlying Reality Structure)"] <-->|"Maps Onto"| B4
-        C2["N=6 Selection Principle\n(Physical Stability Constraint)"] --> C1
-        C1 --> C3["Metric Tensor (g_ik^γ(x) = ∑ f_q^i(x) f_q^k(x))\n(Focus/Coherence @ Level γ)"]
-        C3 --> C4["Connection (Γ^i_kl)\n(Attentional Shift/Flow)"]
-        C4 --> C5["Curvature (R^i_klm)\n(Complexity/Richness/Integration)\n{}^4ζ = ∑ ({}^4ζ + {}^4q + {}^4C + {}^4D)"]
-        C6["Quantized Change\n(Metron Differential δφ = φ(n) - φ(n-1))"] --> C1
-        %% Syndromes at L_gamma determine g_ik^gamma
-        B3 -- "Influences" --> C3
-        %% N=6 constrains g_ik for physical dimensions
-        C2 -- "Constrains" --> C3
-        %% Link to Physics
-        C7["Mass Formula\n(Link to Physics)"] <-- "Relates to" --> C3
+    subgraph "C: Geometric Structure"
+        C1["12D Hyperspace (H12)\n(Underlying Reality)"]:::geometry <-->|"Maps Onto"| B4
+        C2["N=6 Stability\n(Physical Constraint)"]:::geometry --> C1
+        C1 --> C3["Metric Tensor\ng_ik^γ(x) = sum f_q^i(x) f_q^k(x)"]:::geometry
+        C3 --> C4["Connection\nΓ^i_kl"]:::geometry
+        C4 --> C5["Curvature\nR^i_klm = sum (...)"]:::geometry
+        C6["Quantized Change\nδφ = φ(n) - φ(n-1)"]:::geometry --> C1
+        B3 --> C3
+        C2 --> C3
+        C7["Mass Formula\n(Link to Physics)"]:::geometry <-- "Relates to" --> C3
     end
 
-    %% Emergence & Consciousness Layer
-    subgraph "D: Reflexive Integration & Emergence"
-        D1["Reflexive Integration Hypothesis (RIH)"]
-        C3 --> D2["Integration Measure I(S)\nI(S) = ∑ MI_d(S) > τ(t)"]
+    %% Emergence Layer
+    subgraph "D: Reflexive Integration"
+        D1["RIH\n(Reflexive Integration Hypothesis)"]:::emergence
+        C3 --> D2["Integration Measure\nI(S) = sum MI_d(S) > τ(t)"]:::emergence
         C5 --> D2
-        B4 --> D3["Reflexivity Condition (ρ)\nρ: Id_S → F^n, ρ_score = cos(F^n(S), S)"]
+        B4 --> D3["Reflexivity Cond.\nρ: Id_S → F^n"]:::emergence
         B5 --> D3
-        C2 --> D4["Threshold (τ)\nτ = τ_0(N=6) + Δτ(t)"]
+        C2 --> D4["Threshold\nτ = τ_0(N=6) + Δτ(t)"]:::emergence
         C3 --> D4
         D2 --> D1
         D3 --> D1
         D4 --> D1
-        D1 -- "Condition Met" --> D5["Emergent Properties\n(e.g., Consciousness, Unified Experience)"]
-        %% Antagonismen resolution via unified structure
-        A7 -- "Resolved By" --> D5
+        D1 --> D5["Emergent Properties\n(e.g., Consciousness)"]:::emergence
+        A7 --> D5
     end
 
-    %% Computational / Semantic Layer
-    subgraph "E: Computational & Semantic Models"
-        E1["Syntrometric Kripke Frame (F)\n(Worlds=S(x), R based on g_ik)"] -->|"Models"| A
+    %% Computational Layer
+    subgraph "E: Computational Models"
+        E1["Syntrometric Kripke Frame\n(Worlds=S(x), R based on g_ik)"]:::computation -->|"Models"| A
         E1 -->|"Models"| C
         E1 -->|"Models"| D
-        E2["Sequent Calculus\n(S; Γ |- ϕ)"] -->|"Derives From"| A
+        E2["Sequent Calculus\n(S; Γ |- ϕ)"]:::computation -->|"Derives From"| A
         E2 -->|"Derives From"| B
-        E1 -- "Interprets" --> E2
-        E3["Computational Model (GNN)\n(Agent Implementation)"] -->|"Approximates"| B
+        E1 --> E2
+        E3["GNN Implementation\n(Agent Model)"]:::computation -->|"Approximates"| B
         E3 -->|"Approximates"| C
         E3 -->|"Approximates"| D3
-        E4["Metrics (att_score, box_score, ...)"] <-- "Calculated By" --> E3
-        E4 -- "Correspond To" --> D3
-        E4 -- "Correspond To" --> C3
-        E4 -- "Correspond To" --> D4
+        E4["Metrics (att_score, box_score, ...)"]:::computation <-- "Calculated By" --> E3
+        E4 --> D3
+        E4 --> C3
+        E4 --> D4
     end
 
-    %% Style Definitions
-    classDef foundation fill:#EAECEE,stroke:#AEB6BF,stroke-width:2px
-    classDef structure fill:#E8DAEF,stroke:#A569BD,stroke-width:2px
-    classDef geometry fill:#D6EAF8,stroke:#5DADE2,stroke-width:2px
-    classDef emergence fill:#D5F5E3,stroke:#58D68D,stroke-width:2px
-    classDef computation fill:#FCF3CF,stroke:#F4D03F,stroke-width:2px
-
-    class A1,A2,A3,A4,A5,A6,A7,A8,A9 foundation
-    class B1,B2,B3,B4,B5,B6,B7 structure
-    class C1,C2,C3,C4,C5,C6,C7 geometry
-    class D1,D2,D3,D4,D5 emergence
-    class E1,E2,E3,E4 computation
+    %% Tooltips for Detailed Formulas
+    click A4 "Predicates represent features or inputs (P_n = [f_q]_n)."
+    click C3 "Metric tensor measures coherence between states: g_ik^γ(x) = sum f_q^i(x) f_q^k(x)."
+    click D2 "Integration measure quantifies mutual information across dimensions: I(S) = sum MI_d(S)."
+    click D3 "Reflexivity condition ensures structural self-similarity: ρ: Id_S → F^n."
