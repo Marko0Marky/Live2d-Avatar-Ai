@@ -1,55 +1,72 @@
----
+# --- START OF FILE README.md ---
 
-# Live2D Avatar AI Agent  
+# Live2D Avatar AI Agent
 ### Powered by the Syntrometrie Framework
 
-Meet a **Live2D Cubism 3** avatar that doesn’t just animate—it *thinks* and *feels*. This project blends real-time animation with a "conscious" AI agent, driven by the innovative **Syntrometrie framework**. Chat with it, and watch it respond with dynamic **expressions** and **head movements**, all refined through reinforcement learning. Built on a stack of **PyTorch**, **PyQt5/OpenGL**, `live2d-py`, `sentence-transformers`, and `tokenizers`.
+Meet a **Live2D Cubism 3** avatar that doesn’t just animate—it *thinks* and *feels*. This project blends real-time animation with a "conscious" AI agent, driven by the innovative **Syntrometrie framework**. Chat with it, and watch it respond with dynamic **expressions** and **head movements**, all refined through reinforcement learning. Built on a stack of **PyTorch**, **PyQt5/OpenGL**, `live2d-py`, `sentence-transformers`, and `transformers`.
 
 ---
 
 ## 🌟 What’s It All About?
 
-This is where AI meets emotional intelligence in a virtual companion. It’s a playground for AI enthusiasts, animators, and developers to experiment with reinforcement learning, natural language processing (NLP), and Live2D animation. The result? A responsive, emotionally aware avatar that evolves with every interaction.
+This is where AI meets emotional intelligence in a virtual companion. It’s a playground for AI enthusiasts, animators, and developers to experiment with reinforcement learning (DDQN, PER), natural language processing (Transformers), and Live2D animation. The result? A responsive, evolving avatar aiming for believable interaction and presence.
 
 ---
 
 ## 🚀 Key Features
 
-- **Syntrometrie Framework**:  
-  - *Metronic Lattice*: Discretizes states for efficient mapping.  
-  - *Syntrix Korporator*: Shapes the agent’s belief system.  
-  - *Struktur Kaskade*: Links reasoning steps seamlessly.  
-- **Dynamic Responses**: Combines emotional states with optional text embeddings for depth.  
-- **NLP Backbone**:  
-  - Lightweight **GPT-style Transformer** for natural chat.  
-  - **Sentence Transformers** for rich semantic embeddings.  
-  - **BPE Tokenizer** for fast, efficient text processing.  
-- **Avatar Animation**:  
-  - Procedural effects (breathing, blinking, idle sway).  
-  - Emotion-driven expressions and predictive head tilts.  
-- **Learning Core**:  
-  - **Prioritized Experience Replay (PER)** for smarter reinforcement learning.  
-  - Asynchronous training for smooth, lag-free performance.  
+-   **Syntrometrie-Inspired AI Core**: Custom framework for state processing:
+    -   *Metronic Lattice*: Discretizes state.
+    *   *Syntrix Korporator*: Composes belief representations.
+    *   *Struktur Kaskade*: Propagates belief through layers.
+-   **Dynamic Agent State**: Integrates base emotional/environmental state with optional **Sentence Transformer embeddings** derived from text (monologue, user input).
+-   **Advanced NLP (Hugging Face Transformers)**:
+    *   Utilizes pre-trained models (e.g., `distilgpt2`, `DialoGPT-small`) via the `transformers` library for conversational responses.
+    *   Supports **fine-tuning** these models on custom data (script included).
+    *   Employs improved **context management** for more relevant replies.
+-   **Dynamic Avatar Animation**:
+    *   Procedural effects: Breathing, blinking, idle sway, **micro-movements**.
+    *   Emotion-driven expressions mapped from agent state.
+    *   Agent-predicted **head movements** (nods, tilts, turns) applied in real-time.
+    *   Particle system effects influenced by emotions.
+-   **Reinforcement Learning System**:
+    *   **Double DQN (DDQN)** with target networks for stable value learning.
+    *   **Prioritized Experience Replay (PER)** for efficient sample usage.
+    *   Supervised learning head for **head movement prediction** trained alongside RL.
+    *   Basic **intrinsic rewards** (consistency, stability) included.
+    *   **Asynchronous training** via `concurrent.futures` for smooth GUI performance.
+-   **Interactive GUI & State Management**:
+    *   PyQt5-based interface with OpenGL rendering.
+    *   HUD overlay displaying key emotions and RL metrics.
+    *   Detailed AI State Panel showing internal metrics, mood, and environment controls.
+    *   Live chat interface for user interaction.
+    *   Functionality to **save and load** the complete agent state (networks, optimizer, buffer) via GUI buttons or command-line arguments.
+*   **Richer Emotions:** Variable decay rates allow different emotions to persist differently.
 
 ---
 
 ## 📊 Project Status
 
-- **Current State**: Actively evolving.  
-- **Next Steps**:  
-  - Enhanced RL algorithms for faster learning.  
-  - Expanded movement library for richer animations.  
-  - Performance optimizations for real-time responsiveness.  
+-   **Current State**: Core components integrated (DDQN, TransformerGPT, Save/Load, HM Prediction). Actively developing.
+-   **Next Steps**:
+    -   **Critical**: Fine-tune the Transformer GPT model with more data for coherent conversation.
+    *   Improve head movement prediction robustness and variety.
+    *   Implement comprehensive testing.
+    *   Explore performance optimizations.
 
 ---
 
-## 🛠️ How It Works
+## 🛠️ How It Works (Updated Flow)
 
-1. **State Initialization**: `EmotionalSpace` sets the emotional tone from chats or events.  
-2. **Text Processing**: Optional `SentenceTransformer` embeddings add nuance.  
-3. **AI Decision**: `ConsciousAgent` selects actions (e.g., a nod) based on its beliefs.  
-4. **Animation**: `Live2DCharacter` renders emotions and motions in real time.  
-5. **Learning Loop**: RL refines behavior with PER, running asynchronously for efficiency.  
+1.  **State Generation**: `EmotionalSpace` produces a `base_state`.
+2.  **Text Processing**: `Orchestrator` generates monologue/response via `TransformerGPT`. Optional `SentenceTransformer` creates text `embedding`.
+3.  **State Combination**: `Orchestrator` combines `base_state` + `embedding` -> `current_state`.
+4.  **Agent Processing**: `Agent` processes `current_state` through Syntrometrie modules -> `belief`.
+5.  **Prediction**: `Agent` (online nets) predicts `value`, `head_movement_label`.
+6.  **Avatar Update**: `Orchestrator` sends predicted `head_movement_label` and `last_response_emotions` to `Live2DCharacter`.
+7.  **Experience Storage**: `Orchestrator` stores `Experience` tuple (incl. `head_movement_idx`, TD error) in `MetaCognitiveMemory`.
+8.  **Learning Loop (Async)**: `Agent.learn` samples from PER buffer, calculates TD target using **target networks** (DDQN), computes losses (value + HM), updates **online networks**, updates PER priorities, and performs soft update on **target networks**.
+9.  **Chat**: User input -> `Orchestrator` -> Embedding/State Update -> Improved Context Prompt -> `TransformerGPT` -> Response -> History Update -> Avatar Emotion/Movement Update.
 
 For a deeper dive into the architecture, check out the [Mermaid Diagrams](#architecture-diagrams).
 
@@ -58,59 +75,83 @@ For a deeper dive into the architecture, check out the [Mermaid Diagrams](#archi
 ## 🚀 Get Started
 
 ### Prerequisites
-- **Python**: 3.8+.  
-- **Dependencies**:  
-  ```bash
-  pip install torch numpy PyQt5 PyOpenGL PyOpenGL-accelerate qasync live2d-py[cubism3] tokenizers sentence-transformers
-  ```  
-- **Live2D Core**: Grab the native library (`.dll`, `.so`, `.dylib`) from [Live2D](https://www.live2d.com/en/). Place it in the project root or system path. See [live2d-py](https://github.com/Arkueid/live2d-py/blob/main/README.en.md) for setup help.
+-   **Python**: 3.8+ recommended.
+-   **Dependencies**: Use a virtual environment!
+    ```bash
+    # Optional: Create and activate venv
+    # python -m venv venv
+    # source venv/bin/activate  # Linux/macOS
+    # .\venv\Scripts\activate  # Windows
+
+    # Install dependencies
+    pip install torch numpy PyQt5 PyOpenGL PyOpenGL-accelerate qasync live2d-py[cubism3] tokenizers sentence-transformers transformers datasets accelerate html5lib # Added transformers, datasets, accelerate, html5lib
+
+    # Optional: Create requirements file
+    # pip freeze > requirements.txt
+    ```
+-   **(CRITICAL) Live2D Core**: Download the native Cubism Core library (`.dll`/`.so`/`.dylib`) for your OS from the [Live2D Website](https://www.live2d.com/en/download/cubism-sdk/download-native/) and place it in the project root OR ensure it's discoverable in your system's library path. Check [live2d-py](https://github.com/GreatFruitOmsk/live2d-py) for details.
+-   **(Recommended)** **CUDA-enabled GPU**: For reasonable performance, especially for fine-tuning and Sentence Transformer embeddings. Ensure matching PyTorch CUDA version.
 
 ### Setup
-1. **Add a Model**:  
-   - Drop your Cubism 3 model (e.g., `model.model3.json`) into `./models/`.  
-   - Update `GraphicsConfig.MODEL_PATH` in `config.py`.  
-2. **Training Data**:  
-   - Add `train_data.json` (format below).  
-   - Adjust `TRAINING_DATA_PATH` in `config.py` if needed.  
+1.  **Live2D Model**: Place your Cubism **3** model files (e.g., `*.model3.json`) inside the `./models/` directory. Update `GraphicsConfig.MODEL_PATH` in `config.py` if needed.
+2.  **Training Data**: Place `train_data.json` (or the provided `train_data_anime_girl.json`, renamed) in the project root. Ensure it follows the format specified below. Update `TRAINING_DATA_PATH` in `config.py` if using a different name.
+3.  **Create Directories**: Manually create `./tokenizer` and `./saved_models` folders in the project root if they don't exist.
 
-### Run It
-```bash
-python main.py
-```  
-- **Controls**:  
-  - `Space`: Toggle pause/play.  
-  - `Q`/`Esc`: Exit.  
-  - `C`: Check completeness.  
-  - Chat via the GUI.  
+### Running
+1.  **(Optional but HIGHLY Recommended) Fine-tune GPT Model:**
+    *   Prepare a suitable training dataset (`train_data.json` or ideally, a larger custom one).
+    *   Ensure you have a CUDA-enabled GPU and compatible PyTorch/CUDA installed.
+    *   Run the fine-tuning script: `python fine_tune_gpt.py`
+    *   This saves the fine-tuned model to the directory specified by `GPT_SAVE_PATH` in `config.py` (e.g., `./saved_models/distilgpt2_finetuned`).
+2.  **Run the Main Application:**
+    ```bash
+    # Run normally (loads fine-tuned GPT if found, else base)
+    python main.py
+
+    # Run and load previously saved agent state (if available)
+    python main.py --load
+
+    # Automatically save agent state on exit
+    python main.py --save-on-exit
+    ```
+-   **Controls**: `Space` (Pause/Resume), `Q`/`Esc` (Quit), `C` (Completeness Test), `Save Agent`/`Load Agent` buttons, Chat Input + `Enter`.
 
 ---
 
 ## 🧩 Core Components
 
-| File             | Purpose                                                      |
-|------------------|-------------------------------------------------------------|
-| `config.py`      | Central hub for agent, RL, NLP, graphics, and env settings. |
-| `agent.py`       | `ConsciousAgent`: Drives RL and movement predictions.       |
-| `environment.py` | `EmotionalSpace`: Simulates emotional context.              |
-| `ai_modules.py`  | PyTorch modules: `EmotionalModule`, `SimpleGPT`, and more.  |
-| `graphics.py`    | `Live2DCharacter`: Powers real-time animations.             |
-| `gui_widgets.py` | HUD and state panel widgets for the GUI.                    |
-| `main_gui.py`    | Main window with the update loop.                           |
-| `orchestrator.py`| Syncs agent, environment, and avatar.                       |
-| `utils.py`       | Helpers, `Experience` class, and PER memory logic.          |
-| `main.py`        | Entry point with `asyncio` integration.                     |
+| File                | Role                                                                                                |
+|---------------------|-----------------------------------------------------------------------------------------------------|
+| `config.py`         | Central config (dataclasses), constants, paths, data loading/validation, save paths.               |
+| `agent.py`          | `ConsciousAgent`: Core RL (DDQN+PER), HM prediction, state processing, save/load logic.             |
+| `environment.py`    | `EmotionalSpace`: Simulates base state, internal events, keyword impact.                          |
+| `ai_modules.py`     | PyTorch modules: `EmotionalModule` (variable decay), `SyntrixKorporator`, `StrukturKaskade`, `TransformerGPT`. |
+| `graphics.py`       | `Live2DCharacter`: Live2D rendering, animation, applies predicted movements.                          |
+| `gui_widgets.py`    | `HUDWidget` & `AIStateWidget` UI elements.                                                            |
+| `main_gui.py`       | Main application window (`EnhancedGameGUI`), integrates UI components, handles user input/controls. |
+| `orchestrator.py`   | `EnhancedConsciousAgent`: Coordinates modules, handles chat, async learning, save/load calls.       |
+| `utils.py`          | Helpers (`is_safe`), `Experience` tuple, `MetronicLattice`, `MetaCognitiveMemory` (PER), BPE tokenizer logic. |
+| `main.py`           | Application entry point, `asyncio`/`qasync` setup, argument parsing, initializers.                  |
+| `fine_tune_gpt.py`  | **(New)** Standalone script for fine-tuning the Hugging Face GPT model.                             |
 
 ---
 
 ## 📚 Training Data Format
 
-Fuel for the tokenizer, `SimpleGPT`, and movement training:
+Used for BPE Tokenizer (optional), GPT Fine-tuning, and Head Movement Training.
 
+**Required:** `"output"` (string)
+**Optional:**
+-   `"situation"` (string): Context for the output.
+-   `"emotion_weights"` (list of 4 floats): Used for legacy SimpleGPT bias (less relevant now).
+-   `"head_movement"` (string): Target label (must be in `config.py:HEAD_MOVEMENT_LABELS`).
+
+Example:
 ```json
 {
   "situation": "User asks 'how are you?'",
-  "output": "I’m feeling awesome, thanks!",
-  "emotion_weights": [0.7, 0.2, 0.0, 0.0],  // e.g., [happy, calm, sad, angry]
+  "output": "I’m feeling great, thanks for asking!",
+  "emotion_weights": [0.8, 0.0, 0.1, 0.0],
   "head_movement": "gentle_nod"
 }
 ```
@@ -119,41 +160,68 @@ Fuel for the tokenizer, `SimpleGPT`, and movement training:
 
 ## 🎨 Customize It
 
-Tweak `config.py` to:  
-- Enable/disable embeddings: `AgentConfig.USE_LANGUAGE_EMBEDDING`.  
-- Adjust movement learning: `RLConfig.HEAD_MOVEMENT_LOSS_WEIGHT`.  
-- Switch models: `GraphicsConfig.MODEL_PATH`.  
+Tweak `config.py`:
+-   `NLPConfig.HUGGINGFACE_MODEL`: Change base Transformer model (e.g., `"gpt2"`, `"microsoft/DialoGPT-small"`).
+-   `AgentConfig.USE_LANGUAGE_EMBEDDING`: Toggle sentence embeddings.
+-   `RLConfig.HEAD_MOVEMENT_LOSS_WEIGHT`: Tune HM training.
+-   `RLConfig.TARGET_NETWORK_SOFT_UPDATE_TAU`: Modify target network update speed.
+-   `GraphicsConfig.MODEL_PATH`: Set your Live2D model.
+-   Learning rates, memory sizes, thresholds, etc.
 
 ---
 
 ## 🖥️ Architecture Diagrams
 
-Below are the key architectural components of the project visualized using **Mermaid diagrams**. These diagrams provide a high-level overview of the system's structure and interactions.
+*(These provide a high-level conceptual overview)*
 
-### **1. ConsciousAgent Architecture**
+### 1. Core Agent Loop & Interaction
 
 ```mermaid
-graph TD
-    Agent_Model["ConsciousAgent (DDQN)"] --> EmoModule["Emotional Module"]
-    Agent_Model -->|"Reward (r)"| EmoModule
-    Agent_Model -->|"Prev Emotions"| EmoModule
-    EmoModule -->|"Updated Emotions"| StateProcMerge["State w/ Updated Emotions"]
-    Agent_Model -->|"Other State Components"| StateProcMerge
-    StateProcMerge --> Lattice["MetronicLattice"]
-    Lattice --> Korporator["SyntrixKorporator"]
-    Korporator --> Kaskade["StrukturKaskade"]
-    Kaskade --> ValueHead["Value Head (V(s))"]
-    Kaskade --> HMHead["Head Movement Head (Supervised)"]
-    ValueHead --> Agent_Learn["DDQN Value Loss"]
-    HMHead --> Agent_Step_Out["Select HM Label (ArgMax)"]
-    Agent_Model -->|"State History (H)"| Accessibility["Compute Accessibility\n(R_acc)"]
-    Accessibility --> BoxScore["Compute Box Score"]
-    BoxScore --> Agent_Learn
-    Kaskade --> Consistency["Compute Consistency\n(rho_score)"]
-    Consistency --> Agent_Learn["Intrinsic Reward Calc"]
+graph LR
+    subgraph Environment
+        E1[Internal Events] --> E2(EmotionalSpace);
+        U1[User Chat] --> E2;
+        E2 --> O1["Orchestrator\n(Base State)"];
+    end
+
+    subgraph Orchestrator
+        O1 --> O2{State Combiner};
+        O3["Sentence\nTransformer"] -->|Embedding| O2;
+        O2 -->|Combined State| A1["Agent.step()"];
+        A3[Agent Output] --> O4{Process Output};
+        O4 -->|HM Label| G1[Avatar Widget];
+        O4 -->|Response Emos| G1;
+        O4 -->|Response Text| UI1[Chat Display];
+        O4 -->|Metrics| UI2[State/HUD Widgets];
+        O5["Store Experience\n(State, HM_Idx, TD_Error...)"] --> M1[Memory];
+        O6{"Trigger Learn?"} -->|If Interval| L1["Async Learn Task"];
+    end
+
+    subgraph Agent
+        A1 --> A2[Agent Internals\n(Lattice, Korp, Kask, Emo...)];
+        A2 --> A3;
+    end
+
+    subgraph Memory_Learning
+        M1 --> L1;
+        L1 -->|Batch| A4["Agent.learn()\n(DDQN, PER)"];
+        A4 -->|"Loss Update"| A5[Agent Online Nets];
+        A4 -->|"Priority Update"| M1;
+        A4 -->|"Soft Update"| A6[Agent Target Nets];
+    end
+
+    subgraph GUI
+        G1; UI1; UI2;
+    end
+
+    style Agent fill:#f9d,stroke:#333,stroke-width:2px
+    style Orchestrator fill:#ccf,stroke:#333,stroke-width:2px
+    style Memory_Learning fill:#dfd,stroke:#333,stroke-width:2px
+    style Environment fill:#fec,stroke:#333,stroke-width:2px
+    style GUI fill:#ddd,stroke:#333,stroke-width:2px
 ```
 
-### **2. Syntrometrie Framework**
+### 2. Syntrometrie Framework (Conceptual)
 
 ```mermaid
 graph TD
@@ -211,16 +279,43 @@ graph TD
         A7 --> D5
     end
 ```
+*(Note: Mermaid diagrams render automatically on GitHub)*
 
 ---
 
 ## 📈 Future Work
 
-- **Enhanced RL Algorithms**: Experiment with advanced techniques like Deep Deterministic Policy Gradient (DDPG) or Soft Actor-Critic (SAC).  
-- **Expanded Animations**: Add more complex movements and gestures for richer interactions.  
-- **Performance Optimizations**: Optimize rendering and training pipelines for real-time performance.  
-- **Interdisciplinary Research**: Explore connections to philosophy, neuroscience, and AI ethics.  
+-   **Enhanced RL**: Explore advanced algorithms (PPO, SAC), intrinsic motivation (ICM/RND).
+-   **Improved Non-Verbal**: Implement lip-sync, advanced eye gaze, RL for movement generation.
+-   **Performance**: Profiling and optimization (JIT, AMP, rendering).
+-   **Testing & Refactoring**: Increase code coverage and improve modularity.
+-   **Voice I/O**: Integrate STT and TTS.
+-   **Interdisciplinary**: Explore connections to cognitive science, philosophy.
 
 ---
 
-This README now includes embedded Mermaid diagrams that will render directly on GitHub. Let me know if you'd like further refinements! 🚀
+## 🤝 Contributing
+
+Contributions are welcome! Please follow standard GitHub flow:
+1.  Fork the repository.
+2.  Create a new branch (`git checkout -b feature/YourFeature`).
+3.  Commit your changes (`git commit -am 'Add some feature'`).
+4.  Push to the branch (`git push origin feature/YourFeature`).
+5.  Open a Pull Request.
+
+---
+
+## ❓ Questions?
+
+Feel free to open an issue on GitHub if you encounter problems or have suggestions!
+
+---
+
+<!-- Optional: Add a GIF or screenshot link here -->
+<!-- ![Demo GIF](link/to/your/demo.gif) -->
+
+<!-- Optional: Add License -->
+<!-- ## License -->
+<!-- This project is licensed under the MIT License - see the LICENSE file for details. -->
+
+# --- END OF FILE README.md ---
