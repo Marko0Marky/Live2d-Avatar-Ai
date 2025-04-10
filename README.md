@@ -253,7 +253,7 @@ graph TD
         A7 --> D5
     end
 ```
-
+[Syntrometrie Framework Pdf](https://github.com/Marko0Marky/Live2d-Avatar-Ai/blob/main/research/Syntrometry.pdf)
 ---
 
 ## 📈 Future Work
