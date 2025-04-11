@@ -1,6 +1,4 @@
 # --- START OF FILE orchestrator.py ---
-
-# --- START OF FILE orchestrator.py ---
 import torch
 from typing import Dict, Tuple, Optional, List, Union, Deque, Any
 import concurrent.futures
@@ -29,7 +27,9 @@ from graphics import Live2DCharacter
 # Import updated Experience tuple
 from utils import is_safe, Experience, MetaCognitiveMemory
 
+# Define return type alias for reflect method
 ReflectReturnType = Dict[str, Union[float, List[float], int, str, np.ndarray]]
+# Define return type alias for train_step method
 TrainStepReturnType = Tuple[ReflectReturnType, float, bool, str, float, str, str]
 
 
@@ -237,8 +237,11 @@ class EnhancedConsciousAgent:
                      # Estimate V(s) with ONLINE net, V(s') with TARGET net
                      outputs_s = self.model.forward(state_before_step_combined.unsqueeze(0), torch.tensor([[reward]], device=DEVICE), None, use_target=False)
                      outputs_sp = self.model.forward(next_combined_state.unsqueeze(0), torch.tensor([[0.0]], device=DEVICE), None, use_target=True)
+
+                     # --- Correct unpack for TD error estimate ---
                      if len(outputs_s) == 13 and len(outputs_sp) == 13:
                          current_value = outputs_s[3].squeeze(); next_value = outputs_sp[3].squeeze()
+                     # --- END Correct unpack ---
                          if is_safe(current_value) and is_safe(next_value):
                              target_val = reward + Config.RL.GAMMA * next_value * (0.0 if env_done else 1.0);
                              initial_td_error = abs((target_val - current_value).item())
@@ -412,8 +415,10 @@ class EnhancedConsciousAgent:
                     with torch.no_grad():
                          # Use current state (which includes user text embedding) and 0 reward
                          outputs = self.model.forward(self.current_state, 0.0, self.model.state_history, use_target=False)
+                         # --- Correct unpack for chat HM prediction ---
                          if len(outputs) == 13:
                               hm_logits = outputs[-1]
+                         # --- END Correct unpack ---
                               if hm_logits.ndim == 1: idx = torch.argmax(hm_logits).item()
                               elif hm_logits.ndim == 2 and hm_logits.shape[0] == 1 : idx = torch.argmax(hm_logits.squeeze(0)).item()
                               else: logger.warning(f"Unexpected hm_logits shape in chat: {hm_logits.shape}"); idx = HEAD_MOVEMENT_TO_IDX["idle"]
@@ -446,13 +451,25 @@ class EnhancedConsciousAgent:
             if current_combined_state is not None and is_safe(current_combined_state) and current_combined_state.shape[0] == Config.Agent.STATE_DIM:
                 self.model.eval();
                 with torch.no_grad(): reflect_outputs = self.model.forward(current_combined_state, 0.0, self.model.state_history, use_target=False) # Use online for reflect
+
+                # --- Correct unpack for reflection ---
                 if len(reflect_outputs) == 13:
-                     # Unpack the 13 values correctly based on forward's return signature
-                     (emotions_int, _, _, _value, I_S, rho_struct_val, att_score, self_consistency, rho_score, box_score, R_acc_mean, tau_t, _) = reflect_outputs;
-                     stats_dict.update({ "current_emotions_internal": emotions_int.cpu().tolist() if is_safe(emotions_int) else [0.0]*Config.Agent.EMOTION_DIM,
-                                        "I_S": I_S, "rho_struct": rho_struct_val, "att_score": att_score, # rho_struct from forward output
-                                        "self_consistency": self_consistency, "rho_score": rho_score, "box_score": box_score,
-                                        "tau_t": tau_t, "R_acc": R_acc_mean })
+                     (emotions_int, _, _, _value, I_S, rho_struct_val, att_score,
+                      self_consistency_batch, rho_score_batch, box_score_batch,
+                      R_acc_mean, tau_t, _) = reflect_outputs;
+
+                     # Convert batch tensors (even if size 1) to scalar for stats dict
+                     self_consistency = self_consistency_batch.mean().item()
+                     rho_score = rho_score_batch.mean().item()
+                     box_score = box_score_batch.mean().item()
+
+                     stats_dict.update({
+                         "current_emotions_internal": emotions_int.cpu().tolist() if is_safe(emotions_int) else [0.0]*Config.Agent.EMOTION_DIM,
+                         "I_S": I_S, "rho_struct": rho_struct_val, "att_score": att_score,
+                         "self_consistency": self_consistency, "rho_score": rho_score, "box_score": box_score,
+                         "tau_t": tau_t, "R_acc": R_acc_mean
+                     })
+                # --- END Correct unpack ---
                 else: logger.warning(f"Reflection: forward returned {len(reflect_outputs)} values, expected 13.")
                 self.model.train();
             else: logger.warning(f"Reflection skipped: Invalid current_state.")
@@ -483,9 +500,18 @@ class EnhancedConsciousAgent:
         try:
             self.model.eval();
             with torch.no_grad(): test_outputs = self.model.forward(test_state, test_reward, self.model.state_history, use_target=False) # Use online network
+
+            # --- Correct unpack for completeness test ---
             if len(test_outputs) == 13:
-                 # Unpack based on forward signature
-                 (emotions, _, _, _, _, _, att_score, _, rho_score, box_score, R_acc, _, _) = test_outputs
+                 (emotions, _, _, _, _, _, att_score,
+                  self_consistency_batch, rho_score_batch, box_score_batch,
+                  R_acc, _, _) = test_outputs
+
+                 # Convert batch tensors (even if size 1) to scalar
+                 rho_score = rho_score_batch.mean().item()
+                 box_score = box_score_batch.mean().item()
+            # --- END Correct unpack ---
+
                  joy_check = False; joy_val = -1.0
                  if Config.Agent.EMOTION_DIM >= 1 and is_safe(emotions):
                      joy_val = emotions[0].item();
