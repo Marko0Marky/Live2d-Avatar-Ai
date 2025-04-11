@@ -187,6 +187,7 @@ class ConsciousAgent(nn.Module):
             logger.error(f"Error accessibility calc: {e}", exc_info=True)
             return default_matrix
 
+    # Return type now includes head_movement_logits (13 items total)
     ForwardReturnType = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, float, float, float, float, float, float, float, float, torch.Tensor]
 
     def forward(self, state_input: torch.Tensor, current_reward_input: Union[float, torch.Tensor], full_state_history_input: Optional[torch.Tensor], use_target: bool = False) -> ForwardReturnType:
@@ -200,7 +201,10 @@ class ConsciousAgent(nn.Module):
             use_target: If True, uses the target networks for value estimation.
 
         Returns:
-            A tuple containing various outputs like emotions, belief, value, etc.
+            A tuple containing:
+             (current_emotions, belief, feedback_signal, value,
+              I_S_norm, rho_struct_val, att_score, self_consistency, rho_score, box_score,
+              R_acc_mean, tau_t, head_movement_logits)
         """
         is_batch = state_input.ndim == 2; batch_size = state_input.shape[0] if is_batch else 1
         if not isinstance(state_input, torch.Tensor) or state_input.shape[-1] != self.state_dim: logger.error(f"Agent.forward: Invalid state type/shape. Expected (*, {self.state_dim}), got {state_input.shape}."); return self._get_default_outputs(batch_size)
@@ -289,16 +293,26 @@ class ConsciousAgent(nn.Module):
         # --- Metrics Calculation ---
         # These metrics reflect the state of the *online* agent, even if using target nets for value
         I_S_norm = 0.0; R_acc_mean = 0.0; tau_t = Config.Agent.ACCESSIBILITY_THRESHOLD; rho_struct_val = 0.0; box_score = 0.0;
-        self_consistency_batch = torch.zeros(batch_size, 1, device=DEVICE) if is_batch else torch.tensor(0.0, device=DEVICE)
-        rho_score_batch = torch.zeros(batch_size, 1, device=DEVICE) if is_batch else torch.tensor(0.0, device=DEVICE)
+        # Use tensors for batch consistency
+        self_consistency_batch = torch.zeros(batch_size, 1, device=DEVICE) if is_batch else torch.tensor([[0.0]], device=DEVICE)
+        rho_score_batch = torch.zeros(batch_size, 1, device=DEVICE) if is_batch else torch.tensor([[0.0]], device=DEVICE)
+
         if belief.shape == belief_raw.shape and belief.numel() > 0: # Compare online belief vs belief_raw
-             belief_flat = belief.flatten(start_dim=1).float() if is_batch else belief.flatten().float(); belief_raw_flat = belief_raw.flatten(start_dim=1).float() if is_batch else belief_raw.flatten().float()
+             belief_flat = belief.flatten(start_dim=1).float() if is_batch else belief.flatten().float().unsqueeze(0);
+             belief_raw_flat = belief_raw.flatten(start_dim=1).float() if is_batch else belief_raw.flatten().float().unsqueeze(0)
              belief_norm = torch.linalg.norm(belief_flat, dim=-1, keepdim=True) + 1e-8; belief_raw_norm = torch.linalg.norm(belief_raw_flat, dim=-1, keepdim=True) + 1e-8
-             cosine_sim = F.cosine_similarity(belief_flat / belief_norm, belief_raw_flat / belief_raw_norm, dim=-1).unsqueeze(-1)
-             self_consistency_batch = cosine_sim.detach(); rho_score_batch = torch.clamp((self_consistency_batch + 1.0) / 2.0, 0.0, 1.0).detach()
+             # Handle potential division by zero if norm is zero
+             safe_belief = belief_flat / belief_norm; safe_belief_raw = belief_raw_flat / belief_raw_norm
+             cosine_sim = F.cosine_similarity(safe_belief, safe_belief_raw, dim=-1).unsqueeze(-1)
+             self_consistency_batch = cosine_sim.detach();
+             rho_score_batch = torch.clamp((self_consistency_batch + 1.0) / 2.0, 0.0, 1.0).detach()
         else: logger.warning(f"Forward: Consistency shape mismatch {belief.shape} vs {belief_raw.shape}.")
+
+        # Box score as tensor for batch consistency
+        box_score_batch = torch.zeros(batch_size, 1, device=DEVICE) if is_batch else torch.tensor([[0.0]], device=DEVICE)
+
         if is_batch:
-            self_consistency = self_consistency_batch.mean().item(); rho_score = rho_score_batch.mean().item()
+            self_consistency = self_consistency_batch.mean().item(); rho_score = rho_score_batch.mean().item(); box_score = box_score_batch.mean().item()
             # Metrics below require history, set defaults for batch mode
             I_S_norm, rho_struct_val, box_score, R_acc_mean, tau_t = 0.0, 0.0, 0.0, 0.0, Config.Agent.ACCESSIBILITY_THRESHOLD;
         else: # Calculate history-based metrics only for single instance forward pass
@@ -308,21 +322,43 @@ class ConsciousAgent(nn.Module):
                 I_S_vector = self.lattice.S(history_to_use.detach(), 0, Config.Agent.HISTORY_SIZE - 1); I_S_norm = torch.linalg.norm(I_S_vector.float()).item() if I_S_vector.numel() > 0 else 0.0
                 tau_t = Config.Agent.ACCESSIBILITY_THRESHOLD * (1 + att_score * 0.5) # att_score calculated earlier
                 rho_struct_mem_short = self.memory.get_short_term_norm(); rho_struct_mem_long = self.memory.get_long_term_norm(); rho_struct_val = (rho_struct_mem_short * 0.3 + rho_struct_mem_long * 0.7)
-                emotion_max_val = current_emotions.max().item() if current_emotions.numel() > 0 else 0.0; is_stable = emotion_max_val < Config.Agent.STABILITY_THRESHOLD; box_score = R_acc_mean if is_stable else 0.0;
+                emotion_max_val = current_emotions.max().item() if current_emotions.numel() > 0 else 0.0; is_stable = emotion_max_val < Config.Agent.STABILITY_THRESHOLD;
+                # Calculate box_score based on R_acc_mean and stability
+                box_score = R_acc_mean if is_stable else 0.0
+                box_score_batch = torch.tensor([[box_score]], device=DEVICE) # Update the tensor for single item case
+            else: # No history for single instance, use defaults
+                 I_S_norm, rho_struct_val, box_score, R_acc_mean, tau_t = 0.0, 0.0, 0.0, 0.0, Config.Agent.ACCESSIBILITY_THRESHOLD
+                 box_score_batch = torch.tensor([[0.0]], device=DEVICE)
 
-        metrics_float = tuple(float(m) for m in [I_S_norm, rho_struct_val, att_score, self_consistency, rho_score, box_score, R_acc_mean, tau_t])
-
-        return (current_emotions, belief, feedback_signal, value, *metrics_float, head_movement_logits)
+        # Return metrics and the logits
+        # Note: Ensure the order matches ForwardReturnType
+        return (current_emotions, belief, feedback_signal, value,
+                float(I_S_norm), float(rho_struct_val), float(att_score),
+                self_consistency_batch, # Return batch tensor
+                rho_score_batch,      # Return batch tensor
+                box_score_batch,      # Return batch tensor
+                float(R_acc_mean), float(tau_t),
+                head_movement_logits)
 
     def _get_default_outputs(self, batch_size=1) -> ForwardReturnType:
          zero_emo = torch.zeros(batch_size, Config.Agent.EMOTION_DIM, device=DEVICE) if batch_size > 1 else torch.zeros(Config.Agent.EMOTION_DIM, device=DEVICE)
          kaskade_out_dim = getattr(self.kaskade, '_output_dim', self.hidden_dim); zero_belief = torch.zeros(batch_size, kaskade_out_dim, device=DEVICE) if batch_size > 1 else torch.zeros(kaskade_out_dim, device=DEVICE)
          zero_feedback = torch.zeros(batch_size, self.state_dim, device=DEVICE) if batch_size > 1 else torch.zeros(self.state_dim, device=DEVICE)
          zero_value = torch.zeros(batch_size, 1, device=DEVICE) if batch_size > 1 else torch.zeros(1, device=DEVICE)
-         zero_metrics = (0.0,) * 8
+         # Zero metrics (handle batch tensors)
+         zero_I_S, zero_rho_s, zero_att, zero_R_acc, zero_tau = 0.0, 0.0, 0.0, 0.0, 0.0
+         zero_self_consistency = torch.zeros(batch_size, 1, device=DEVICE) if batch_size > 1 else torch.zeros(1, 1, device=DEVICE)
+         zero_rho_score = torch.zeros(batch_size, 1, device=DEVICE) if batch_size > 1 else torch.zeros(1, 1, device=DEVICE)
+         zero_box_score = torch.zeros(batch_size, 1, device=DEVICE) if batch_size > 1 else torch.zeros(1, 1, device=DEVICE)
+         # Zero logits
          zero_hm_logits = torch.zeros(batch_size, NUM_HEAD_MOVEMENTS, device=DEVICE) if batch_size > 1 else torch.zeros(NUM_HEAD_MOVEMENTS, device=DEVICE)
-         return (zero_emo, zero_belief, zero_feedback, zero_value, *zero_metrics, zero_hm_logits)
+         return (zero_emo, zero_belief, zero_feedback, zero_value,
+                 zero_I_S, zero_rho_s, zero_att,
+                 zero_self_consistency, zero_rho_score, zero_box_score,
+                 zero_R_acc, zero_tau,
+                 zero_hm_logits)
 
+    # Returns emotions, response, belief, attention_score, predicted_hm_label
     StepReturnType = Tuple[torch.Tensor, str, torch.Tensor, float, str]
 
     def step(self, state: torch.Tensor, reward: float, state_history: torch.Tensor, context: Optional[str]) -> StepReturnType:
@@ -334,7 +370,21 @@ class ConsciousAgent(nn.Module):
              if state.device != DEVICE: state = state.to(DEVICE)
              # Use online network for stepping/acting
              forward_outputs = self.forward(state, reward, state_history, use_target=False)
-             current_emotions = forward_outputs[0]; belief_for_memory = forward_outputs[1]; att_score_metric = forward_outputs[6]; head_movement_logits = forward_outputs[-1]
+
+             # --- Correctly unpack 13 items ---
+             if len(forward_outputs) != 13:
+                 logger.error(f"Agent.step: Forward returned {len(forward_outputs)} items, expected 13. Using defaults.")
+                 defaults = self._get_default_outputs(batch_size=1)
+                 current_emotions = defaults[0]
+                 belief_for_memory = defaults[1]
+                 att_score_metric = 0.0
+                 head_movement_logits = defaults[-1]
+             else:
+                 current_emotions = forward_outputs[0]
+                 belief_for_memory = forward_outputs[1]
+                 att_score_metric = forward_outputs[6] # Attention score is the 7th item (index 6)
+                 head_movement_logits = forward_outputs[-1] # HM logits is the last item
+             # --- END Correct Unpack ---
 
              # Predict head movement
              try:
@@ -375,6 +425,7 @@ class ConsciousAgent(nn.Module):
 
         states = batch_data['states'].to(DEVICE); rewards = batch_data['rewards'].to(DEVICE)
         next_states = batch_data['next_states'].to(DEVICE); dones = batch_data['dones'].to(DEVICE)
+        # Extract target head movement indices from the sampled batch data
         target_hm_indices = batch_data.get('target_hm_idx').to(DEVICE) if batch_data.get('target_hm_idx') is not None else None
 
         current_batch_size = states.shape[0]
@@ -382,14 +433,16 @@ class ConsciousAgent(nn.Module):
 
         # --- Get V(s) and HM(s) using ONLINE network ---
         try:
+            # Pass zeros for reward, None for history in batch forward pass
             outputs_online = self.forward(states, torch.zeros_like(rewards), None, use_target=False)
+            # --- Correctly unpack 13 items ---
+            if len(outputs_online) != 13: raise ValueError(f"Online Forward returned {len(outputs_online)} items, expected 13.")
             current_value_pred = outputs_online[3]
-            head_movement_logits = outputs_online[-1]
-            # --- Get metrics directly from the tuple returned by forward ---
-            self_consistency_batch = outputs_online[7]
-            rho_score_batch = outputs_online[8]
-            box_score_batch = outputs_online[9]
-            # ---
+            self_consistency_batch = outputs_online[7] # Index 7
+            rho_score_batch = outputs_online[8]         # Index 8
+            box_score_batch = outputs_online[9]         # Index 9
+            head_movement_logits = outputs_online[-1]   # Last item
+            # --- END Correct Unpack ---
 
             if not is_safe(current_value_pred) or current_value_pred.shape != (current_batch_size, 1): raise ValueError(f"Invalid Online V(s) shape/safety {current_value_pred.shape}")
             if not is_safe(head_movement_logits) or head_movement_logits.shape != (current_batch_size, NUM_HEAD_MOVEMENTS): raise ValueError(f"Invalid Online HM logits shape/safety {head_movement_logits.shape}")
@@ -411,7 +464,10 @@ class ConsciousAgent(nn.Module):
             try:
                 # Use TARGET networks for next state value estimation
                 outputs_target = self.forward(next_states, torch.zeros_like(rewards), None, use_target=True)
-                v_sp_target = outputs_target[3]
+                # --- Correctly unpack 13 items ---
+                if len(outputs_target) != 13: raise ValueError(f"Target Forward returned {len(outputs_target)} items, expected 13.")
+                v_sp_target = outputs_target[3] # Value is the 4th item (index 3)
+                # --- END Correct Unpack ---
 
                 if is_safe(v_sp_target) and v_sp_target.shape == (current_batch_size, 1):
                     next_value_pred = v_sp_target
@@ -457,7 +513,10 @@ class ConsciousAgent(nn.Module):
                      movement_loss = (hm_loss_elementwise * weights.squeeze(-1)).mean() # Apply PER weights
                      if not torch.isfinite(movement_loss): logger.warning(f"Movement loss is NaN/Inf!"); movement_loss = torch.tensor(0.0, device=DEVICE)
                  except Exception as hm_err: logger.error(f"Learn: Error calculating head movement loss: {hm_err}", exc_info=True); movement_loss = torch.tensor(0.0, device=DEVICE)
-             else: logger.warning(f"Learn: Mismatch batch size vs target HM indices. Skip HM loss.")
+             else: logger.warning(f"Learn: Mismatch batch size ({current_batch_size}) vs target HM indices ({target_hm_indices.shape[0]}). Skip HM loss.")
+        elif hm_loss_weight > 0 and target_hm_indices is None:
+             logger.debug("Learn: Target HM indices were None in the batch. Skipping HM loss.")
+
 
         # Total Loss
         total_loss = value_loss + movement_loss * hm_loss_weight
@@ -573,7 +632,12 @@ class ConsciousAgent(nn.Module):
             self.emotional_module.load_state_dict(agent_state['emotional_module_state_dict'])
             self.feedback.load_state_dict(agent_state['feedback_state_dict'])
             self.value_head.load_state_dict(agent_state['value_head_state_dict'])
-            self.head_movement_head.load_state_dict(agent_state['head_movement_head_state_dict'])
+            # Load head movement head safely
+            if 'head_movement_head_state_dict' in agent_state:
+                self.head_movement_head.load_state_dict(agent_state['head_movement_head_state_dict'])
+            else:
+                 logger.warning("Head movement head state not found in online save file. Initializing fresh.")
+
             if self.attention and agent_state.get('attention_state_dict'):
                 self.attention.load_state_dict(agent_state['attention_state_dict'])
             self.prev_emotions = agent_state.get('prev_emotions', self.prev_emotions).to(DEVICE)
@@ -587,7 +651,12 @@ class ConsciousAgent(nn.Module):
                 self.target_korporator.load_state_dict(target_state['target_korporator_state_dict'])
                 self.target_kaskade.load_state_dict(target_state['target_kaskade_state_dict'])
                 self.target_value_head.load_state_dict(target_state['target_value_head_state_dict'])
-                self.target_head_movement_head.load_state_dict(target_state['target_head_movement_head_state_dict'])
+                # Load target head movement head safely
+                if 'target_head_movement_head_state_dict' in target_state:
+                    self.target_head_movement_head.load_state_dict(target_state['target_head_movement_head_state_dict'])
+                else:
+                     logger.warning("Target head movement head state not found in target save file. Copying from online.")
+                     self.target_head_movement_head.load_state_dict(self.head_movement_head.state_dict()) # Copy from loaded online head
                 logger.info("Target agent networks loaded.")
             else: # If target file missing, copy from loaded online nets
                 logger.warning("Target state file missing, performing hard copy from loaded online networks.")
