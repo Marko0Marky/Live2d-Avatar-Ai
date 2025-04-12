@@ -1,6 +1,4 @@
 # --- START OF FILE config.py ---
-
-# --- START OF FILE config.py ---
 import torch
 import logging
 import sys
@@ -28,8 +26,7 @@ logging.getLogger('OpenGL').setLevel(logging.WARNING); logging.getLogger('PyQt5'
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 LANGUAGE_EMBEDDING_DIM = 384
-# BASE_AGENT_STATE_DIM = 12 # Original
-BASE_AGENT_STATE_DIM = 6 + 6 # Updated: EMOTION_DIM (6) + META_FEATURES (6)
+BASE_AGENT_STATE_DIM = 12
 
 # --- Head Movement Labels ---
 HEAD_MOVEMENT_LABELS = [
@@ -72,12 +69,6 @@ class AgentConfig:
 
     def __post_init__(self):
         """Recalculates STATE_DIM based on other parameters."""
-        # Validate BASE_STATE_DIM against required components
-        expected_base_dim = self.EMOTION_DIM + 6 # 6 meta features in environment._get_state
-        if self.BASE_STATE_DIM != expected_base_dim:
-            logger.critical(f"FATAL CONFIG ERROR: AgentConfig.BASE_STATE_DIM ({self.BASE_STATE_DIM}) does not match required base dimension ({expected_base_dim} = {self.EMOTION_DIM} emotions + 6 meta features). Adjust BASE_STATE_DIM in config.py.")
-            sys.exit(1)
-
         self.STATE_DIM = self.BASE_STATE_DIM + (self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0)
         logger.info(f"AgentConfig Calculated STATE_DIM: {self.STATE_DIM} (Base: {self.BASE_STATE_DIM}, LangEmbed: {self.LANGUAGE_EMBEDDING_DIM if self.USE_LANGUAGE_EMBEDDING else 0}, Enabled: {self.USE_LANGUAGE_EMBEDDING})")
 
@@ -94,7 +85,7 @@ class RLConfig:
     PER_BETA_FRAMES: int = 100000
     INTRINSIC_REWARD_SCALE_CONSISTENCY: float = 0.05
     INTRINSIC_REWARD_SCALE_BOX: float = 0.02
-    INTRINSIC_REWARD_SCALE_TD: float = 0.0
+    INTRINSIC_REWARD_SCALE_TD: float = 0.0 # Set to 0 as RND/ICM not yet implemented
     ADAPTIVE_LR_ENABLED: bool = True
     LR_ADAPTIVE_MIN_FACTOR: float = 0.2
     LR_ADAPTIVE_MAX_FACTOR: float = 1.0
@@ -112,16 +103,15 @@ class RLConfig:
 class NLPConfig:
     SENTENCE_TRANSFORMER_MODEL: str = 'all-MiniLM-L6-v2'
     HUGGINGFACE_MODEL: str = "distilgpt2" # Or "gpt2", "microsoft/DialoGPT-small", etc.
-    GPT_LR: float = 5e-5 # Typical LR for fine-tuning Transformers (was 0.0005)
-    TRAIN_EPOCHS: int = 3 # Epochs for fine-tuning or SimpleGPT pre-training
+    GPT_LR: float = 0.0005 # LR for separate fine-tuning if using TransformerGPT Trainer
+    TRAIN_EPOCHS: int = 3 # Epochs for fine-tuning
     MAX_RESPONSE_LEN: int = 40 # Max length for generated responses
     GRADIENT_CLIP_GPT: float = 1.0 # Grad clip for GPT training/fine-tuning
-    TOKENIZER_PATH: str = "./tokenizer/bpe_agent_tokenizer.json" # Path for custom BPE tokenizer (potentially unused)
-    VOCAB_SIZE: int = 1000 # Target vocab size for BPE (potentially unused)
-    SPECIAL_TOKENS: List[str] = field(default_factory=lambda: ["<PAD>", "<START>", "<END>", "<UNK>"]) # For BPE tokenizer
     GPT_TEMPERATURE: float = 0.8
     GPT_TOP_P: float = 0.9
     CONVERSATION_HISTORY_LENGTH: int = 4 # Number of User+AI turns to keep
+    # --- REMOVED BPE Config ---
+
 
 @dataclass
 class EnvConfig:
@@ -178,14 +168,13 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
                 continue
 
             # Validate/Adjust emotion_weights (Keep for potential SimpleGPT fallback or other uses)
-            # Use AgentConfig.EMOTION_DIM for expected length
-            expected_emo_len = MasterConfig.Agent.EMOTION_DIM # Use the actual config value
+            expected_emo_len = 4 # This seems specific to an older SimpleGPT setup? Review if needed.
             current_weights = item.get("emotion_weights", [])
             if not isinstance(current_weights, list):
                 logger.warning(f"Invalid emotion_weights type ({type(current_weights)}) in data at index {i}. Using zeros.")
                 item["emotion_weights"] = [0.0] * expected_emo_len
             elif len(current_weights) != expected_emo_len:
-                logger.warning(f"Emotion_weights length mismatch in data at index {i}. Expected {expected_emo_len}, got {len(current_weights)}. Padding/truncating.")
+                # Pad or truncate emotion weights if they existed but had wrong length
                 item["emotion_weights"] = (current_weights + [0.0] * expected_emo_len)[:expected_emo_len]
 
             # Validate/Process head_movement labels
@@ -196,9 +185,11 @@ def load_and_validate_train_data(path: str) -> List[Dict[str, Any]]:
                     if hm_label not in unknown_labels:
                          logger.warning(f"Item {i} in {path} has unknown head_movement label: '{hm_label}'. Setting to 'idle'. Valid: {HEAD_MOVEMENT_LABELS}")
                          unknown_labels.add(hm_label)
-                    item["head_movement"] = "idle"
+                    item["head_movement"] = "idle" # Set to default if unknown
+                # Add index anyway, defaulting to idle if needed
                 item["head_movement_idx"] = HEAD_MOVEMENT_TO_IDX.get(item["head_movement"], HEAD_MOVEMENT_TO_IDX["idle"])
             else:
+                # If no head_movement key, default to idle
                 item["head_movement"] = "idle"
                 item["head_movement_idx"] = HEAD_MOVEMENT_TO_IDX["idle"]
 
@@ -224,8 +215,7 @@ expected_state_dim = MasterConfig.Agent.BASE_STATE_DIM + (MasterConfig.Agent.LAN
 if MasterConfig.Agent.STATE_DIM != expected_state_dim:
      logger.critical(f"FATAL: Calculated Agent.STATE_DIM ({MasterConfig.Agent.STATE_DIM}) mismatch with expected ({expected_state_dim}). Check AgentConfig USE_LANGUAGE_EMBEDDING and AgentConfig.__post_init__.")
      sys.exit(1)
-if MasterConfig.Agent.EMOTION_DIM > MasterConfig.Agent.BASE_STATE_DIM:
-    logger.critical(f"FATAL: Config Agent.EMOTION_DIM ({MasterConfig.Agent.EMOTION_DIM}) > BASE_STATE_DIM ({MasterConfig.Agent.BASE_STATE_DIM}).")
-    sys.exit(1)
+
+# --- REMOVED REDUNDANT CHECK ---
 
 # --- END OF FILE config.py ---
