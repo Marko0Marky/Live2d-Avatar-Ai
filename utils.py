@@ -6,23 +6,14 @@ import random
 import logging
 import sys
 import os
-import re # Import re for detokenize
-from typing import Optional, Dict, Tuple, List, Deque, Union, Any
+import re # Keep re if used elsewhere, otherwise remove
+from typing import Optional, Dict, Tuple, List, Deque, Union, Any # Keep typing
 
-# --- ADDED: Tokenizer Imports ---
-try:
-    from tokenizers import Tokenizer, decoders, AddedToken
-    from tokenizers.models import BPE
-    from tokenizers.trainers import BpeTrainer
-    from tokenizers.pre_tokenizers import Whitespace
-    from typing import Optional as TokenizerOptional # Rename to avoid conflict
-    TOKENIZERS_LIB_AVAILABLE = True
-except ImportError:
-    TOKENIZERS_LIB_AVAILABLE = False
-# --- END ADDED ---
+# --- REMOVED: BPE Tokenizer Imports and Flag ---
 
-from config import logger, DEVICE, MasterConfig as Config, NLPConfig, TRAIN_DATA # Import specific config classes needed
-# --- Import Head Movement Labels ---
+# Keep necessary config imports (ensure NLPConfig is NOT imported if only BPE used it)
+from config import logger, DEVICE, MasterConfig as Config
+# Import Head Movement Labels
 from config import HEAD_MOVEMENT_TO_IDX # Needed for default index
 
 # --- MODIFIED: Add head_movement_idx ---
@@ -95,12 +86,13 @@ class MetronicLattice:
 
 
 class MetaCognitiveMemory:
-    INITIAL_TD_ERROR = 1.0
+    """Stores experiences and samples them using Prioritized Experience Replay."""
+    INITIAL_TD_ERROR = 1.0 # Default priority for new experiences
     def __init__(self, capacity: int = Config.Agent.MEMORY_SIZE):
         self.capacity = max(10, capacity)
-        self.short_term: Deque[Experience] = deque(maxlen=30)
-        self.long_term: Deque[Experience] = deque(maxlen=self.capacity)
-        self.priorities: Deque[float] = deque(maxlen=self.capacity)
+        self.short_term: Deque[Experience] = deque(maxlen=30) # For potential short-term specific logic
+        self.long_term: Deque[Experience] = deque(maxlen=self.capacity) # Main replay buffer
+        self.priorities: Deque[float] = deque(maxlen=self.capacity) # Stores priorities for PER
         # Get default index for 'idle' once
         self.idle_hm_idx = HEAD_MOVEMENT_TO_IDX.get("idle", 0)
 
@@ -109,16 +101,17 @@ class MetaCognitiveMemory:
         if not isinstance(experience, Experience):
              logger.warning(f"Memory.add: Invalid type {type(experience)}."); return
 
-        priority = abs(experience.td_error) + 1e-5 # Use calculated priority
+        priority = abs(experience.td_error) + 1e-5 # Use calculated priority, ensure > 0
 
         try:
+            # Extract and validate components
             state=experience.state; belief=experience.belief; reward=experience.reward
             next_state=experience.next_state; done=experience.done
-            td_error=experience.td_error; hm_idx=experience.head_movement_idx
+            td_error=experience.td_error; hm_idx=experience.head_movement_idx # Keep original priority value
 
             # Validate state
             if not isinstance(state, torch.Tensor): raise TypeError("State must be a Tensor")
-            safe_state = state.detach().clone().cpu()
+            safe_state = state.detach().clone().cpu() # Store on CPU
             if not is_safe(safe_state): raise ValueError("Unsafe state tensor")
             if safe_state.shape[0] != Config.Agent.STATE_DIM: logger.warning(f"Mem Add: State dim mismatch ({safe_state.shape[0]} vs {Config.Agent.STATE_DIM}).")
 
@@ -126,12 +119,12 @@ class MetaCognitiveMemory:
             safe_belief = None
             if belief is not None:
                  if not isinstance(belief, torch.Tensor): raise TypeError("Belief must be a Tensor or None")
-                 safe_belief = belief.detach().clone().cpu()
+                 safe_belief = belief.detach().clone().cpu() # Store on CPU
                  if not is_safe(safe_belief): raise ValueError("Unsafe belief tensor")
 
             # Validate next_state
             if not isinstance(next_state, torch.Tensor): raise TypeError("Next State must be a Tensor")
-            safe_next_state = next_state.detach().clone().cpu()
+            safe_next_state = next_state.detach().clone().cpu() # Store on CPU
             if not is_safe(safe_next_state): raise ValueError("Unsafe next_state tensor")
             if safe_next_state.shape[0] != Config.Agent.STATE_DIM: logger.warning(f"Mem Add: Next State dim mismatch ({safe_next_state.shape[0]} vs {Config.Agent.STATE_DIM}).")
 
@@ -139,7 +132,7 @@ class MetaCognitiveMemory:
             safe_hm_idx = int(hm_idx)
 
             # Validate others
-            safe_reward = float(reward); safe_done = bool(done); safe_td_error = float(td_error)
+            safe_reward = float(reward); safe_done = bool(done); safe_td_error = float(td_error) # Store original priority
 
             # Create safe experience tuple with CPU tensors and validated types
             safe_exp = Experience(safe_state, safe_belief, safe_reward, safe_next_state, safe_done, safe_td_error, safe_hm_idx)
@@ -149,38 +142,55 @@ class MetaCognitiveMemory:
         except Exception as e:
              logger.error(f"Memory.add: Unexpected error processing experience: {e}. Not added."); return
 
+        # Add to buffers
         self.short_term.append(safe_exp) # Add to short term buffer too
         if len(self.long_term) >= self.capacity:
-             self.long_term.popleft()
-             self.priorities.popleft()
+             self.long_term.popleft()    # Remove oldest experience if full
+             self.priorities.popleft()   # Remove corresponding priority
         self.long_term.append(safe_exp);
         self.priorities.append(priority) # Store the calculated priority
 
-    def __len__(self) -> int: return len(self.long_term)
+    def __len__(self) -> int:
+        """Return the current size of samples in the long-term memory."""
+        return len(self.long_term)
 
     def sample(self, batch_size: int, beta: float = Config.RL.PER_BETA_START) -> Optional[Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor]]:
          """Samples a batch using Prioritized Experience Replay (PER)."""
-         if len(self.long_term) < batch_size: return None
+         if len(self.long_term) < batch_size:
+             # logger.debug(f"Memory Sample: Not enough samples ({len(self.long_term)}/{batch_size}).")
+             return None
 
+         # Calculate probabilities based on priorities
          priorities_float = np.array([float(p) for p in self.priorities], dtype=np.float64)
          if np.sum(priorities_float) <= 1e-9 : # Use small epsilon for sum check
+             # Fallback to uniform sampling if priorities are zero or negative
              probs = np.ones_like(priorities_float) / len(priorities_float) if len(priorities_float) > 0 else None;
+             # logger.warning("Memory Sample: Sum of priorities is near zero. Using uniform probabilities.")
          else:
+             # Apply PER alpha
              probs = priorities_float ** Config.RL.PER_ALPHA;
-             probs /= probs.sum()
+             probs /= probs.sum() # Normalize probabilities
 
-         if probs is None or not np.isclose(probs.sum(), 1.0):
+         # Final check on probabilities
+         if probs is None or not np.isclose(probs.sum(), 1.0, atol=1e-7):
               logger.error(f"Memory Sample: Invalid probabilities (Sum={probs.sum() if probs is not None else 'None'}). Using uniform fallback.");
               probs = np.ones_like(priorities_float) / len(priorities_float) if len(priorities_float) > 0 else None;
-         if probs is None: return None
+         if probs is None: return None # Cannot sample if no valid probabilities
 
-         try: indices = np.random.choice(len(self.long_term), batch_size, p=probs, replace=False)
-         except ValueError as e: logger.error(f"Memory Sample: Error during np.random.choice (check probs sum?): {e}"); return None
+         # Sample indices based on calculated probabilities
+         try:
+             indices = np.random.choice(len(self.long_term), batch_size, p=probs, replace=False) # No replacement for unique samples
+         except ValueError as e:
+             logger.error(f"Memory Sample: Error during np.random.choice (check probs sum? Size: {len(self.long_term)}, BS: {batch_size}): {e}");
+             return None
 
+         # Calculate Importance Sampling (IS) weights
          total_samples = len(self.long_term);
-         weights = (total_samples * probs[indices]) ** (-beta); weights /= weights.max();
-         weights_tensor = torch.tensor(weights, dtype=torch.float32, device=DEVICE).unsqueeze(1)
+         weights = (total_samples * probs[indices]) ** (-beta);
+         weights /= weights.max(); # Normalize weights for stability
+         weights_tensor = torch.tensor(weights, dtype=torch.float32, device=DEVICE).unsqueeze(1) # Add dimension for broadcasting
 
+         # Retrieve experiences for sampled indices
          states_list, beliefs_list, rewards_list, next_states_list, dones_list, head_movement_idx_list = [], [], [], [], [], []
          valid_count = 0; skipped_count = 0
          # Dynamically determine expected belief dim from agent config or first sample
@@ -189,59 +199,78 @@ class MetaCognitiveMemory:
          first_valid_belief = next((exp.belief for exp in [self.long_term[i] for i in indices] if exp.belief is not None), None)
          if first_valid_belief is not None:
              expected_belief_dim = first_valid_belief.shape[0]
-         default_belief = torch.zeros(expected_belief_dim, device=DEVICE) # Pre-create default belief with correct dim
+         # Pre-create default belief with correct dim and device
+         default_belief = torch.zeros(expected_belief_dim, device=DEVICE, dtype=torch.float32)
 
          for idx in indices:
              exp = self.long_term[idx]
              try:
+                 # Move CPU tensors from memory to the target DEVICE for batching
                  state_dev = exp.state.to(DEVICE);
                  # Handle belief: use default if None or shape mismatch
                  if exp.belief is not None and exp.belief.shape[0] == expected_belief_dim:
                      belief_dev = exp.belief.to(DEVICE)
                  else:
-                     if exp.belief is not None: logger.warning(f"Belief shape mismatch for index {idx}. Got {exp.belief.shape}, expected ({expected_belief_dim},). Using default.")
-                     belief_dev = default_belief
+                     if exp.belief is not None: logger.debug(f"Belief shape mismatch for index {idx}. Got {exp.belief.shape}, expected ({expected_belief_dim},). Using default.")
+                     belief_dev = default_belief # Use pre-created default tensor
 
                  next_state_dev = exp.next_state.to(DEVICE)
                  hm_idx = exp.head_movement_idx # Retrieve index
 
+                 # Check safety AFTER moving to device
                  if not is_safe(state_dev) or not is_safe(next_state_dev) or not is_safe(belief_dev):
                      logger.warning(f"Memory Sample: Unsafe tensor detected on device for index {idx}. Skipping."); skipped_count += 1; continue
 
+                 # Append validated device tensors and other data
                  states_list.append(state_dev); beliefs_list.append(belief_dev); rewards_list.append(exp.reward); next_states_list.append(next_state_dev); dones_list.append(exp.done);
                  head_movement_idx_list.append(hm_idx) # Add index to its list
                  valid_count += 1
-             except Exception as e: logger.error(f"Memory Sample: Error processing experience index {idx}: {e}"); skipped_count += 1
+             except Exception as e:
+                 logger.error(f"Memory Sample: Error processing experience index {idx}: {e}"); skipped_count += 1
 
-         if valid_count == 0: logger.warning("Memory Sample: No valid experiences found in the sampled batch."); return None
-         if skipped_count > 0: logger.debug(f"Memory Sample: Skipped {skipped_count} experiences during batch creation.")
+         if valid_count == 0:
+             logger.warning("Memory Sample: No valid experiences found in the sampled batch."); return None
+         if skipped_count > 0:
+             logger.debug(f"Memory Sample: Skipped {skipped_count}/{batch_size} experiences during batch creation.")
 
+         # Stack lists into batch tensors
          try:
-             states_batch=torch.stack(states_list); beliefs_batch=torch.stack(beliefs_list); rewards_batch=torch.tensor(rewards_list,dtype=torch.float32,device=DEVICE).unsqueeze(1); next_states_batch=torch.stack(next_states_list); dones_batch=torch.tensor(dones_list,dtype=torch.bool,device=DEVICE).unsqueeze(1)
+             states_batch=torch.stack(states_list);
+             beliefs_batch=torch.stack(beliefs_list);
+             rewards_batch=torch.tensor(rewards_list,dtype=torch.float32,device=DEVICE).unsqueeze(1);
+             next_states_batch=torch.stack(next_states_list);
+             dones_batch=torch.tensor(dones_list,dtype=torch.bool,device=DEVICE).unsqueeze(1) # Use bool for dones
              head_movement_idx_batch = torch.tensor(head_movement_idx_list, dtype=torch.long, device=DEVICE) # Target indices should be Long
 
-             # Final safety check
+             # Final safety check on stacked tensors
              if not is_safe(states_batch) or not is_safe(beliefs_batch) or not is_safe(rewards_batch) or not is_safe(next_states_batch) or not is_safe(dones_batch) or not is_safe(head_movement_idx_batch):
                  logger.error("Memory Sample: Unsafe tensor detected after stacking batch."); return None
 
+             # Prepare dictionary for return
              final_batch_dict = {
-                 'states': states_batch, 'beliefs': beliefs_batch, 'rewards': rewards_batch,
-                 'next_states': next_states_batch, 'dones': dones_batch,
-                 'target_hm_idx': head_movement_idx_batch # Add target indices to dict
+                 'states': states_batch,
+                 'beliefs': beliefs_batch, # Include beliefs, even if default
+                 'rewards': rewards_batch,
+                 'next_states': next_states_batch,
+                 'dones': dones_batch,
+                 'target_hm_idx': head_movement_idx_batch # Add target HM indices
              }
-             indices_tensor = torch.tensor(indices, dtype=torch.long, device=DEVICE)
+             indices_tensor = torch.tensor(indices, dtype=torch.long, device=DEVICE) # Indices used for priority updates
 
              return final_batch_dict, indices_tensor, weights_tensor
-         except Exception as e: logger.error(f"Memory Sample: Error stacking batch tensors: {e}"); return None
+         except Exception as e:
+             logger.error(f"Memory Sample: Error stacking batch tensors: {e}"); return None
 
     def update_priorities(self, indices: torch.Tensor, td_errors: torch.Tensor):
-        """Updates priorities based on TD errors."""
-        if not isinstance(indices, torch.Tensor) or not isinstance(td_errors, torch.Tensor): logger.warning(f"update_priorities: Invalid types ({type(indices)}, {type(td_errors)})."); return
-        if indices.numel() == 0 or td_errors.numel() == 0 or indices.shape[0] != td_errors.shape[0]: logger.warning(f"update_priorities: Mismatch/empty tensors (Indices: {indices.shape}, Errors: {td_errors.shape})."); return
+        """Updates priorities for sampled indices based on new TD errors."""
+        if not isinstance(indices, torch.Tensor) or not isinstance(td_errors, torch.Tensor):
+            logger.warning(f"update_priorities: Invalid types ({type(indices)}, {type(td_errors)})."); return
+        if indices.numel() == 0 or td_errors.numel() == 0 or indices.shape[0] != td_errors.shape[0]:
+            logger.warning(f"update_priorities: Mismatch/empty tensors (Indices: {indices.shape}, Errors: {td_errors.shape})."); return
 
-        # Use absolute TD error for priority update
+        # Use absolute TD error for priority update, add epsilon
         new_priorities_raw = torch.abs(td_errors).cpu().numpy().flatten() + 1e-5
-        # Priorities stored in the deque should reflect alpha influence for sampling bias
+        # Apply alpha factor for sampling probability calculation (stored priority)
         new_priorities_final = new_priorities_raw ** Config.RL.PER_ALPHA
 
         np_indices = indices.cpu().numpy()
@@ -249,7 +278,8 @@ class MetaCognitiveMemory:
         for i, idx in enumerate(np_indices):
             if 0 <= idx < len(self.priorities):
                  self.priorities[idx] = new_priorities_final[i]; updated_count += 1
-            else: logger.warning(f"update_priorities: Invalid index {idx} (Mem size: {len(self.priorities)}). Skip."); skipped_count += 1
+            else:
+                 logger.warning(f"update_priorities: Invalid index {idx} encountered (Memory size: {len(self.priorities)}). Skipping update for this index."); skipped_count += 1
         # if skipped_count > 0: logger.debug(f"Priorities updated for {updated_count} indices. Skipped {skipped_count}.")
 
     def get_belief_norm(self, memory_deque: Deque[Experience]) -> float:
@@ -257,125 +287,20 @@ class MetaCognitiveMemory:
         valid_beliefs = [exp.belief for exp in memory_deque if exp.belief is not None and isinstance(exp.belief, torch.Tensor) and exp.belief.numel() > 0 and is_safe(exp.belief)]
         if not valid_beliefs: return 0.0
         try:
+             # Ensure tensors are float and on CPU for norm calculation
              individual_norms = [torch.linalg.norm(b.float().cpu()).item() for b in valid_beliefs];
              return sum(individual_norms) / len(individual_norms) if individual_norms else 0.0
-        except Exception as e: logger.error(f"Error calculating belief norm: {e}"); return 0.0
+        except Exception as e:
+             logger.error(f"Error calculating belief norm: {e}"); return 0.0
 
-    def get_short_term_norm(self) -> float: return self.get_belief_norm(self.short_term)
-    def get_long_term_norm(self) -> float: return self.get_belief_norm(self.long_term)
+    def get_short_term_norm(self) -> float:
+        """Calculates the average L2 norm of beliefs in short-term memory."""
+        return self.get_belief_norm(self.short_term)
 
+    def get_long_term_norm(self) -> float:
+        """Calculates the average L2 norm of beliefs in long-term memory."""
+        return self.get_belief_norm(self.long_term)
 
-# --- BPE Tokenizer Variables and Functions (Moved from config.py) ---
-bpe_tokenizer: TokenizerOptional[Tokenizer] = None
-BPE_PAD_TOKEN_ID: Optional[int] = None
-BPE_START_TOKEN_ID: Optional[int] = None
-BPE_END_TOKEN_ID: Optional[int] = None
-BPE_UNK_TOKEN_ID: Optional[int] = None
-
-def train_or_load_bpe_tokenizer(data: List[Dict[str, Any]], config: NLPConfig) -> Optional[Tokenizer]:
-    """Loads or trains the BPE tokenizer. Returns None if loading/training fails."""
-    global BPE_PAD_TOKEN_ID, BPE_START_TOKEN_ID, BPE_END_TOKEN_ID, BPE_UNK_TOKEN_ID, bpe_tokenizer
-
-    if not TOKENIZERS_LIB_AVAILABLE:
-        logger.error("Cannot load/train BPE tokenizer: 'tokenizers' library not installed.")
-        return None
-
-    tokenizer_path = config.TOKENIZER_PATH
-    if not tokenizer_path:
-        logger.warning("BPE Tokenizer path not set in config. Skipping BPE tokenizer.")
-        return None
-
-    os.makedirs(os.path.dirname(tokenizer_path), exist_ok=True)
-    special_token_objects = [AddedToken(token, single_word=True) for token in config.SPECIAL_TOKENS]
-
-    loaded_tokenizer: Optional[Tokenizer] = None
-    try:
-        if os.path.exists(tokenizer_path):
-            logger.info(f"Loading existing BPE tokenizer from {tokenizer_path}")
-            loaded_tokenizer = Tokenizer.from_file(tokenizer_path)
-        else:
-            logger.info(f"BPE Tokenizer not found at {tokenizer_path}. Training a new one...")
-            if not data:
-                 logger.warning("Cannot train BPE tokenizer: No training data provided. Skipping."); return None
-
-            text_corpus = [item.get(k, "") for item in data for k in ["output", "situation"] if isinstance(item.get(k), str)] # Extract text safely
-            if not text_corpus: logger.error("Cannot train BPE tokenizer: No valid text found in training data."); return None
-
-            temp_bpe_tokenizer = Tokenizer(BPE(unk_token="<UNK>"))
-            temp_bpe_tokenizer.pre_tokenizer = Whitespace()
-            temp_bpe_tokenizer.decoder = decoders.BPEDecoder()
-            # Use vocab size from config, BpeTrainer handles it
-            trainer = BpeTrainer(vocab_size=config.VOCAB_SIZE, special_tokens=special_token_objects)
-            logger.info(f"Training BPE tokenizer with target vocab size {config.VOCAB_SIZE} and {len(special_token_objects)} special tokens...")
-            temp_bpe_tokenizer.train_from_iterator(text_corpus, trainer=trainer)
-            logger.info(f"BPE Tokenizer training complete.")
-            temp_bpe_tokenizer.save(tokenizer_path)
-            logger.info(f"BPE Tokenizer saved to {tokenizer_path}")
-            loaded_tokenizer = temp_bpe_tokenizer
-
-        if loaded_tokenizer:
-            if loaded_tokenizer.decoder is None: logger.warning("Loaded BPE tokenizer missing decoder, setting BPEDecoder."); loaded_tokenizer.decoder = decoders.BPEDecoder()
-            actual_vocab_size = loaded_tokenizer.get_vocab_size()
-            # config.VOCAB_SIZE = actual_vocab_size # Don't overwrite config if HF is primary
-            logger.info(f"BPE Tokenizer ready. Actual Vocab size: {actual_vocab_size}")
-            bpe_tokenizer = loaded_tokenizer
-            BPE_PAD_TOKEN_ID = bpe_tokenizer.token_to_id("<PAD>")
-            BPE_START_TOKEN_ID = bpe_tokenizer.token_to_id("<START>")
-            BPE_END_TOKEN_ID = bpe_tokenizer.token_to_id("<END>")
-            BPE_UNK_TOKEN_ID = bpe_tokenizer.token_to_id("<UNK>")
-            if None in [BPE_PAD_TOKEN_ID, BPE_START_TOKEN_ID, BPE_END_TOKEN_ID, BPE_UNK_TOKEN_ID]:
-                missing_tokens = [t for t, tid in [("<PAD>", BPE_PAD_TOKEN_ID), ("<START>", BPE_START_TOKEN_ID), ("<END>", BPE_END_TOKEN_ID), ("<UNK>", BPE_UNK_TOKEN_ID)] if tid is None]
-                logger.error(f"Failed to get IDs for BPE special tokens: {missing_tokens}.");
-                bpe_tokenizer = None # Invalidate tokenizer if specials are missing
-                return None
-            logger.debug(f"BPE Special Token IDs: PAD={BPE_PAD_TOKEN_ID}, START={BPE_START_TOKEN_ID}, END={BPE_END_TOKEN_ID}, UNK={BPE_UNK_TOKEN_ID}")
-            return bpe_tokenizer
-        else:
-            return None
-
-    except Exception as e:
-         logger.error(f"Error during BPE tokenizer loading/training: {e}", exc_info=True)
-         bpe_tokenizer = None
-         return None
-
-# --- BPE Tokenization functions (Keep separate in case needed elsewhere) ---
-def tokenize_bpe(text: str, max_length: int = Config.NLP.MAX_RESPONSE_LEN - 2) -> List[int]:
-    if bpe_tokenizer is None: logger.error("BPE Tokenizer not initialized for tokenize_bpe."); return []
-    if not isinstance(text, str): logger.warning(f"Invalid input to tokenize_bpe: type {type(text)}."); return []
-    try:
-        encoding = bpe_tokenizer.encode(text.lower(), add_special_tokens=False)
-        truncated_ids = encoding.ids[:max_length]
-        return truncated_ids
-    except Exception as e:
-        logger.error(f"Error during BPE tokenization of '{text[:50]}...': {e}", exc_info=True)
-        return []
-
-def detokenize_bpe(indices: List[int]) -> str:
-    if bpe_tokenizer is None: logger.error("BPE Tokenizer not initialized for detokenize_bpe."); return ""
-    if isinstance(indices, torch.Tensor):
-        try: indices = indices.cpu().tolist()
-        except Exception as e: logger.warning(f"Error converting tensor to list for detokenize_bpe: {e}"); return "[Tensor Conversion Error]"
-    if not isinstance(indices, (list, tuple)): logger.warning(f"Invalid input to detokenize_bpe: type {type(indices)}."); return ""
-    if BPE_PAD_TOKEN_ID is None or BPE_START_TOKEN_ID is None or BPE_END_TOKEN_ID is None: logger.error("Cannot detokenize_bpe: Special tokens not set."); return ""
-    try:
-        special_ids_to_filter = {BPE_PAD_TOKEN_ID, BPE_START_TOKEN_ID, BPE_END_TOKEN_ID}
-        valid_indices = [int(idx) for idx in indices if idx is not None and idx not in special_ids_to_filter] # Check for None too
-        decoded_text = bpe_tokenizer.decode(valid_indices, skip_special_tokens=True)
-        processed_text = re.sub(r'(?<=[a-zA-Z0-9])([.,!?;:])', r' \1', decoded_text)
-        processed_text = re.sub(r'\s+', ' ', processed_text)
-        return processed_text.strip()
-    except Exception as e:
-        logger.error(f"Error during BPE detokenization of indices {indices}: {e}", exc_info=True)
-        return "[Detokenization Error]"
-
-def initialize_bpe_tokenizer(data: List[Dict[str, Any]], config: NLPConfig):
-    """Call this once during startup to initialize the BPE tokenizer."""
-    logger.info("Initializing BPE tokenizer...")
-    if train_or_load_bpe_tokenizer(data, config) is None:
-        logger.warning("BPE tokenizer initialization failed or was skipped.")
-    else:
-        logger.info("BPE tokenizer initialized successfully.")
-# --- END ADDED ---
-
+# --- REMOVED: BPE Tokenizer Variables and Functions ---
 
 # --- END OF FILE utils.py ---
