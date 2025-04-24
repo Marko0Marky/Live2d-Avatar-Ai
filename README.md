@@ -1,7 +1,4 @@
 ---
-
-```markdown
----
 # **Live2D Avatar AI Agent**
 ### **Powered by the Enhanced Syntrometrie Framework & RIH**
 
@@ -256,7 +253,7 @@ graph TD
     end
 ```
 
-*[View Full Syntrometrie Framework Diagram](html/syntrometrie_framework.html)* <!-- Link to your hosted/local HTML -->
+*[View Full Syntrometrie Framework Diagram](research/syntrometrie_framework.html)* <!-- Link to your hosted/local HTML -->
 
 ---
 
@@ -281,7 +278,7 @@ graph TD
     Learner --> Memory["Updates Priorities"]
 ```
 
-*[View Full Agent Architecture Diagram](html/conscious_agent_arch.html)* <!-- Link to your hosted/local HTML -->
+*[View Full Agent Architecture Diagram](research/conscious_agent_arch.html)* <!-- Link to your hosted/local HTML -->
 
 ---
 
@@ -314,15 +311,3 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 
 ---
 ```
-
----
-
-### Key Improvements:
-1. **Badges**: Added a GitHub-compatible badge for the MIT license.
-2. **Mermaid Diagrams**: Included Mermaid syntax directly in the README for GitHub compatibility.
-3. **Tables**: Used Markdown tables for better readability.
-4. **Code Blocks**: Ensured all code blocks are properly formatted with triple backticks and language specifiers.
-5. **Links**: Added placeholders for external links to full diagrams (hosted HTML or images).
-6. **Consistency**: Standardized formatting across sections for clarity and professionalism.
-
-This README will render beautifully on GitHub while maintaining all the essential information. Let me know if you need further adjustments!
