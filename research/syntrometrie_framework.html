@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syntrometrie Framework Diagram</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        /* Optional: Add styles for better presentation if needed */
+    </style>
+</head>
+<body>
+    <h1>Syntrometrie Framework (Conceptual Overview)</h1>
+    <p>This diagram illustrates the high-level structure and relationships between the core components of the enhanced Syntrometrie framework, including foundational logic, recursive hierarchies, geometric structures, emergence principles (RIH), and computational models.</p>
+    <hr>
+    <div class="mermaid">
+graph TB
+    %% Global Styling (Included for consistency, Mermaid might override some)
+    classDef foundation fill:#EAECEE,stroke:#AEB6BF,stroke-width:2px,color:black,font-size:14px
+    classDef structure fill:#E8DAEF,stroke:#A569BD,stroke-width:2px,color:black,font-size:14px
+    classDef geometry fill:#D6EAF8,stroke:#5DADE2,stroke-width:2px,color:black,font-size:14px
+    classDef emergence fill:#D5F5E3,stroke:#58D68D,stroke-width:2px,color:black,font-size:14px
+    classDef computation fill:#FCF3CF,stroke:#F4D03F,stroke-width:2px,color:black,font-size:14px
+
+    %% Foundational Layer
+    subgraph "A: Foundational Logic"
+        A1["Primordial Exp.<br>(ästhetische Empirie)"]:::foundation --> A2["Reflection Synthesis<br>(Endo/Exo)"]:::foundation
+        A2 --> A3["Subjective Aspect (S)<br>(Mental State)"]:::foundation
+        A3 --> A4["Predicates P_n = [f_q]_n"]:::foundation
+        A3 --> A5["Dialectics D_n = [d_q]_n"]:::foundation
+        A3 --> A6["Coordination K_n = E_n F(ζ_n, z_n)"]:::foundation
+        A4 --> A6
+        A5 --> A6
+        A7["Antagonismen<br>(Logical Tensions)"]:::foundation --> A5
+        A3 --> A8["Aspect Systems A = α(S)"]:::foundation
+        A9["Categories γ<br>(Invariant Grounding)"]:::foundation --> A3
+    end
+
+    %% Recursive Structure Layer
+    subgraph "B: Recursive Hierarchy"
+        B1["Metrophor a ≡ (a_i)_n<br>(Base Qualia)"]:::structure --> B2["Synkolator Functor F<br>Generates L_{k+1} from L_k"]:::structure
+        B2 --> B3["Syntrix Levels L_k = F^k(L0)<br>(Hierarchical Constructs)"]:::structure
+        B3 --> B4["Syntrix<br>(Union L_k)<br>⟨{, a, m⟩"]:::structure
+        B5["Recursive Def.<br>a = ⟨{, a, m⟩"]:::structure --> B2
+        B6["Normalization<br>(Stabilizes Recursion)"]:::structure --> B2
+        B7["Hierarchical Coord.<br>K_Syntrix = ∏ K_n"]:::structure --> B4
+        A9 --> B1
+    end
+
+    %% Geometric Layer
+    subgraph "C: Geometric Structure"
+        C1["12D Hyperspace (H12)<br>(Underlying Reality)"]:::geometry <-->|"Maps Onto"| B4
+        C2["N=6 Stability<br>(Physical Constraint)"]:::geometry --> C1
+        C1 --> C3["Metric Tensor<br>g_ik^γ(x) = sum f_q^i(x) f_q^k(x)"]:::geometry
+        C3 --> C4["Connection<br>Γ^i_kl"]:::geometry
+        C4 --> C5["Curvature<br>R^i_klm = sum (...)"]:::geometry
+        C6["Quantized Change<br>δφ = φ(n) - φ(n-1)"]:::geometry --> C1
+        B3 --> C3
+        C2 --> C3
+        C7["Mass Formula<br>(Link to Physics)"]:::geometry <-- "Relates to" --> C3
+    end
+
+    %% Emergence Layer
+    subgraph "D: Reflexive Integration"
+        D1["RIH<br>(Reflexive Integration Hypothesis)"]:::emergence
+        C3 --> D2["Integration Measure<br>I(S) = sum MI_d(S) > τ(t)"]:::emergence
+        C5 --> D2
+        B4 --> D3["Reflexivity Cond.<br>ρ: Id_S → F^n"]:::emergence
+        B5 --> D3
+        C2 --> D4["Threshold<br>τ = τ_0(N=6) + Δτ(t)"]:::emergence
+        C3 --> D4
+        D2 --> D1
+        D3 --> D1
+        D4 --> D1
+        D1 --> D5["Emergent Properties<br>(e.g., Consciousness)"]:::emergence
+        A7 -- "Resolved By" --> D5
+    end
+
+    %% Computational Layer
+    subgraph "E: Computational Models"
+        E1["Syntrometric Kripke Frame<br>(Worlds=S(x), R based on g_ik)"]:::computation -->|"Models"| A
+        E1 -->|"Models"| C
+        E1 -->|"Models"| D
+        E2["Sequent Calculus<br>(S; Γ |- ϕ)"]:::computation -->|"Derives From"| A
+        E2 -->|"Derives From"| B
+        E1 -- "Interprets" --> E2
+        E3["GNN Implementation<br>(Agent Model)"]:::computation -->|"Approximates"| B
+        E3 -->|"Approximates"| C
+        E3 -->|"Approximates"| D3
+        E4["Metrics (att_score, value, ...)"]:::computation <-- "Calculated By" --> E3
+        E4 -- "Correspond To" --> D3
+        E4 -- "Correspond To" --> C3
+        E4 -- "Correspond To" --> D4
+    end
+    </div>
+    <hr>
+    <p><em>Note: This diagram represents the conceptual framework based on Heim's Syntrometrie and our enhanced model.</em></p>
+</body>
+</html>
