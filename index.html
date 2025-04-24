@@ -34,6 +34,16 @@
         a:hover {
             text-decoration: underline;
         }
+        .threejs-container {
+            width: 100%;
+            height: 500px;
+            margin: 20px auto;
+            background-color: #000;
+            position: relative;
+        }
+        canvas {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -41,6 +51,7 @@
         <h1>Live2D Avatar AI Agent - Documentation</h1>
         <p>Explore the architecture, setup, and advanced features of this project.</p>
     </header>
+
     <div class="container">
         <h2>Quick Links</h2>
         <ul>
@@ -49,5 +60,143 @@
             <li><a href="../README.md">Main Project README</a></li>
         </ul>
     </div>
+
+    <div class="container">
+        <h2>3D Syntrometry Model</h2>
+        <p>This interactive 3D model visualizes the hierarchical structure of the Syntrometrie Framework, including foundational logic, recursive hierarchy, geometric proxies, and emergent properties.</p>
+        <div class="threejs-container" id="threejs-container"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Initialize Three.js scene
+        const container = document.getElementById('threejs-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // Add orbit controls for navigation
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableZoom = true;
+        controls.enablePan = true;
+
+        // Set up lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 1); // soft white light
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        // Define colors for different layers
+        const colors = [
+            0x00ff00, // Foundational Logic
+            0x0000ff, // Recursive Hierarchy
+            0xffff00, // Geometric Structure
+            0xff0000, // Emergence Layer
+        ];
+
+        // Create hierarchical structure
+        function createNode(name, depth, parent) {
+            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            const material = new THREE.MeshStandardMaterial({ color: colors[depth] });
+            const node = new THREE.Mesh(geometry, material);
+            node.name = name;
+            node.userData.depth = depth;
+
+            if (parent) {
+                parent.add(node);
+                const line = new THREE.Line(
+                    new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(0, 0, 0),
+                        new THREE.Vector3(0, 0, -5)
+                    ]),
+                    new THREE.LineBasicMaterial({ color: 0xffffff })
+                );
+                parent.add(line);
+            }
+
+            return node;
+        }
+
+        // Build the Syntrometrie Framework
+        const root = createNode("Root", 0, null);
+        scene.add(root);
+
+        // Foundational Logic
+        const foundationalLogic = createNode("Foundational Logic", 1, root);
+        foundationalLogic.position.set(0, 0, -5);
+
+        const primordialExp = createNode("Primordial Exp.", 2, foundationalLogic);
+        const reflection = createNode("Reflection", 2, foundationalLogic);
+        const subjectiveAspect = createNode("Subjective Aspect", 2, foundationalLogic);
+
+        // Recursive Hierarchy
+        const recursiveHierarchy = createNode("Recursive Hierarchy", 1, root);
+        recursiveHierarchy.position.set(0, 0, -10);
+
+        const metrophor = createNode("Metrophor", 2, recursiveHierarchy);
+        const synkolator = createNode("Synkolator", 2, recursiveHierarchy);
+        const syntrixLevels = createNode("Syntrix Levels", 2, recursiveHierarchy);
+
+        // Geometric Structure
+        const geometricStructure = createNode("Geometric Structure", 1, root);
+        geometricStructure.position.set(0, 0, -15);
+
+        const metricTensor = createNode("Metric Tensor", 2, geometricStructure);
+        const connection = createNode("Connection", 2, geometricStructure);
+        const curvature = createNode("Curvature", 2, geometricStructure);
+
+        // Emergence Layer
+        const emergenceLayer = createNode("Emergence Layer", 1, root);
+        emergenceLayer.position.set(0, 0, -20);
+
+        const rih = createNode("RIH", 2, emergenceLayer);
+        const integration = createNode("Integration", 2, emergenceLayer);
+        const reflexivity = createNode("Reflexivity", 2, emergenceLayer);
+        const threshold = createNode("Threshold", 2, emergenceLayer);
+        const emergentConsciousness = createNode("Emergent Consciousness", 2, emergenceLayer);
+
+        // Positioning and Scaling
+        const spacing = 5;
+        let currentY = 0;
+
+        [primordialExp, reflection, subjectiveAspect].forEach((node, index) => {
+            node.position.y = currentY + index * spacing;
+        });
+
+        [metrophor, synkolator, syntrixLevels].forEach((node, index) => {
+            node.position.y = currentY + index * spacing;
+        });
+
+        [metricTensor, connection, curvature].forEach((node, index) => {
+            node.position.y = currentY + index * spacing;
+        });
+
+        [integration, reflexivity, threshold].forEach((node, index) => {
+            node.position.y = currentY + index * spacing;
+        });
+
+        // Camera setup
+        camera.position.z = 50;
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
 </body>
 </html>
