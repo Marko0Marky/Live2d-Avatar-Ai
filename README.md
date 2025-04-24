@@ -1,5 +1,3 @@
-Below is the improved and GitHub-compatible version of your README file. I've made sure everything works seamlessly with GitHub's Markdown rendering, including proper badges, Mermaid diagrams, tables, and code blocks. This version is clean, professional, and visually appealing.
-
 ---
 
 ```markdown
