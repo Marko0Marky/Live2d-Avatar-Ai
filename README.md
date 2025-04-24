@@ -1,292 +1,492 @@
-# Live2D Avatar AI Agent
-### Powered by the Syntrometrie Framework
+Live2D Avatar AI Agent
+Powered by the Enhanced Syntrometrie Framework & RIH
 
-Meet a **Live2D Cubism 3** avatar that doesn’t just animate—it *thinks* and *feels*. This project blends real-time animation with a "conscious" AI agent, driven by the innovative **Syntrometrie framework**. Chat with it, and watch it respond with dynamic **expressions** and **head movements**, all refined through reinforcement learning. Built on a stack of **PyTorch**, **PyQt5/OpenGL**, `live2d-py`, `sentence-transformers`, and `transformers`.
+![alt text](https://img.shields.io/badge/License-MIT-yellow.svg)
 
----
+<!-- Optional: Add other badges like build status, version, etc. -->
 
-## 🌟 What’s It All About?
+<!-- [![Build Status](link/to/your/build_badge.svg)](link/to/your/build_pipeline) -->
 
-This is where AI meets emotional intelligence in a virtual companion. It’s a playground for AI enthusiasts, animators, and developers to experiment with reinforcement learning (DDQN, PER), natural language processing (Transformers), and Live2D animation. The result? A responsive, evolving avatar aiming for believable interaction and presence.
+<!-- [![Release Version](link/to/your/release_badge.svg)](link/to/your/releases) -->
 
----
 
-## 🚀 Key Features
+Meet a Live2D Cubism 3 avatar designed not just to animate, but to simulate core aspects of structured experience and potentially emergent consciousness. This project integrates real-time animation with a complex AI agent driven by our modernized Syntrometrie framework and the Reflexive Integration Hypothesis (RIH). Engage with it via chat and observe its responses and dynamic internal state, shaped by a unique learning process optimizing for theoretical coherence.
 
--   **Syntrometrie-Inspired AI Core**: Custom framework for state processing:
-    -   *Metronic Lattice*: Discretizes state.
-    *   *Syntrix Korporator*: Composes belief representations.
-    *   *Struktur Kaskade*: Propagates belief through layers.
--   **Dynamic Agent State**: Integrates base emotional/environmental state with optional **Sentence Transformer embeddings** derived from text (monologue, user input).
--   **Advanced NLP (Hugging Face Transformers)**:
-    *   Utilizes pre-trained models (e.g., `distilgpt2`, `DialoGPT-small`) via the `transformers` library for conversational responses.
-    *   Supports **fine-tuning** these models on custom data (script included).
-    *   Employs improved **context management** for more relevant replies.
--   **Dynamic Avatar Animation**:
-    *   Procedural effects: Breathing, blinking, idle sway, **micro-movements**.
-    *   Emotion-driven expressions mapped from agent state.
-    *   Agent-predicted **head movements** (nods, tilts, turns) applied in real-time.
-    *   Particle system effects influenced by emotions.
--   **Reinforcement Learning System**:
-    *   **Double DQN (DDQN)** with target networks for stable value learning.
-    *   **Prioritized Experience Replay (PER)** for efficient sample usage.
-    *   Supervised learning head for **head movement prediction** trained alongside RL.
-    *   Basic **intrinsic rewards** (consistency, stability) included.
-    *   **Asynchronous training** via `concurrent.futures` for smooth GUI performance.
--   **Interactive GUI & State Management**:
-    *   PyQt5-based interface with OpenGL rendering.
-    *   HUD overlay displaying key emotions and RL metrics.
-    *   Detailed AI State Panel showing internal metrics, mood, and environment controls.
-    *   Live chat interface for user interaction.
-    *   Functionality to **save and load** the complete agent state (networks, optimizer, buffer) via GUI buttons or command-line arguments.
-*   **Richer Emotions:** Variable decay rates allow different emotions to persist differently.
+Built on: PyTorch, PyTorch Geometric (Optional), PyQt5/OpenGL, live2d-py, transformers, datasets, accelerate.
 
----
+🌟 What’s It All About?
 
-## 📊 Project Status
+This project moves beyond simple chatbots or animation controllers. It's an experimental platform exploring:
 
--   **Current State**: Core components integrated (DDQN, TransformerGPT, Save/Load, HM Prediction). Actively developing.
--   **Next Steps**:
-    -   **Critical**: Fine-tune the Transformer GPT model with more data for coherent conversation.
-    *   Improve head movement prediction robustness and variety.
-    *   Implement comprehensive testing.
-    *   Explore performance optimizations.
+Syntrometrie: Implementing Burkhard Heim's ideas about hierarchical logical structures (
+𝑆
+,
+𝐿
+𝑘
+S,L
+k
+	​
 
----
+) and emergent geometry (
+𝑔
+𝑖
+𝑘
+,
+Γ
+,
+𝑅
+g
+ik
+	​
 
-## 🛠️ How It Works (Updated Flow)
+,Γ,R
+).
 
-1.  **State Generation**: `EmotionalSpace` produces a `base_state`.
-2.  **Text Processing**: `Orchestrator` generates monologue/response via `TransformerGPT`. Optional `SentenceTransformer` creates text `embedding`.
-3.  **State Combination**: `Orchestrator` combines `base_state` + `embedding` -> `current_state`.
-4.  **Agent Processing**: `Agent` processes `current_state` through Syntrometrie modules -> `belief`.
-5.  **Prediction**: `Agent` (online nets) predicts `value`, `head_movement_label`.
-6.  **Avatar Update**: `Orchestrator` sends predicted `head_movement_label` and `last_response_emotions` to `Live2DCharacter`.
-7.  **Experience Storage**: `Orchestrator` stores `Experience` tuple (incl. `head_movement_idx`, TD error) in `MetaCognitiveMemory`.
-8.  **Learning Loop (Async)**: `Agent.learn` samples from PER buffer, calculates TD target using **target networks** (DDQN), computes losses (value + HM), updates **online networks**, updates PER priorities, and performs soft update on **target networks**.
-9.  **Chat**: User input -> `Orchestrator` -> Embedding/State Update -> Improved Context Prompt -> `TransformerGPT` -> Response -> History Update -> Avatar Emotion/Movement Update.
+Computational Consciousness: Testing the Reflexive Integration Hypothesis (RIH) – can consciousness emerge when a system achieves high integration (
+𝐼
+(
+𝑆
+)
+I(S)
+) and reflexivity ((\rho)) above a dynamic threshold ((\tau(t)))?
 
-For a deeper dive into the architecture, check out the [Mermaid Diagrams](#architecture-diagrams).
+AI Architecture: Using Graph Neural Networks (GNNs) to simulate the Syntrix recursion and compute RIH metrics.
 
----
+Modern NLP: Leveraging Hugging Face Transformers (distilgpt2 or others) for dialogue generation.
 
-## 🚀 Get Started
+Interactive Simulation: Providing a GUI to interact with the agent, visualize its internal state, and observe its behavior.
 
-### Prerequisites
--   **Python**: 3.8+ recommended.
--   **Dependencies**: Use a virtual environment!
-    ```bash
-    # Optional: Create and activate venv
-    # python -m venv venv
-    # source venv/bin/activate  # Linux/macOS
-    # .\venv\Scripts\activate  # Windows
+It serves as a computational playground for AI researchers, philosophers of mind, cognitive scientists, and developers interested in advanced AI architectures and theories of consciousness.
 
-    # Install dependencies
-    pip install torch numpy PyQt5 PyOpenGL PyOpenGL-accelerate qasync live2d-py[cubism3] tokenizers sentence-transformers transformers datasets accelerate html5lib # Added transformers, datasets, accelerate, html5lib
+🚀 Key Features
 
-    # Optional: Create requirements file
-    # pip freeze > requirements.txt
-    ```
--   **(CRITICAL) Live2D Core**: Download the native Cubism Core library (`.dll`/`.so`/`.dylib`) for your OS from the [Live2D Website](https://www.live2d.com/en/download/cubism-sdk/download-native/) and place it in the project root OR ensure it's discoverable in your system's library path. Check [live2d-py](https://github.com/Arkueid/live2d-py/blob/main/README.en.md) for details.
--   **(Recommended)** **CUDA-enabled GPU**: For reasonable performance, especially for fine-tuning and Sentence Transformer embeddings. Ensure matching PyTorch CUDA version.
+Syntrometrie AI Core (Refactored ConsciousAgent):
 
-### Setup
-1.  **Live2D Model**: Place your Cubism **3** model files (e.g., `*.model3.json`) inside the `./models/` directory. Update `GraphicsConfig.MODEL_PATH` in `config.py` if needed.
-2.  **Training Data**: Place `train_data.json` (or the provided `train_data_anime_girl.json`, renamed) in the project root. Ensure it follows the format specified below. Update `TRAINING_DATA_PATH` in `config.py` if using a different name.
-3.  **Create Directories**: Manually create `./tokenizer` and `./saved_models` folders in the project root if they don't exist.
+12D State Space: Explicitly models Heim's proposed dimensions (6 physical/emotional, 6 informational/qualia).
 
-### Running
-1.  **(Optional but HIGHLY Recommended) Fine-tune GPT Model:**
-    *   Prepare a suitable training dataset (`train_data.json` or ideally, a larger custom one).
-    *   Ensure you have a CUDA-enabled GPU and compatible PyTorch/CUDA installed.
-    *   Run the fine-tuning script: `python fine_tune_gpt.py`
-    *   This saves the fine-tuned model to the directory specified by `GPT_SAVE_PATH` in `config.py` (e.g., `./saved_models/distilgpt2_finetuned`).
-2.  **Run the Main Application:**
-    ```bash
-    # Run normally (loads fine-tuned GPT if found, else base)
-    python main.py
+GNN-based Syntrix Simulation: Uses GNN layers (PyG optional) to approximate recursive syndrome generation (
+𝐹
+F
+).
 
-    # Run and load previously saved agent state (if available)
-    python main.py --load
+Geometric Proxies: Computes internal metrics (
+𝑔
+𝑖
+𝑘
+,
+Γ
+,
+𝑅
+,
+𝜁
+,
+stability
+g
+ik
+	​
 
-    # Automatically save agent state on exit
-    python main.py --save-on-exit
-    ```
--   **Controls**: `Space` (Pause/Resume), `Q`/`Esc` (Quit), `C` (Completeness Test), `Save Agent`/`Load Agent` buttons, Chat Input + `Enter`.
+,Γ,R,ζ,stability
+) derived from GNN embeddings.
 
----
+Qualia Mapping: Explicit head maps GNN state to R7-12 dimensions, with feedback to the environment.
 
-## 🧩 Core Components
+Reflexive Integration Hypothesis (RIH) Implementation:
 
-| File                | Role                                                                                                |
-|---------------------|-----------------------------------------------------------------------------------------------------|
-| `config.py`         | Central config (dataclasses), constants, paths, data loading/validation, save paths.               |
-| `agent.py`          | `ConsciousAgent`: Core RL (DDQN+PER), HM prediction, state processing, save/load logic.             |
-| `environment.py`    | `EmotionalSpace`: Simulates base state, internal events, keyword impact.                          |
-| `ai_modules.py`     | PyTorch modules: `EmotionalModule` (variable decay), `SyntrixKorporator`, `StrukturKaskade`, `TransformerGPT`. |
-| `graphics.py`       | `Live2DCharacter`: Live2D rendering, animation, applies predicted movements.                          |
-| `gui_widgets.py`    | `HUDWidget` & `AIStateWidget` UI elements.                                                            |
-| `main_gui.py`       | Main application window (`EnhancedGameGUI`), integrates UI components, handles user input/controls. |
-| `orchestrator.py`   | `EnhancedConsciousAgent`: Coordinates modules, handles chat, async learning, save/load calls.       |
-| `utils.py`          | Helpers (`is_safe`), `Experience` tuple, `MetronicLattice`, `MetaCognitiveMemory` (PER), BPE tokenizer logic. |
-| `main.py`           | Application entry point, `asyncio`/`qasync` setup, argument parsing, initializers.                  |
-| `fine_tune_gpt.py`  | **(New)** Standalone script for fine-tuning the Hugging Face GPT model.                             |
+Computes proxies for Integration 
+𝐼
+(
+𝑆
+)
+I(S)
+, Reflexivity (\rho), and dynamic Threshold (\tau(t)).
 
----
+RIH-Driven Loss: Custom loss function combines standard RL value loss with terms optimizing for RIH conditions (high 
+𝐼
+(
+𝑆
+)
+I(S)
+, high (\rho)) and Syntrometric stability/coherence.
 
-## 📚 Training Data Format
+Learning System:
 
-Used for BPE Tokenizer (optional), GPT Fine-tuning, and Head Movement Training.
+Combines Reinforcement Learning (Value Learning with Target Networks) and RIH Optimization.
 
-**Required:** `"output"` (string)
-**Optional:**
--   `"situation"` (string): Context for the output.
--   `"emotion_weights"` (list of 4 floats): Used for legacy SimpleGPT bias (less relevant now).
--   `"head_movement"` (string): Target label (must be in `config.py:HEAD_MOVEMENT_LABELS`).
+Prioritized Experience Replay (PER) based on TD Error magnitude.
+
+Asynchronous training via concurrent.futures.
+
+Advanced NLP (Hugging Face Transformers):
+
+Uses TransformerGPT wrapper for models like distilgpt2.
+
+Supports fine-tuning via fine_tune_gpt.py script (requires datasets, accelerate).
+
+Improved context management for dialogue.
+
+Dynamic Avatar Animation:
+
+Procedural effects (breathing, blinking, idle sway, micro-movements).
+
+Emotion-driven expressions mapped directly from the agent's internal emotional state (R1-6).
+
+(Note: Explicit head movement prediction removed; movement is now emergent).
+
+Particle system effects.
+
+Interactive GUI & State Management:
+
+PyQt5/OpenGL interface.
+
+HUD: Displays key RIH/Syntrometric metrics (
+𝐼
+,
+𝜌
+,
+𝑆
+𝑡
+𝑎
+𝑏
+,
+𝐿
+𝑜
+𝑠
+𝑠
+I,ρ,Stab,Loss
+).
+
+AI State Panel: Shows detailed internal metrics (RIH, geometry proxies, mood) and environment controls.
+
+Live chat interface.
+
+Robust Save/Load functionality for agent state, optimizer, and replay buffer.
+
+📊 Project Status
+
+Current State: Major refactoring complete. Core RIH/Syntrometrie logic implemented in the agent and orchestrator. GNN uses simplified graph structure. Value learning integrated.
+
+Next Steps:
+
+Critical: Implement batch processing within Agent.forward and its helpers for efficient training.
+
+Critical: Fine-tune the Transformer GPT model for coherent conversation.
+
+Testing & Debugging: Implement comprehensive unit and integration tests. Validate metric calculations.
+
+Hyperparameter Tuning: Systematically tune loss weights, RIH thresholds, GNN parameters, and RL hyperparameters.
+
+Refine GNN graph structure (build_graph).
+
+Enhance avatar animation based on the 12D state / RIH metrics.
+
+Performance optimization.
+
+🛠️ How It Works (Syntrometrie/RIH Flow)
+
+Environment State: EmotionalSpace provides a 12D state 
+𝑠
+𝑡
+s
+t
+	​
+
+ (R1-6 = emotions, R7-12 = last computed qualia).
+
+Agent Forward Pass: ConsciousAgent processes 
+𝑠
+𝑡
+s
+t
+	​
+
+ using encoder -> GNN -> self_reflect_layer.
+
+Metric Calculation: Agent computes geometric proxies (
+𝑔
+𝑖
+𝑘
+,
+Γ
+,
+𝑅
+g
+ik
+	​
+
+,Γ,R
+), RIH metrics (
+𝐼
+(
+𝑆
+)
+,
+𝜌
+,
+𝜏
+(
+𝑡
+)
+I(S),ρ,τ(t)
+), stability (
+𝑆
+S
+), complexity ((\zeta)), value 
+𝑉
+(
+𝑠
+)
+V(s)
+, etc. from internal embeddings.
+
+Qualia Update: Agent computes new R7-12 qualia via qualia_output_head.
+
+Full State & Feedback: Agent assembles new full_state (updated R1-6 emotions + new R7-12 qualia). Sends R7-12 qualia back to Environment via Orchestrator for the next timestep's state generation. Agent computes feedback signal.
+
+Response Generation: Orchestrator gets context, calls agent.generate_response (uses TransformerGPT + attention score proxy).
+
+Avatar Update: Orchestrator sends current emotions (R1-6) to Live2DCharacter for expression mapping. (Movement is emergent).
+
+Learning Loop (Async):
+
+Orchestrator triggers _run_learn_task.
+
+Task samples batch from MetaCognitiveMemory.
+
+Calls Agent.learn(batch_data, indices, weights).
+
+Agent.learn:
+
+Performs batch forward pass (or loop currently) for 
+𝑠
+s
+ and 
+𝑠
+′
+s
+′
+.
+
+Calculates TD Target using target value network.
+
+Calculates combined loss (weighted Value Loss + weighted RIH/Syntrometric Loss).
+
+Performs backpropagation and optimizer step on online networks.
+
+Updates PER priorities using TD Error.
+
+Performs soft update on target value network.
+
+Adds experiences from the processed batch to memory.
+
+For detailed diagrams visualizing these flows:
+
+Architecture Diagrams
+
+🚀 Get Started
+Prerequisites
+
+Python: 3.8+ recommended.
+
+PyTorch: Version compatible with your system (CPU or CUDA). See pytorch.org.
+
+Dependencies: Use a virtual environment!
+
+# Create/activate venv (recommended)
+# python -m venv venv
+# source venv/bin/activate  OR  .\venv\Scripts\activate
+
+# Install core dependencies
+pip install torch numpy PyQt5 PyOpenGL PyOpenGL-accelerate qasync live2d-py[cubism3] transformers==4.* datasets accelerate sentence-transformers html5lib
+
+# Optional: Install PyTorch Geometric (needed for GCN, GAT etc. GNN layers)
+# Follow official instructions: https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html
+# Example (check site for your specific torch/cuda version):
+# pip install torch_geometric
+# pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-XX.X.X+cuYYY.html
+
+# Optional: Create requirements.txt
+# pip freeze > requirements.txt
+
+
+(CRITICAL) Live2D Cubism Core SDK: Download the native library (.dll/.so/.dylib) for your OS from the Live2D Website. Place it in the project root directory. See live2d-py for details.
+
+(Recommended) CUDA-enabled GPU & Setup: Ensure correct NVIDIA drivers, CUDA Toolkit version, and matching PyTorch CUDA build for GPU acceleration.
+
+(Potential) Microsoft Visual C++ Redistributable: Needed on some Windows systems. Download the latest "x64" version from Microsoft.
+
+Setup
+
+Live2D Model: Place your Cubism 3 model files (e.g., *.model3.json and associated files) inside ./models/. Update GraphicsConfig.MODEL_PATH in config.py.
+
+(Optional) Training Data: If you plan to fine-tune the GPT model, place suitable JSON data (see format below) in the project root and update TRAINING_DATA_PATH in config.py.
+
+Create Directories: Manually create ./saved_models folder in the project root if it doesn't exist. The GPT fine-tuning script will create its output directory if needed.
+
+Running
+
+(Optional but Recommended) Fine-tune GPT Model:
+
+Ensure datasets and accelerate are installed (pip install datasets accelerate).
+
+Prepare training data (JSON format).
+
+Run: python fine_tune_gpt.py (requires CUDA GPU for reasonable speed).
+
+Fine-tuned model will be saved to Config.GPT_SAVE_PATH.
+
+Run the Main Application:
+
+# Run normally (loads base or fine-tuned GPT if found)
+python main.py
+
+# Run and load previously saved agent state (model weights, optimizer, memory)
+python main.py --load
+
+# Automatically save agent state on graceful exit (Ctrl+C or window close)
+python main.py --save-on-exit
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Bash
+IGNORE_WHEN_COPYING_END
+
+GUI Controls: Space (Pause/Resume), Q/Esc (Quit), C (RIH Completeness Test), Save Agent/Load Agent buttons, Chat Input + Enter.
+
+🧩 Core Components
+File	Role	Key Modules/Concepts
+config.py	Central configuration, constants, paths.	Dataclasses (Agent, RL, NLP, Env, GNN, Graphics)
+agent.py	Core AI logic, learning algorithm, state processing.	ConsciousAgent, RIH Loss, GNN, Target Net
+environment.py	Simulates 12D state, events, qualia feedback loop.	EmotionalSpace, 12D State, update_qualia_feedback
+ai_modules.py	Reusable PyTorch modules.	EmotionalModule, TransformerGPT
+graphics.py	Live2D rendering, procedural animation, particle effects.	Live2DCharacter
+gui_widgets.py	UI elements for displaying state and metrics.	HUDWidget, AIStateWidget (displays RIH metrics)
+main_gui.py	Main application window, UI integration, event handling.	EnhancedGameGUI
+orchestrator.py	Coordinates all components, manages async learning, handles chat.	EnhancedConsciousAgent (Orchestrator class)
+utils.py	Helper functions, Experience tuple, Replay Memory.	is_safe, Experience, MetaCognitiveMemory
+main.py	Application entry point, async loop setup, argument parsing.	qasync, argparse
+fine_tune_gpt.py	(New) Standalone script for fine-tuning the Transformer GPT model.	transformers.Trainer, datasets
+📚 Training Data Format (for GPT Fine-tuning)
+
+Primarily used by fine_tune_gpt.py. Format requires "output" and optionally "situation" for context.
 
 Example:
-```json
-{
-  "situation": "User asks 'how are you?'",
-  "output": "I’m feeling great, thanks for asking!",
-  "emotion_weights": [0.8, 0.0, 0.1, 0.0],
-  "head_movement": "gentle_nod"
-}
-```
 
----
+[
+  {
+    "situation": "User said: Hello!",
+    "output": "Hi there! How can I help you today?"
+  },
+  {
+    "output": "I'm feeling a bit curious about Syntrometrie."
+  }
+]
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Json
+IGNORE_WHEN_COPYING_END
 
-## 🎨 Customize It
+(Note: emotion_weights and head_movement fields are now legacy).
 
-Tweak `config.py`:
--   `NLPConfig.HUGGINGFACE_MODEL`: Change base Transformer model (e.g., `"gpt2"`, `"microsoft/DialoGPT-small"`).
--   `AgentConfig.USE_LANGUAGE_EMBEDDING`: Toggle sentence embeddings.
--   `RLConfig.HEAD_MOVEMENT_LOSS_WEIGHT`: Tune HM training.
--   `RLConfig.TARGET_NETWORK_SOFT_UPDATE_TAU`: Modify target network update speed.
--   `GraphicsConfig.MODEL_PATH`: Set your Live2D model.
--   Learning rates, memory sizes, thresholds, etc.
+🎨 Customize It
 
----
+Adjust parameters in config.py:
 
-## 🖥️ Architecture Diagrams
+NLPConfig.HUGGINGFACE_MODEL: Base model for TransformerGPT.
 
-*(These provide a high-level conceptual overview)*
+RLConfig.*_WEIGHT: Tune the contribution of different loss components (Value vs. RIH metrics).
 
-### 1. Core Agent Loop & Interaction
+AgentConfig.GNN.*: Configure GNN architecture.
 
-```mermaid
+GraphicsConfig.MODEL_PATH: Change the Live2D avatar model.
+
+Many other parameters controlling learning, memory, environment, etc.
+
+🖥️ Architecture Diagrams
+
+(Mermaid diagrams remain the same as the previous version, illustrating the Syntrometrie concepts and the simplified agent loop)
+
+1. Syntrometrie Framework (Conceptual)
 graph TD
-    Agent_Model["ConsciousAgent (DDQN)"] --> EmoModule["Emotional Module"]
-    Agent_Model -->|"Reward (r)"| EmoModule
-    Agent_Model -->|"Prev Emotions"| EmoModule
-    EmoModule -->|"Updated Emotions"| StateProcMerge["State w/ Updated Emotions"]
-    Agent_Model -->|"Other State Components"| StateProcMerge
-    StateProcMerge --> Lattice["MetronicLattice"]
-    Lattice --> Korporator["SyntrixKorporator"]
-    Korporator --> Kaskade["StrukturKaskade"]
-    Kaskade --> ValueHead["Value Head (V(s))"]
-    Kaskade --> HMHead["Head Movement Head (Supervised)"]
-    ValueHead --> Agent_Learn["DDQN Value Loss"]
-    HMHead --> Agent_Step_Out["Select HM Label (ArgMax)"]
-    Agent_Model -->|"State History (H)"| Accessibility["Compute Accessibility\n(R_acc)"]
-    Accessibility --> BoxScore["Compute Box Score"]
-    BoxScore --> Agent_Learn
-    Kaskade --> Consistency["Compute Consistency\n(rho_score)"]
-    Consistency --> Agent_Learn["Intrinsic Reward Calc"]
-```
-
-### 2. Syntrometrie Framework (Conceptual)
-
-```mermaid
-graph TD
-    %% Foundational Layer
+    %% ... (Syntrometrie Framework Diagram as provided before) ...
     subgraph "A: Foundational Logic"
-        A1["Primordial Exp.\n(ästhetische Empirie)"] --> A2["Reflection Synthesis\n(Endo/Exo)"]
-        A2 --> A3["Subjective Aspect (S)\n(Mental State)"]
-        A3 --> A4["Predicates P_n = [f_q]_n"]
-        A3 --> A5["Dialectics D_n = [d_q]_n"]
-        A3 --> A6["Coordination K_n = E_n F(ζ_n, z_n)"]
-        A4 --> A6
-        A5 --> A6
-        A7["Antagonismen\n(Logical Tensions)"] --> A5
-        A3 --> A8["Aspect Systems A = α(S)"]
-        A9["Categories γ\n(Invariant Grounding)"] --> A3
+        A1["Primordial Exp."] --> A2["Reflection"] --> A3["Subjective Aspect (S)"]
+        A3 --> A4["Predicates P_n"] & A5["Dialectics D_n"] & A6["Coordination K_n"]
+        A7["Antagonismen"] --> A5; A9["Categories γ"] --> A3
     end
-
-    %% Recursive Structure Layer
     subgraph "B: Recursive Hierarchy"
-        B1["Metrophor a ≡ (a_i)_n\n(Base Qualia)"] --> B2["Synkolator Functor F\nGenerates L_{k+1} from L_k"]
-        B2 --> B3["Syntrix Levels L_k = F^k(L0)\n(Hierarchical Constructs)"]
-        B3 --> B4["Syntrix\n(Union L_k)\n⟨{, a, m⟩"]
-        B5["Recursive Def.\na = ⟨{, a, m⟩"] --> B2
-        B6["Normalization\n(Stabilizes Recursion)"] --> B2
-        B7["Hierarchical Coord.\nK_Syntrix = ∏ K_n"] --> B4
-        A9 --> B1
+        B1["Metrophor a"] --> B2["Synkolator F"] --> B3["Syntrix Levels L_k"] --> B4["Syntrix"]
+        B5["Recursive Def."] --> B2; B6["Normalization"] --> B2; B7["Hierarchical Coord."] --> B4; A9 --> B1
     end
-
-    %% Geometric Layer
     subgraph "C: Geometric Structure"
-        C1["12D Hyperspace (H12)\n(Underlying Reality)"] <-->|"Maps Onto"| B4
-        C2["N=6 Stability\n(Physical Constraint)"] --> C1
-        C1 --> C3["Metric Tensor\ng_ik^γ(x) = sum f_q^i(x) f_q^k(x)"]
-        C3 --> C4["Connection\nΓ^i_kl"]
-        C4 --> C5["Curvature\nR^i_klm = sum (...)"]
-        C6["Quantized Change\nδφ = φ(n) - φ(n-1)"] --> C1
-        B3 --> C3
-        C2 --> C3
-        C7["Mass Formula\n(Link to Physics)"] <-- "Relates to" --> C3
+        C1["12D Hyperspace H12"] <--> B4; C2["N=6 Stability"] --> C1
+        C1 --> C3["Metric g_ik"] --> C4["Connection Γ"] --> C5["Curvature R"]
+        C6["Quantized Change δφ"] --> C1; B3 --> C3; C2 --> C3
+        C7["Mass Formula"] <-- C3
     end
-
-    %% Emergence Layer
     subgraph "D: Reflexive Integration"
-        D1["RIH\n(Reflexive Integration Hypothesis)"]
-        C3 --> D2["Integration Measure\nI(S) = sum MI_d(S) > τ(t)"]
-        C5 --> D2
-        B4 --> D3["Reflexivity Cond.\nρ: Id_S → F^n"]
-        B5 --> D3
-        C2 --> D4["Threshold\nτ = τ_0(N=6) + Δτ(t)"]
-        C3 --> D4
-        D2 --> D1
-        D3 --> D1
-        D4 --> D1
-        D1 --> D5["Emergent Properties\n(e.g., Consciousness)"]
+        D1["RIH"]
+        C3 & C5 --> D2["Integration I(S) > τ(t)"]
+        B4 & B5 --> D3["Reflexivity ρ > θ"]
+        C2 & C3 --> D4["Threshold τ"]
+        D2 & D3 & D4 --> D1 --> D5["Emergent Consciousness"]
         A7 --> D5
     end
-```
-[Syntrometrie Framework Pdf](https://github.com/Marko0Marky/Live2d-Avatar-Ai/blob/main/research/Syntrometry.pdf)
----
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Mermaid
+IGNORE_WHEN_COPYING_END
 
-## 📈 Future Work
+View Full Syntrometrie Framework Diagram <!-- Link to your hosted/local HTML -->
 
--   **Enhanced RL**: Explore advanced algorithms (PPO, SAC), intrinsic motivation (ICM/RND).
--   **Improved Non-Verbal**: Implement lip-sync, advanced eye gaze, RL for movement generation.
--   **Performance**: Profiling and optimization (JIT, AMP, rendering).
--   **Testing & Refactoring**: Increase code coverage and improve modularity.
--   **Voice I/O**: Integrate STT and TTS.
--   **Interdisciplinary**: Explore connections to cognitive science, philosophy.
+2. Core Agent Loop & Interaction (Simplified)
+graph TD
+    Input[State (s_t) + Reward (r)] --> Agent["ConsciousAgent.forward"]
+    Agent --"Computes Metrics (RIH, Geo)"--> Metrics[Internal Metrics]
+    Agent --"Predicts"--> Value["Value V(s)"]
+    Agent --"Updates Emotions"--> Emotions[Emotions (R1-6)]
+    Agent --"Maps Qualia"--> Qualia[Qualia (R7-12)]
+    Qualia --> EnvFeedback["Env Qualia Feedback"]
+    Emotions --> Avatar["Avatar Expressions"]
+    Agent --"Context + Att Score"--> GPT["TransformerGPT.generate"]
+    GPT --> Response["Dialogue Response"]
+    Response --> Output["Output Response"]
+    Input --> Memory["Replay Memory (Experience)"]
+    Learner["Agent.learn (Async)"] --"Samples"--> Memory
+    Learner --"Updates Online Nets"--> Agent
+    Learner --"Updates Target Nets"--> TargetNet["Target Value Net"]
+    Learner --"Updates Priorities"--> Memory
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Mermaid
+IGNORE_WHEN_COPYING_END
 
----
+View Full Agent Architecture Diagram <!-- Link to your hosted/local HTML -->
 
-## 🤝 Contributing
+📈 Future Work
 
-Contributions are welcome! Please follow standard GitHub flow:
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/YourFeature`).
-3.  Commit your changes (`git commit -am 'Add some feature'`).
-4.  Push to the branch (`git push origin feature/YourFeature`).
-5.  Open a Pull Request.
+Implement batch processing in Agent.forward.
 
----
+Fine-tune Transformer model.
 
-## ❓ Questions?
+Develop robust testing suite.
 
-Feel free to open an issue on GitHub if you encounter problems or have suggestions!
+Refine GNN architecture and Syntrometric proxies.
 
----
+Enhance avatar animation based on internal state.
 
-<!-- Optional: Add a GIF or screenshot link here -->
-<!-- ![Demo GIF](link/to/your/demo.gif) -->
+Performance profiling and optimization.
 
-<!-- Optional: Add License -->
-<!-- ## License -->
-<!-- This project is licensed under the MIT License - see the LICENSE file for details. -->
+🤝 Contributing
+
+Contributions are welcome! Please see CONTRIBUTING.md (if available) or follow standard GitHub fork/PR practices.
+
+❓ Questions?
+
+Open an issue on the GitHub repository.
