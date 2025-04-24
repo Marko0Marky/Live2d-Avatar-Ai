@@ -1,362 +1,334 @@
 # --- START OF FILE main.py ---
-
+import time
 import sys
 import os
 import asyncio
 import logging
-import concurrent.futures
-import time
 import argparse
-import signal # Added for signal handling
-from pathlib import Path # Added for path checking
-from typing import Optional, List # Added typing
+from pathlib import Path
+from typing import Optional, TYPE_CHECKING, Tuple
 
-# --- PyQt5 / QAsync Imports ---
+# Use qasync library for integrating asyncio with PyQt
+import qasync
+
+# --- Initial Setup ---
 try:
-    from PyQt5.QtWidgets import QApplication, QMessageBox, QWidget
-    import qasync
-    from qasync import QEventLoop, QApplication as QAsyncApplication
-    from PyQt5.QtWidgets import QApplication as StandardQApplication
-    PYQT_AVAILABLE = True
-except ImportError as e:
-    print(f"CRITICAL ERROR: PyQt5 or qasync import failed: {e}")
-    print("Please install required GUI libraries:")
-    print("  pip install PyQt5 qasync")
-    PYQT_AVAILABLE = False
-    sys.exit(1) # Exit early if core GUI components are missing
-
-# --- Setup logging ---
-logger = logging.getLogger(__name__)
-log_file = "vr_avatar_ai5_run.log" # Default log file name
-
-# --- Import Configuration and Core Components ---
-try:
-    from config import MasterConfig as Config
-    from config import DEVICE, log_file as configured_log_file
-    log_file = configured_log_file # Use configured log file name
-
-    if not hasattr(Config, 'Graphics') or not hasattr(Config.Graphics, 'MODEL_PATH'):
-        raise ValueError("Configuration is missing critical Graphics settings (e.g., MODEL_PATH)")
-    if not hasattr(Config, 'Agent'):
-        raise ValueError("Configuration is missing critical Agent settings")
+    logger = logging.getLogger(__name__)
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    logger.debug(f"Script path initially determined as: {script_path}")
+    os.chdir(script_path)
+    logger.info(f"CWD changed to script directory: {os.getcwd()}")
+    if script_path not in sys.path: sys.path.insert(0, script_path)
+    from config import MasterConfig as Config, logger as config_logger
+    from config import DEVICE
+    logger = config_logger
     logger.info("Configuration loaded successfully.")
+except ImportError as e: logger.critical(f"CRITICAL ERROR: Failed to import 'config': {e}", exc_info=True); sys.exit(1)
+except FileNotFoundError: logger.critical(f"CRITICAL ERROR: CWD issue. CWD: {os.getcwd()}", exc_info=True); sys.exit(1)
+except Exception as e: logger.critical(f"CRITICAL ERROR: Unexpected init error: {e}", exc_info=True); sys.exit(1)
 
+# --- Check Libs ---
+try: import torch; logger.info(f"PyTorch version {torch.__version__} available.")
+except ImportError: logger.critical("CRITICAL ERROR: PyTorch is not installed."); sys.exit(1)
+try: import transformers, datasets; logger.info("Hugging Face libs found.")
+except ImportError: logger.warning("transformers/datasets not found.")
+
+# --- Core App Imports ---
+try:
+    from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QMessageBox, QTextEdit, QPushButton, QLineEdit
+    from PyQt5.QtCore import Qt, QTimer, QSize
+    from PyQt5.QtGui import QIcon
     from orchestrator import EnhancedConsciousAgent
-    from main_gui import EnhancedGameGUI
-    # --- REMOVED BPE IMPORTS ---
-
+    from graphics import Live2DCharacter
+    from gui_widgets import AIStateWidget, HUDWidget
     logger.info("Core modules imported successfully.")
+except ImportError as e: logger.critical(f"CRITICAL ERROR: Failed core import: {e}", exc_info=True); sys.exit(1)
+except Exception as e: logger.critical(f"CRITICAL ERROR: Unexpected core import error: {e}", exc_info=True); sys.exit(1)
 
-except ImportError as e:
-    initial_msg = f"CRITICAL ERROR: Failed to import core modules (config, orchestrator, main_gui, utils): {e}. Check configuration and dependencies (e.g., transformers, sentence-transformers, datasets, accelerate)."
-    print(initial_msg)
-    try:
-        logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.FileHandler(log_file, mode='a'), logging.StreamHandler(sys.stdout)])
-        logging.critical(initial_msg, exc_info=True)
-    except Exception: pass
-    sys.exit(1)
-except ValueError as ve:
-    initial_msg = f"CRITICAL ERROR: Invalid or incomplete configuration: {ve}"
-    print(initial_msg)
-    try:
-        logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.FileHandler(log_file, mode='a'), logging.StreamHandler(sys.stdout)])
-        logging.critical(initial_msg, exc_info=True)
-    except Exception: pass
-    sys.exit(1)
-except Exception as e:
-    initial_msg = f"CRITICAL ERROR: Unexpected error during initial imports or config setup: {e}"
-    print(initial_msg)
-    try:
-        logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.FileHandler(log_file, mode='a'), logging.StreamHandler(sys.stdout)])
-        logging.critical(initial_msg, exc_info=True)
-    except Exception: pass
-    sys.exit(1)
+# --- Forward Declaration ---
+if TYPE_CHECKING:
+    from asyncio import AbstractEventLoop
 
 
-def setup_paths_and_cwd():
-    """Sets the current working directory to the script's directory."""
-    script_dir = os.getcwd() # Default to CWD
-    try:
-        script_path = os.path.abspath(__file__)
-        script_dir = os.path.dirname(script_path)
-        logger.debug(f"Script directory identified as: {script_dir}")
-    except NameError:
-        logger.warning("__file__ not defined, using current working directory for path setup.")
-        script_dir = os.getcwd()
+class EnhancedGameGUI(QMainWindow):
+    """Main GUI window integrating Live2D, HUD, AI controls, and Chat."""
+    cli_args: Optional[argparse.Namespace] = None
 
-    if script_dir not in sys.path:
-        sys.path.insert(0, script_dir)
-        logger.debug(f"Added script directory to sys.path: {script_dir}")
+    def __init__(self, agent_orchestrator: EnhancedConsciousAgent, loop: 'AbstractEventLoop'):
+        super().__init__()
+        self.agent_orchestrator = agent_orchestrator
+        self.loop = loop
+        self.setWindowTitle("Syntrometric Conscious Agent - v5 + Chat")
+        self.setGeometry(100, 100, 1300, 850)
+        icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
+        if os.path.exists(icon_path): self.setWindowIcon(QIcon(icon_path))
+        else: logger.warning(f"Icon file not found at {icon_path}")
 
-    try:
-        os.chdir(script_dir)
-        logger.info(f"Changed CWD to script directory: {script_dir}")
-    except Exception as e:
-        logger.error(f"Failed to change CWD to script directory '{script_dir}': {e}", exc_info=True)
-        logger.warning("Proceeding without changing CWD. Relative paths might fail.")
+        central_widget = QWidget()
+        central_widget.setStyleSheet("background-color: #181828;")
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_layout.addWidget(splitter)
+
+        left_pane = QWidget()
+        left_layout = QVBoxLayout(left_pane); left_layout.setContentsMargins(0,0,0,0); left_layout.setSpacing(0)
+        self.live2d_widget = Live2DCharacter()
+        self.live2d_widget.error_occurred.connect(self.show_error_message)
+        self.live2d_widget.character_initialized.connect(self.on_character_init)
+        self.live2d_widget.interaction_detected.connect(self.on_character_interaction)
+        left_layout.addWidget(self.live2d_widget, stretch=1)
+        self.hud_widget = HUDWidget(self.agent_orchestrator); self.agent_orchestrator.set_hud_widget(self.hud_widget)
+        self.hud_widget.setParent(self.live2d_widget); self.hud_widget.hide()
+        splitter.addWidget(left_pane)
+
+        right_pane = QWidget()
+        right_layout = QVBoxLayout(right_pane); right_pane.setMinimumWidth(400); right_pane.setMaximumWidth(600)
+        self.ai_state_widget = AIStateWidget(self.agent_orchestrator)
+        self.ai_state_widget.request_completeness_test.connect(self.run_completeness_test)
+        right_layout.addWidget(self.ai_state_widget, stretch=2)
+
+        chat_group = QWidget(); chat_layout = QVBoxLayout(chat_group); chat_layout.setContentsMargins(5, 5, 5, 5); chat_layout.setSpacing(4)
+        self.chat_history = QTextEdit(); self.chat_history.setReadOnly(True); self.chat_history.setStyleSheet("background-color: #1e1e2e; color: #cccccc; border: 1px solid #444; border-radius: 4px; font-size: 11px;")
+        chat_layout.addWidget(self.chat_history, stretch=3)
+        input_layout = QHBoxLayout()
+        self.chat_input = QLineEdit(); self.chat_input.setPlaceholderText("Enter message..."); self.chat_input.setStyleSheet("background-color: #2a2a3a; color: #dddddd; border: 1px solid #555; border-radius: 3px; padding: 4px;")
+        self.chat_input.returnPressed.connect(self.send_chat_message)
+        input_layout.addWidget(self.chat_input)
+        send_button = QPushButton("Send"); send_button.setStyleSheet("QPushButton { font-size: 10px; padding: 4px 8px; background-color: #007B8C; color: white; border-radius: 3px; border: 1px solid #005f6b; } QPushButton:hover { background-color: #009CB0; } QPushButton:pressed { background-color: #005f6b; }")
+        send_button.clicked.connect(self.send_chat_message)
+        input_layout.addWidget(send_button)
+        chat_layout.addLayout(input_layout)
+        right_layout.addWidget(chat_group, stretch=1)
+        splitter.addWidget(right_pane)
+
+        splitter.setSizes([700, 600])
+
+        self.timer = QTimer(self)
+        timer_interval_ms = int(1000 / Config.Graphics.FPS) if Config.Graphics.FPS > 0 else 16
+        self.timer.setInterval(timer_interval_ms)
+        self.timer.timeout.connect(self.update_game)
+        self.is_running = False
+        self.last_update_time = 0.0
+
+        logger.debug(f"GUI Init: Live2D parent: {self.live2d_widget.parent()}")
+        logger.debug(f"GUI Init: HUD parent: {self.hud_widget.parent()}")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.hud_widget and self.live2d_widget:
+            hud_margin = 10; hud_width = 200; hud_height = 300
+            live2d_h = self.live2d_widget.height()
+            if live2d_h > 0: self.hud_widget.setGeometry(hud_margin, live2d_h - hud_height - hud_margin, hud_width, hud_height)
+            else: self.hud_widget.setGeometry(hud_margin, hud_margin, hud_width, hud_height)
+
+    def start_simulation(self):
+        if not self.is_running:
+            logger.info("Starting simulation loop...")
+            self.last_update_time = asyncio.get_event_loop().time()
+            self.timer.start()
+            self.is_running = True
+            self.ai_state_widget.set_status("Running", "#4CAF50")
+        else: logger.warning("Simulation already running.")
+
+    def stop_simulation(self):
+        if self.is_running:
+            logger.info("Stopping simulation loop...")
+            self.timer.stop()
+            self.is_running = False
+            self.ai_state_widget.set_status("Stopped", "#F44336")
+        else: logger.warning("Simulation already stopped.")
+
+    def update_game(self):
+        if not self.is_running or not hasattr(self.live2d_widget, 'model_loaded') or not self.live2d_widget.model_loaded: return
+        current_time = self.loop.time() if self.loop else time.time()
+        delta_time = current_time - self.last_update_time
+        self.last_update_time = current_time
+        try:
+            metrics, reward, done, response, loss, monologue, predicted_hm_label = self.agent_orchestrator.train_step()
+            response_emotions_list = metrics.get('current_emotions_response', [0.0]*Config.Agent.EMOTION_DIM)
+            response_emotions_tensor = torch.tensor(response_emotions_list, device=DEVICE, dtype=torch.float32)
+            self.live2d_widget.update_emotions(response_emotions_tensor)
+            self.live2d_widget.update_predicted_movement(predicted_hm_label)
+            self.hud_widget.update_hud(response_emotions_tensor, response, metrics)
+            self.ai_state_widget.update_display(metrics, response_emotions_tensor, loss)
+            if done: logger.info("Episode finished. Resetting environment (handled by orchestrator).")
+        except Exception as e: logger.error(f"Error during game update loop: {e}", exc_info=True); self.show_error_message(f"Runtime Error: {e}"); self.stop_simulation()
+
+    def send_chat_message(self):
+        user_message = self.chat_input.text().strip()
+        if not user_message: return
+        self.append_chat_message("You", user_message)
+        self.chat_input.clear()
+        try: ai_response = self.agent_orchestrator.handle_user_chat(user_message); self.append_chat_message("AI", ai_response)
+        except Exception as e: logger.error(f"Error getting AI chat response: {e}", exc_info=True); self.append_chat_message("System", "[Error getting response]")
+
+    def append_chat_message(self, sender: str, message: str):
+        import html
+        safe_message = html.escape(message)
+        formatted_message = f"<b>{sender}:</b> {safe_message}<br>"
+        self.chat_history.append(formatted_message)
+        self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
+
+    def on_character_init(self, success: bool):
+        if success: logger.info("Live2D Character Initialized Successfully."); self.hud_widget.show(); self.resizeEvent(None); self.start_simulation()
+        else: logger.error("Live2D Character Initialization Failed."); self.show_error_message("Failed to initialize Live2D character."); self.ai_state_widget.set_status("Error: Live2D Init Failed", "#FF0000")
+
+    def on_character_interaction(self): logger.debug("Character interaction detected.")
+    def run_completeness_test(self):
+        logger.info("GUI requesting completeness test...")
+        self.stop_simulation()
+        try: is_complete, details = self.agent_orchestrator.test_completeness(); self.ai_state_widget.update_completeness_display(is_complete, details); QMessageBox.information(self, "Completeness Test", f"Result: {'Complete' if is_complete else 'Incomplete'}\nDetails: {details}")
+        except Exception as e: logger.error(f"Error running completeness test: {e}", exc_info=True); self.show_error_message(f"Error: {e}")
+        finally: self.start_simulation()
+    def _save_agent_state(self):
+        logger.info("Save agent state requested...")
+        self.stop_simulation()
+        try: self.agent_orchestrator.save_agent(); QMessageBox.information(self, "Save Agent", "Agent state saved.")
+        except Exception as e: logger.error(f"Error saving state: {e}", exc_info=True); self.show_error_message(f"Save failed: {e}")
+        finally: self.start_simulation()
+    def _load_agent_state(self):
+        logger.info("Load agent state requested...")
+        self.stop_simulation()
+        reply = QMessageBox.question(self, 'Load Agent', "Overwrite current state?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                if self.agent_orchestrator.load_agent():
+                    emotions = self.agent_orchestrator.last_response_emotions.to(DEVICE); metrics = self.agent_orchestrator.reflect()
+                    self.live2d_widget.update_emotions(emotions); self.hud_widget.update_hud(emotions, "Loaded.", metrics); self.ai_state_widget.update_display(metrics, emotions, self.agent_orchestrator.last_reported_loss)
+                    self.ai_state_widget.set_status("Loaded", "#03A9F4"); QMessageBox.information(self, "Load Agent", "Agent state loaded."); self.start_simulation()
+                else: self.show_error_message("Load failed. Check logs."); self.ai_state_widget.set_status("Load Failed", "#FF0000")
+            except Exception as e: logger.error(f"Error loading state: {e}", exc_info=True); self.show_error_message(f"Load error: {e}"); self.ai_state_widget.set_status("Load Error", "#FF0000")
+        else: logger.info("Load cancelled."); self.start_simulation()
+    def show_error_message(self, message: str): logger.error(f"GUI Error Display: {message}"); QMessageBox.critical(self, "Error", message)
+
+    def closeEvent(self, event):
+        logger.info("Close event triggered. Initiating cleanup...")
+        self.stop_simulation()
+        if EnhancedGameGUI.cli_args and EnhancedGameGUI.cli_args.save_on_exit:
+             logger.info("Attempting to save agent state on exit (from closeEvent)...")
+             try:
+                 if hasattr(self, 'agent_orchestrator') and self.agent_orchestrator and not self.agent_orchestrator.cleaned_up: self.agent_orchestrator.save_agent(); logger.info("Agent state saved successfully on exit.")
+                 else: logger.warning("Skipping save on exit: Orchestrator unavailable/cleaned.")
+             except Exception as e: logger.error(f"Failed to save agent state on exit: {e}", exc_info=True)
+        if hasattr(self, 'live2d_widget') and self.live2d_widget: self.live2d_widget.cleanup()
+        if hasattr(self, 'agent_orchestrator') and self.agent_orchestrator and not self.agent_orchestrator.cleaned_up: self.agent_orchestrator.cleanup()
+        else: logger.debug("Orchestrator cleanup skipped in closeEvent.")
+        logger.info("GUI Cleanup finished.")
+        event.accept()
+        instance = QApplication.instance()
+        if instance:
+            logger.info("Requesting application quit from closeEvent.")
+            instance.quit()
 
 
-def check_live2d_sdk_availability():
-    """
-    Performs a basic check for the likely location of the Live2D SDK native library.
-    This is a heuristic check and might need adjustment.
-    """
-    sdk_path_env = os.environ.get('LIVE2D_SDK_NATIVE_PATH')
-    if sdk_path_env:
-        logger.info(f"Checking Live2D SDK path from environment variable: {sdk_path_env}")
-        if Path(sdk_path_env).is_file():
-            logger.info("Live2D SDK native library found via environment variable.")
-            return True
-        else:
-            logger.warning(f"Live2D SDK path from environment variable '{sdk_path_env}' does not point to a valid file.")
-
-    possible_relative_paths = [
-        "Live2D_SDK/Core/dll/linux/x86_64/libLive2DCubismCore.so", # Linux example
-        "Live2D_SDK/Core/dll/windows/x86_64/Live2DCubismCore.dll", # Windows example
-        "Live2D_SDK/Core/dll/macos/libLive2DCubismCore.dylib",     # macOS example
-        "libLive2DCubismCore.so", # Maybe directly in CWD/bundle root
-        "Live2DCubismCore.dll",
-        "libLive2DCubismCore.dylib",
-    ]
-    for rel_path in possible_relative_paths:
-        # Check relative to current CWD (which should be script dir or bundle dir)
-        abs_path = Path(os.getcwd()) / rel_path
-        if abs_path.is_file():
-            logger.info(f"Found potential Live2D SDK native library at conventional path: {abs_path}")
-            return True
-
-    logger.warning("Could not find Live2D SDK native library based on environment variable or common relative paths.")
-    logger.warning("Live2D functionality will likely fail. Ensure the native SDK is correctly placed and accessible.")
-    return False
-
-
-async def main_async_loop(args: argparse.Namespace, loop: asyncio.AbstractEventLoop):
-    """
-    Main asynchronous application loop managed by qasync.
-    Initializes and runs the agent orchestrator and GUI.
-    """
+# --- Main Application Logic ---
+async def main_async_loop(args: argparse.Namespace, loop: 'AbstractEventLoop', app: QApplication) -> Optional[EnhancedGameGUI]:
+    """ Sets up the GUI and keeps the asyncio loop alive. """
     logger.info("--- Application Starting (Async Loop) ---")
     logger.info(f"Using PyTorch device: {DEVICE}")
     logger.info(f"Target Live2D Model Path: {Config.Graphics.MODEL_PATH}")
-    logger.info(f"Log file: {log_file}")
-    logger.info(f"Agent State Dimension: {Config.Agent.STATE_DIM} (Language Embedding: {'Enabled' if Config.Agent.USE_LANGUAGE_EMBEDDING else 'Disabled'})")
+    logger.info(f"Log file: {Config.LOG_FILE}")
+    logger.info(f"Agent State Dimension: {Config.Agent.STATE_DIM} (LM: {Config.NLP.HUGGINGFACE_MODEL})")
 
-    window: Optional[EnhancedGameGUI] = None
-    agent_orchestrator: Optional[EnhancedConsciousAgent] = None
-    app_exit_code = 0
-    tasks_to_cancel: List[asyncio.Future] = []
-
+    agent_orchestrator = None
+    main_window = None
     try:
-        check_live2d_sdk_availability()
-        # --- REMOVED BPE Tokenizer initialization call ---
-
-        logger.info("Initializing Agent Orchestrator and GUI...")
         agent_orchestrator = EnhancedConsciousAgent()
-
+        logger.info("Orchestrator initialized.")
         if args.load:
-             logger.info("Load argument provided. Attempting to load saved agent state...")
-             if agent_orchestrator.load_agent():
-                 logger.info("Agent state loaded successfully.")
-             else:
-                 logger.warning("Failed to fully load agent state. Continuing.")
+            logger.info("Attempting --load agent state...")
+            if not agent_orchestrator.load_agent(): logger.error("Load failed, starting fresh.")
+            else: logger.info("Load successful via --load.")
+        EnhancedGameGUI.cli_args = args
+        main_window = EnhancedGameGUI(agent_orchestrator, loop)
+        main_window.show()
+        logger.info("GUI shown.")
 
-        window = EnhancedGameGUI(agent_orchestrator)
-        window.show()
-        logger.info("Agent orchestrator and GUI initialization complete.")
+        # --- Keep coroutine alive indefinitely ---
+        await asyncio.Future() # This waits forever until cancelled
 
-        window_closed_future = asyncio.Future()
-        tasks_to_cancel.append(window_closed_future)
-        original_closeEvent = window.closeEvent
-
-        def close_event_wrapper(event):
-            original_closeEvent(event)
-            if event.isAccepted() and not window_closed_future.done():
-                logger.debug("Window close event accepted, setting future result.")
-                window_closed_future.set_result(True)
-            else:
-                logger.debug("Window close event ignored, future not set.")
-        window.closeEvent = close_event_wrapper
-
-        logger.info("Async loop running. Waiting for window close or termination signal...")
-        await window_closed_future
-        logger.info("Window close signal received or loop interrupted.")
+        # Code below this await will likely not run if loop is stopped by app.quit()
+        logger.info("Async loop's indefinite wait finished (likely cancelled).")
+        return main_window # Should ideally not be reached in normal exit
 
     except asyncio.CancelledError:
-        logger.info("Main async loop cancelled (likely due to signal). Initiating shutdown.")
-        app_exit_code = 0
-    except KeyboardInterrupt:
-        logger.info("Keyboard interrupt received during async loop. Initiating shutdown.")
-        app_exit_code = 0
-    except SystemExit as e:
-        logger.info(f"System exit called during async loop with code: {e.code}")
-        app_exit_code = e.code if isinstance(e.code, int) else 1
+         logger.info("main_async_loop cancelled.")
+         # Cleanup might be needed here if cancellation happens before closeEvent
+         if main_window: main_window.close() # Try to trigger closeEvent cleanup
+         elif agent_orchestrator and not agent_orchestrator.cleaned_up: agent_orchestrator.cleanup()
+         return main_window # Return reference if it exists
     except Exception as e:
-        logger.critical(f"Unhandled exception during application run: {e}", exc_info=True)
-        try:
-            app = QAsyncApplication.instance()
-            parent_widget = window if window and isinstance(window, QWidget) else None
-            if app:
-                QMessageBox.critical(parent_widget, "Fatal Runtime Error",
-                                     f"An unexpected error occurred:\n{e}\n\n"
-                                     f"Please check the log file for details:\n'{log_file}'")
-        except Exception as mb_err:
-            logger.error(f"Failed to show critical error message box: {mb_err}")
-        app_exit_code = 1
-    finally:
-        logger.info("--- Initiating Application Shutdown (Async Loop Finally) ---")
-
-        logger.debug(f"Cancelling {len(tasks_to_cancel)} tracked tasks...")
-        for task in tasks_to_cancel:
-            if not task.done():
-                task.cancel()
-
-        if app_exit_code == 0 and args.save_on_exit and agent_orchestrator:
-            logger.info("Save on exit requested. Saving agent state...")
-            try:
-                agent_orchestrator.save_agent()
-                logger.info("Agent state saved successfully on exit.")
-            except Exception as save_err:
-                logger.error(f"Failed to save agent state on exit: {save_err}", exc_info=True)
-        elif args.save_on_exit:
-             logger.warning(f"Skipping save on exit due to non-zero exit code ({app_exit_code}) or missing orchestrator.")
-
-        # Check if cleanup already happened via closeEvent
-        orchestrator_needs_cleanup = agent_orchestrator and not getattr(agent_orchestrator, 'cleaned_up', False)
-        if orchestrator_needs_cleanup:
-             logger.warning("Orchestrator cleanup might not have run via closeEvent. Calling directly.")
-             try:
-                 agent_orchestrator.cleanup()
-             except Exception as direct_cleanup_err:
-                 logger.error(f"Error during direct orchestrator cleanup: {direct_cleanup_err}", exc_info=True)
-        elif agent_orchestrator:
-             logger.debug("Skipping redundant cleanup call (already run or orchestrator missing).")
-
-
-    logger.info(f"Async loop finished with internal exit code: {app_exit_code}")
-    return app_exit_code
-
-# --- Signal Handling ---
-_shutdown_requested = False
-def handle_signal(sig, frame):
-    global _shutdown_requested
-    if _shutdown_requested:
-        logger.warning("Shutdown already requested, ignoring signal.")
-        return
-    _shutdown_requested = True
-    logger.info(f"Received signal {sig}. Requesting graceful shutdown...")
-    try:
-        loop = asyncio.get_running_loop()
-        for task in asyncio.all_tasks(loop):
-            task.cancel()
-        logger.info("All asyncio tasks cancelled.")
-    except RuntimeError:
-        logger.warning("No running asyncio loop found during signal handling.")
-    app = StandardQApplication.instance() # Use standard Qt app instance for quit
-    if app:
-        logger.info("Requesting Qt application quit.")
-        app.quit()
+        logger.critical(f"Error during setup/run in main_async_loop: {e}", exc_info=True)
+        if agent_orchestrator and hasattr(agent_orchestrator, 'cleaned_up') and not agent_orchestrator.cleaned_up: agent_orchestrator.cleanup()
+        if app: app.quit()
+        return None
 
 
 if __name__ == "__main__":
-    if not PYQT_AVAILABLE:
-        print("PyQt5/qasync not found. Cannot run the application.")
-        sys.exit(1)
-
-    setup_paths_and_cwd()
-
-    # --- Argument Parsing ---
-    parser = argparse.ArgumentParser(
-        description="Run Live2D Avatar AI Agent.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--load", action="store_true",
-                        help="Load saved agent state on startup.")
-    parser.add_argument("--save-on-exit", action="store_true",
-                        help="Save agent state automatically on graceful exit.")
+    parser = argparse.ArgumentParser(description="Syntrometric Conscious Agent GUI")
+    parser.add_argument('--load', action='store_true', help='Load saved agent state.')
+    parser.add_argument('--save-on-exit', action='store_true', help='Save agent state on exit.')
     cli_args = parser.parse_args()
     logger.info(f"Command line arguments: {cli_args}")
 
-    # --- Event Loop and Signal Setup ---
-    final_exit_code = 1
+    exit_code = 1
+    app = None
     loop = None
+    main_task = None # Keep track of the main task
     try:
-        if sys.platform != "win32":
-            signal.signal(signal.SIGINT, handle_signal)
-            signal.signal(signal.SIGTERM, handle_signal)
-        else:
-             signal.signal(signal.SIGINT, handle_signal)
+        app = QApplication.instance()
+        if app is None: app = QApplication(sys.argv)
+        app.setQuitOnLastWindowClosed(True)
 
+        loop = qasync.QEventLoop(app)
+        asyncio.set_event_loop(loop)
         logger.info("Starting application with qasync event loop...")
-        loop = asyncio.get_event_loop()
-        final_exit_code = qasync.run(main_async_loop(cli_args, loop))
-        logger.info("qasync run finished.")
 
-    # --- Fallback Logic ---
-    except RuntimeError as e:
-         if "Cannot run the event loop while another loop is running" in str(e) or \
-            "no running event loop" in str(e).lower():
-             logger.warning(f"Asyncio loop issue detected ('{e}'). Attempting fallback Qt execution.")
-             logger.warning("--- RUNNING IN FALLBACK QT MODE ---")
+        # Create the main task but don't run it with qasync.run immediately
+        main_task = loop.create_task(main_async_loop(cli_args, loop, app))
 
-             app_fb = StandardQApplication.instance()
-             if app_fb is None:
-                 logger.debug("Creating new StandardQApplication for fallback.")
-                 app_fb = StandardQApplication(sys.argv)
-             else:
-                 logger.debug("Using existing StandardQApplication instance for fallback.")
-             app_fb.setStyle("Fusion")
+        # Start the Qt event loop using qasync's integrated method
+        loop.run_forever()
 
-             agent_orchestrator_fb = None
-             window_fb = None
-             try:
-                 logger.info("Fallback Mode: Initializing Orchestrator and GUI...")
-                 check_live2d_sdk_availability()
-                 agent_orchestrator_fb = EnhancedConsciousAgent()
-                 if cli_args.load:
-                     logger.info("Fallback Mode: Attempting to load agent state...")
-                     agent_orchestrator_fb.load_agent()
+        # Code here runs AFTER the Qt loop has exited
+        logger.info("Event loop finished.")
+        exit_code = app.exitCode() if hasattr(app, 'exitCode') and app.exitCode() is not None else 0
 
-                 window_fb = EnhancedGameGUI(agent_orchestrator_fb)
-                 window_fb.show()
-                 logger.info("Fallback Mode: Initialization complete. Starting standard Qt event loop.")
-                 final_exit_code = app_fb.exec_()
-                 logger.info(f"Fallback Mode: Qt event loop finished with code: {final_exit_code}")
-
-                 if cli_args.save_on_exit and agent_orchestrator_fb:
-                     logger.info("Fallback Mode: Saving agent state on exit...")
-                     try: agent_orchestrator_fb.save_agent()
-                     except Exception as fb_save_err: logger.error(f"Fallback Mode: Failed to save: {fb_save_err}", exc_info=True)
-
-             except Exception as fb_init_err:
-                 logger.critical(f"CRITICAL ERROR during Fallback Init/Execution: {fb_init_err}", exc_info=True)
-                 try: QMessageBox.critical(None, "Fatal Fallback Error", f"Failed fallback init/run:\n{fb_init_err}")
-                 except Exception: pass
-                 final_exit_code = 1
-             finally:
-                 logger.info("Fallback Mode: Initiating cleanup...")
-                 # Ensure cleanup happens in fallback
-                 if agent_orchestrator_fb:
-                     logger.debug("Fallback Mode: Calling orchestrator cleanup...")
-                     try:
-                         # Close window first if it exists, then cleanup orchestrator
-                         if window_fb and window_fb.isVisible(): window_fb.close()
-                         agent_orchestrator_fb.cleanup()
-                     except Exception as fb_clean_err:
-                         logger.error(f"Fallback Mode: Error during cleanup: {fb_clean_err}", exc_info=True)
-                 logger.info("Fallback Mode: Cleanup finished.")
-         else:
-             logger.critical(f"CRITICAL ERROR: Unhandled RuntimeError: {e}", exc_info=True)
-             final_exit_code = 1
     except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt caught at top level (fallback). Exiting.")
-        final_exit_code = 0
+        logger.info("KeyboardInterrupt received. Attempting graceful shutdown...")
+        if app: app.quit()
+        if main_task and not main_task.done(): main_task.cancel()
+        exit_code = 0
     except Exception as e:
-        logger.critical(f"CRITICAL ERROR: Unhandled Exception at top level: {e}", exc_info=True)
-        final_exit_code = 1
+        logger.critical(f"CRITICAL Unhandled Exception at top level: {e}", exc_info=True)
+        if main_task and not main_task.done(): main_task.cancel()
+        exit_code = 1
     finally:
-        logger.info(f"--- Application Exiting (Final Code: {final_exit_code}) ---")
+        logger.info("Main execution block's finally reached.")
+        # Ensure the main task is cancelled if it's still pending
+        if main_task and not main_task.done():
+            logger.info("Cancelling main async task...")
+            main_task.cancel()
+            try:
+                # Give cancellation a moment
+                loop.run_until_complete(asyncio.sleep(0.1))
+            except (RuntimeError, asyncio.CancelledError): pass # Ignore errors if loop closed/task cancelled
+
+        if loop is not None and not loop.is_closed():
+             logger.info("Closing asyncio event loop in main finally.")
+             # Cancel any other remaining tasks (should ideally be none)
+             try:
+                 tasks = [t for t in asyncio.all_tasks(loop=loop) if t is not main_task and not t.done()]
+                 if tasks:
+                      logger.debug(f"Cancelling {len(tasks)} other outstanding asyncio tasks...")
+                      for task in tasks: task.cancel()
+                      loop.run_until_complete(asyncio.sleep(0.1))
+             except Exception as task_cancel_err: logger.error(f"Error cancelling other tasks: {task_cancel_err}")
+             finally:
+                 if not loop.is_closed(): loop.close(); logger.info("Asyncio loop closed.")
+
+        logger.info(f"--- Application Exiting (Final Code: {exit_code}) ---")
         logging.shutdown()
-
-    sys.exit(final_exit_code)
-
+        sys.exit(exit_code)
 # --- END OF FILE main.py ---
