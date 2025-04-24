@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conscious Agent Architecture Diagram</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        /* Optional: Add styles for better presentation if needed */
+    </style>
+</head>
+<body>
+    <h1>Conscious Agent Architecture (Syntrometrie/RIH Implementation)</h1>
+    <p>This diagram illustrates the data flow and component interactions within the `ConsciousAgent` implementation, including state processing, GNN-based Syntrix simulation, RIH metric calculation, value prediction, learning loop, and interaction with the environment and avatar.</p>
+    <hr>
+    <div class="mermaid">
+graph TB
+    %% Global Styling
+    classDef agent fill:#E8DAEF,stroke:#A569BD,stroke-width:2px,color:black,font-size:14px
+    classDef module fill:#D5F5E3,stroke:#58D68D,stroke-width:2px,color:black,font-size:14px
+    classDef metric fill:#FCF3CF,stroke:#F4D03F,stroke-width:2px,color:black,font-size:14px
+    classDef state fill:#D6EAF8,stroke:#5DADE2,stroke-width:1px,color:black,font-size:14px
+    classDef io fill:#FADBD8,stroke:#EC7063,stroke-width:2px,color:black,font-size:14px
+    classDef data fill:#FEF9E7,stroke:#F8C471,stroke-width:1px,color:black,font-size:12px
+
+    %% Inputs
+    subgraph "Inputs"
+        In_State["State (s_t, 12D)"]:::state
+        In_Reward["Reward (r)"]:::data
+        In_History["State History (H_t)"]:::state
+    end
+
+    %% Agent Core Processing (Forward Pass)
+    subgraph "Agent Core (Forward Pass)"
+        Agent["ConsciousAgent.forward"]:::agent
+        In_State --> Encoder["Encoder (Linear)"]:::module
+        Encoder --> GNN_Input["Encoded State"]:::state
+        GNN_Input --> BuildGraph["Build Graph"]:::module
+        BuildGraph --> GraphData["Graph Data (Nodes, Edges)"]:::data
+        GraphData --> RunGNN["Run GNN (Layers)"]:::module
+        GNN_Input --> RunGNN
+        RunGNN --> BeliefEmb["Belief Embedding"]:::state
+        BeliefEmb --> SelfReflect["Self Reflect Layer"]:::module
+        SelfReflect --> TranscendentEmb["Transcendent Embedding"]:::state
+
+        %% Metric Calculation Branch
+        TranscendentEmb --> ComputeMetrics["Compute Metrics"]:::metric
+        In_History --> ComputeMetrics
+        ComputeMetrics --> GeoMetrics["g_ik, Gamma, R"]:::data
+        ComputeMetrics --> RIHMetrics["I(S), rho, tau_t"]:::data
+        ComputeMetrics --> OtherMetrics["Stability, Zeta, t, dA/dt, Consistency"]:::data
+        GeoMetrics & RIHMetrics & OtherMetrics --> AllMetrics["Forward Metrics"]:::data
+
+        %% Value Prediction Branch
+        BeliefEmb --> ValueHead["Online Value Head"]:::module
+        ValueHead --> ValuePredS["Value V(s)"]:::data
+
+        %% Emotion Branch
+        In_State --> EmoState["Emotion State (R1-6)"]:::state
+        EmoState & In_Reward --> EmoModule["Emotional Module"]:::module
+        EmoModule --> Emotions["Updated Emotions (R1-6)"]:::state
+
+        %% Qualia Branch
+        TranscendentEmb --> QualiaHead["Qualia Output Head"]:::module
+        QualiaHead --> QualiaFeatures["Qualia Features (R7-12)"]:::state
+
+        %% Assembly & Feedback
+        Emotions & QualiaFeatures --> AssembleState["Assemble Full State"]:::module
+        AssembleState --> FullStateOut["New Full State (12D)"]:::state
+        TranscendentEmb --> FeedbackNet["Feedback Network"]:::module
+        FeedbackNet --> FeedbackSignal["Feedback Signal"]:::data
+    end
+
+    %% Outputs & Interactions
+    subgraph "Outputs & Interactions"
+        ForwardResult["Forward Result (Tuple)"]:::data
+        Emotions --> ForwardResult
+        BeliefEmb --> ForwardResult
+        RIHMetrics --> ForwardResult
+        OtherMetrics --> ForwardResult
+        GeoMetrics --> ForwardResult
+        FeedbackSignal --> ForwardResult
+        FullStateOut --> ForwardResult
+        ValuePredS --> ForwardResult
+        ForwardResult --"Emotions"--> Avatar["Avatar Expressions"]:::io
+        ForwardResult --"Attention Score"--> GenerateResponse["agent.generate_response"]:::agent
+        GenerateResponse --"Context"--> GPT["TransformerGPT"]:::module
+        GPT --> DialogueOut["Dialogue Response"]:::io
+        ForwardResult --"Qualia (R7-12)"--> EnvFeedback["env.update_qualia_feedback"]:::io
+    end
+
+    %% Learning Loop (Conceptual)
+    subgraph "Learning Loop (Async)"
+        Memory["Replay Memory (PER)"]:::data
+        LearnTask["_run_learn_task"]:::agent --"Samples Batch"--> Memory
+        BatchData["Batch (s, b, r, s', d)"]:::data --> Learn["Agent.learn"]:::agent
+        Indices["Indices"]:::data --> Learn
+        Weights["PER Weights"]:::data --> Learn
+        Learn --"Uses Online Nets (s)"--> AgentCore["Agent Core"]
+        Learn --"Uses Target Value Net (s')"--> TargetNet["Target Value Head"]:::module
+        Learn --"Calculates"--> Loss["Combined Loss (Value + RIH)"]:::metric
+        Learn --"Updates"--> AgentCore
+        Learn --"Updates"--> TargetNet
+        Learn --"Updates"--> Memory[("PER Priorities")]
+        Learn --"Adds Processed Batch"--> Memory
+    end
+
+    %% Connect Inputs to Agent
+    In_State --> Agent
+    In_Reward --> Agent
+    In_History --> Agent
+    </div>
+    <hr>
+    <p><em>Note: This diagram illustrates the internal data flow and component interactions of the ConsciousAgent during its forward pass and learning update.</em></p>
+</body>
+</html>
