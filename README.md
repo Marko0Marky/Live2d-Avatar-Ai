@@ -253,7 +253,7 @@ graph TD
     end
 ```
 
-*[View Full Syntrometrie Framework Diagram](research/syntrometrie_framework.html)* <!-- Link to your hosted/local HTML -->
+*[View Full Syntrometrie Framework Diagram](https://marko0marky.github.io/Live2d-Avatar-Ai/research/syntrometrie_framework.html)* <!-- Link to your hosted/local HTML -->
 
 ---
 
@@ -278,7 +278,7 @@ graph TD
     Learner --> Memory["Updates Priorities"]
 ```
 
-*[View Full Agent Architecture Diagram](research/conscious_agent_arch.html)* <!-- Link to your hosted/local HTML -->
+*[View Full Agent Architecture Diagram](https://marko0marky.github.io/Live2d-Avatar-Ai/research/conscious_agent_arch.html)* <!-- Link to your hosted/local HTML -->
 
 ---
 
