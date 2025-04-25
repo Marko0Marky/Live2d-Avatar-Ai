@@ -42,6 +42,7 @@ This is where AI meets emotional intelligence in a virtual companion. It’s a p
 *   **Richer Emotions:** Variable decay rates allow different emotions to persist differently.
 
 ---
+[Live-demo!](https://marko0marky.github.io/Live2d-Avatar-Ai/)
 
 ## 📊 Project Status
 
