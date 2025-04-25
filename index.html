@@ -3,86 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live2D Avatar AI Agent - Syntrometrie Visualization</title> <!-- Updated Title -->
+    <!-- Title can remain or be updated -->
+    <title>Syntrometrie Framework 3D Visualization</title>
     <style>
+        /* Styles are directly from the script you want to use */
         body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
             margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        header {
-            background: #2c3e50;
-            color: #fff;
-            padding: 20px 0;
-            text-align: center;
-        }
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        a {
-            color: #2980b9;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        /* Container for the 3D view */
-        .threejs-container {
-            width: 100%; /* Take full width of its parent */
-            height: 550px; /* Increased height */
-            margin: 20px auto; /* Center */
-            background-color: #111122; /* Match scene background */
-            position: relative; /* Needed for absolute positioning of renderers */
-            border-radius: 5px; /* Optional styling */
-            overflow: hidden; /* Clip renderers to container bounds */
+            overflow: hidden;
+            background-color: #111122; /* Consistent background */
+            color: #eee;
+            font-family: sans-serif;
         }
         canvas {
-            display: block; /* Prevent extra space below canvas */
+            display: block;
         }
-
-        /* Label style (from the previous script) */
         .label {
             color: #fff;
             font-family: sans-serif;
             padding: 2px 5px;
             background: rgba(0, 0, 0, 0.6);
             border-radius: 3px;
-            font-size: 11px;
-            pointer-events: none;
+            font-size: 11px; /* Slightly smaller */
+            pointer-events: none; /* Allow clicks/hovers to pass through */
             user-select: none;
             white-space: nowrap;
-            position: absolute; /* Needed for CSS2DRenderer */
+            /* position: absolute; Needed for CSS2DRenderer - it handles placement */
         }
-        /* Info panel style (from the previous script) */
-        #info-panel { /* Ensure this matches the JS selector */
+        #info-panel { /* Use ID to match JS */
             position: absolute;
-            bottom: 10px; /* Position at bottom-left corner of container */
+            top: 10px;
             left: 10px;
-            background-color: rgba(40, 40, 60, 0.85);
+            background-color: rgba(40, 40, 60, 0.85); /* Consistent style */
             color: #eee;
-            padding: 10px 15px;
+            padding: 10px 15px; /* Adjusted padding */
             border-radius: 5px;
-            max-width: 280px; /* Slightly narrower */
-            font-size: 12px; /* Slightly smaller text */
-            display: block;
+            max-width: 300px;
+            font-size: 13px; /* Adjusted size */
+            display: block; /* Keep visible */
             border: 1px solid #555577;
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            z-index: 10; /* Make sure it's above the canvas */
-            pointer-events: none; /* Don't interfere with controls */
+            z-index: 10; /* Ensure it's on top */
+            pointer-events: none; /* Prevent interaction blocking */
         }
          #info-panel h3 {
              margin-top: 0;
              margin-bottom: 8px;
              color: #00aaff;
-             font-size: 14px;
+             font-size: 15px;
          }
          #info-panel p {
              margin: 4px 0;
@@ -92,7 +59,12 @@
              margin-right: 5px;
           }
     </style>
-    <!-- Import Map required for ES Modules -->
+</head>
+<body>
+    <!-- Info panel is required by the script -->
+    <div id="info-panel">Loading visualization...</div>
+
+    <!-- Import map is required by the script -->
     <script type="importmap">
         {
             "imports": {
@@ -101,35 +73,8 @@
             }
         }
     </script>
-</head>
-<body>
-    <header>
-        <h1>Live2D Avatar AI Agent - Documentation</h1>
-        <p>Explore the architecture, setup, and advanced features of this project.</p>
-    </header>
 
-    <div class="container">
-        <h2>Quick Links</h2>
-        <ul>
-            <li><a href="research/syntrometrie_framework.html">Syntrometrie Framework Diagram</a></li>
-            <li><a href="research/conscious_agent_arch.html">Conscious Agent Architecture Diagram</a></li>
-            <li><a href="../README.md">Main Project README</a></li>
-        </ul>
-    </div>
-
-    <div class="container">
-        <h2>3D Syntrometry Model</h2>
-        <p>This interactive 3D model visualizes the hierarchical structure of the Syntrometrie Framework. Hover over nodes to see details. Use mouse/touch to rotate, pan, and zoom.</p>
-        <!-- The container where the 3D scene will be rendered -->
-        <div class="threejs-container" id="threejs-container">
-            <!-- The info panel will be placed inside by CSS -->
-            <div id="info-panel">Loading visualization...</div>
-        </div>
-    </div>
-
-    <!-- Removed old script tags -->
-
-    <!-- Replaced inline script with the module script -->
+    <!-- === PASTE THE JAVASCRIPT MODULE HERE === -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -138,57 +83,45 @@
         // --- Global Variables ---
         let scene, camera, renderer, labelRenderer, controls;
         let raycaster, mouse;
-        let infoPanel; // Will get element in init
+        let infoPanel; // Will grab the element
         const allNodes = []; // Keep track of all nodes for raycasting
-        let container; // The div element for the visualization
 
         // --- Initialization ---
         function init() {
-            container = document.getElementById('threejs-container');
+            // Get the info panel element
             infoPanel = document.getElementById('info-panel');
-
-            if (!container) {
-                console.error("Error: Could not find container element #threejs-container");
-                if(infoPanel) infoPanel.innerHTML = "Error: Container not found.";
-                return;
-            }
              if (!infoPanel) {
-                 console.warn("Info panel #info-panel not found.");
-                 // Allow visualization to continue without the panel
+                 console.warn("Info panel #info-panel not found. Hover info will not be displayed.");
              } else {
-                 infoPanel.innerHTML = 'Hover over nodes to see details.'; // Set initial text
+                 infoPanel.innerHTML = 'Hover over nodes to see details.'; // Initial text
              }
-
-            const width = container.clientWidth;
-            const height = container.clientHeight;
 
             // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x111122);
-            scene.fog = new THREE.Fog(0x111122, 40, 100);
+            scene.fog = new THREE.Fog(0x111122, 40, 100); // Add some fog
 
             // Camera
-            camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
-            camera.position.set(0, 5, 25);
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000); // Slightly wider FOV
+            camera.position.set(0, 5, 25); // Adjusted camera start position
 
-            // Renderer (WebGL)
+            // Renderer (Attaches to body)
             renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(width, height);
+            renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement); // Append to container
+            document.body.appendChild(renderer.domElement);
 
-            // CSS2DRenderer for Labels
+            // CSS2DRenderer for Labels (Attaches to body)
             labelRenderer = new CSS2DRenderer();
-            labelRenderer.setSize(width, height);
-            labelRenderer.domElement.style.position = 'absolute'; // Position relative to container
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.style.position = 'absolute';
             labelRenderer.domElement.style.top = '0px';
-            labelRenderer.domElement.style.left = '0px'; // Align top-left
             labelRenderer.domElement.style.pointerEvents = 'none'; // Crucial!
-            container.appendChild(labelRenderer.domElement); // Append to container
+            document.body.appendChild(labelRenderer.domElement);
 
-            // Orbit Controls (Attach to the main renderer's element)
+            // Orbit Controls (Uses main renderer element)
             controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
+            controls.enableDamping = true; // Smoother interaction
             controls.dampingFactor = 0.05;
             controls.enableZoom = true;
             controls.enablePan = true;
@@ -197,23 +130,26 @@
             controls.target.set(0, 0, -10); // Target the center of the layers
             controls.update();
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0x606080);
+
+            // Lighting (Adjusted for Phong/Standard material)
+            const ambientLight = new THREE.AmbientLight(0x606080); // Less intense ambient
             scene.add(ambientLight);
+
             const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
             dirLight1.position.set(5, 10, 7).normalize();
             scene.add(dirLight1);
-            const dirLight2 = new THREE.DirectionalLight(0xffaacc, 0.4);
+
+            const dirLight2 = new THREE.DirectionalLight(0xffaacc, 0.4); // Subtle colored light
             dirLight2.position.set(-5, -5, -2).normalize();
             scene.add(dirLight2);
 
             // Colors for Layers
             const colors = {
-                foundational: 0x44aa44,
-                recursive: 0x4444ff,
-                geometric: 0xdddd55,
-                emergence: 0xff4444,
-                framework: 0xaaaaee
+                foundational: 0x44aa44, // Adjusted Green
+                recursive: 0x4444ff,   // Adjusted Blue
+                geometric: 0xdddd55,   // Adjusted Yellow
+                emergence: 0xff4444,   // Adjusted Red
+                framework: 0xaaaaee    // Color for the central node
             };
 
             // Build the Syntrometrie Framework Visualization
@@ -231,51 +167,50 @@
 
         // --- Helper Functions ---
         function createNode(name, color, size = 0.5, position) {
-            const geometry = new THREE.SphereGeometry(size, 24, 16);
+            const geometry = new THREE.SphereGeometry(size, 24, 16); // Slightly less detail
             const material = new THREE.MeshPhongMaterial({
                 color: color,
                 shininess: 60,
              });
             const node = new THREE.Mesh(geometry, material);
-            node.name = name;
-            node.userData = { description: getNodeDescription(name), type: getNodeType(name) };
+            node.name = name; // Used for identification
+            node.userData = { description: getNodeDescription(name), type: getNodeType(name) }; // Store info
             node.position.copy(position);
             scene.add(node);
-            allNodes.push(node);
+            allNodes.push(node); // Add to list for raycasting
             return node;
         }
 
         function createLabel(text, node) {
             const div = document.createElement('div');
-            div.className = 'label'; // Class for CSS styling
+            div.className = 'label'; // CSS class
             div.textContent = text;
-            const label = new CSS2DObject(div); // Use CSS2DObject
+            const label = new CSS2DObject(div);
             const nodeSize = node.geometry.parameters.radius || 0.5;
-            label.position.set(0, nodeSize * 1.1 + 0.3, 0);
+            label.position.set(0, nodeSize * 1.1 + 0.3, 0); // Relative offset
             node.add(label); // Attach label TO the node mesh
             return label;
         }
-
 
         function createConnectionLine(startPos, endPos, color = 0xaaaaaa) {
             const points = [startPos, endPos];
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
             const material = new THREE.LineBasicMaterial({
                  color: color,
-                 linewidth: 1,
+                 linewidth: 1, // Note: May not be supported on all platforms/drivers
                  transparent: true,
                  opacity: 0.5
             });
             const line = new THREE.Line(geometry, material);
             scene.add(line);
-            return line;
+            return line; // Return line if needed later
         }
 
         // --- Build Framework ---
         function buildFramework(colors) {
             const rootPosition = new THREE.Vector3(0, 0, 0);
             const root = createNode("Syntrometrie Framework", colors.framework, 1, rootPosition);
-            createLabel("Framework Root", root);
+            createLabel("Framework Root", root); // Simpler label
 
             const layers = [
                 { name: "Foundational Logic", color: colors.foundational, zOffset: -6, nodeCount: 4, radius: 4 },
@@ -284,7 +219,7 @@
                 { name: "Emergence Layer", color: colors.emergence, zOffset: -24, nodeCount: 10, radius: 10 },
             ];
 
-            const layerNodeObjects = {};
+            const layerNodeObjects = {}; // Store node Meshes
             layerNodeObjects["Root"] = [root];
 
             layers.forEach((layer, index) => {
@@ -319,41 +254,39 @@
         function setupInteraction() {
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
-            // Listen for mouse move events on the container, not the whole window
-            if (container) {
-                container.addEventListener('mousemove', onMouseMove, false);
-                // Add touch support if needed (basic example)
-                container.addEventListener('touchmove', onTouchMove, false);
-                container.addEventListener('touchend', onTouchEnd, false);
-            }
+            // Use mousemove on the window for full-screen hover
+            window.addEventListener('mousemove', onMouseMove, false);
+            // Add touch support for mobile hover (basic)
+             window.addEventListener('touchmove', onTouchMove, { passive: false }); // passive:false may be needed if preventDefault is used later
+             window.addEventListener('touchend', onTouchEnd, false);
         }
 
         let lastIntersected = null;
 
-        function updateMousePosition(clientX, clientY) {
-             if (!container) return;
-             const rect = container.getBoundingClientRect();
-             mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-             mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+         // Helper to update mouse/touch coordinates
+         function updatePointerPosition(clientX, clientY) {
+             mouse.x = (clientX / window.innerWidth) * 2 - 1;
+             mouse.y = -(clientY / window.innerHeight) * 2 + 1;
          }
 
          function onMouseMove(event) {
-             updateMousePosition(event.clientX, event.clientY);
+             updatePointerPosition(event.clientX, event.clientY);
              checkIntersections();
          }
 
          function onTouchMove(event) {
+             // Prevent default scroll behavior when touching the visualization
+             // event.preventDefault(); // Uncomment if needed
              if (event.touches.length > 0) {
-                 updateMousePosition(event.touches[0].clientX, event.touches[0].clientY);
+                 updatePointerPosition(event.touches[0].clientX, event.touches[0].clientY);
                  checkIntersections();
              }
          }
 
          function onTouchEnd(event) {
-             // When touch ends, clear the hover effect
+             // When touch ends (finger lifts), clear the hover state
              clearHover();
          }
-
 
         function checkIntersections() {
             if (!camera || !raycaster) return;
@@ -364,7 +297,7 @@
             if (intersects.length > 0) {
                 const intersectedObject = intersects[0].object;
                 if (intersectedObject !== lastIntersected) {
-                    // Optional: Add visual feedback
+                    // Optional: Visual feedback (e.g., scale)
                     // if (lastIntersected) { lastIntersected.scale.set(1,1,1); }
                     // intersectedObject.scale.set(1.2, 1.2, 1.2);
 
@@ -380,11 +313,12 @@
                     lastIntersected = intersectedObject;
                 }
             } else {
+                // No intersection, clear previous hover state
                 clearHover();
             }
         }
 
-         function clearHover() {
+        function clearHover() {
              if (lastIntersected) {
                  // Optional: Reset visual feedback
                  // lastIntersected.scale.set(1, 1, 1);
@@ -394,6 +328,7 @@
                  lastIntersected = null;
              }
          }
+
 
         // --- Helper Functions for Node Metadata (Placeholder descriptions) ---
         function getNodeType(name) {
@@ -430,40 +365,42 @@
 
         // --- Resize Handler ---
         function onWindowResize() {
-            if (!container || !camera || !renderer || !labelRenderer) return;
-
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-
-            camera.aspect = width / height;
+            // Update camera aspect ratio and renderer sizes based on window dimensions
+            camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-
-            renderer.setSize(width, height);
-            labelRenderer.setSize(width, height);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
         }
 
         // --- Animation Loop ---
         function animate() {
             requestAnimationFrame(animate);
-            if (controls) controls.update(); // Update controls if damping is enabled
+            // Update controls if damping/auto-rotate is enabled
+            if (controls) controls.update();
+            // Render the scene
             if (renderer && scene && camera) renderer.render(scene, camera);
+            // Render the labels
             if (labelRenderer && scene && camera) labelRenderer.render(scene, camera);
         }
 
         // --- Start Application ---
+        // Use DOMContentLoaded to ensure the body and info-panel are ready
         document.addEventListener('DOMContentLoaded', () => {
             console.log("DOM ready, initializing Syntrometrie Framework visualization...");
              try {
                  init();
              } catch (error) {
                  console.error("Initialization failed:", error);
-                 const errContainer = document.getElementById('threejs-container') || document.body;
-                 errContainer.innerHTML = `<div style="color: red; padding: 20px; font-size: 1.2em;">Error during initialization: ${error.message}<br>Check console for details.</div>`;
-                 if(infoPanel) infoPanel.style.display = 'none';
+                 // Display error message in the body if init fails
+                 document.body.innerHTML = `<div style="color: red; padding: 20px; font-size: 1.2em; background: #333;">Error during initialization: ${error.message}<br>Check console for details.</div>`;
+                 // Attempt to hide info panel if it exists and error occurs
+                 const panel = document.getElementById('info-panel');
+                 if(panel) panel.style.display = 'none';
              }
          });
 
     </script>
+    <!-- === END OF JAVASCRIPT MODULE === -->
 
 </body>
 </html>
