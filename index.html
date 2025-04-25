@@ -3,41 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heim's Syntrometric Theory 3D Visualization</title>
+    <title>Heim's Syntrometric Theory & Agent Demo</title> <!-- Updated Title -->
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- (CSS Styles remain exactly the same as your previous version) --- */
+        /* --- (CSS Styles remain the same as previous version) --- */
         :root {
-            --background-color: #111122;
-            --text-color: #eeeeee;
-            --container-background: #1e1e2a;
-            --container-border-color: #333355;
-            --accent-color: #00aaff;
-            --link-hover-color: #66ccff;
-            --viz-background: #111122;
-            --info-panel-bg: rgba(40, 40, 60, 0.9);
-            --info-panel-text: #eeeeee;
-            --shadow-color: rgba(0, 0, 0, 0.5);
-            --text-muted: #aaaaaa;
+            --background-color: #111122; --text-color: #eeeeee; --container-background: #1e1e2a;
+            --container-border-color: #333355; --accent-color: #00aaff; --link-hover-color: #66ccff;
+            --viz-background: #111122; --info-panel-bg: rgba(40, 40, 60, 0.9); --info-panel-text: #eeeeee;
+            --shadow-color: rgba(0, 0, 0, 0.5); --text-muted: #aaaaaa;
         }
-        body {
-            font-family: 'Inter', sans-serif; line-height: 1.7; margin: 0; overflow-x: hidden;
-            background-color: var(--background-color); color: var(--text-color); font-size: 16px;
-        }
-        header {
-            background: linear-gradient(135deg, #1f1f2f 0%, #2c2c3f 100%); color: var(--text-color);
-            padding: 2rem 1rem; text-align: center; box-shadow: 0 2px 4px var(--shadow-color);
-        }
+        body { font-family: 'Inter', sans-serif; line-height: 1.7; margin: 0; overflow-x: hidden; background-color: var(--background-color); color: var(--text-color); font-size: 16px; }
+        header { background: linear-gradient(135deg, #1f1f2f 0%, #2c2c3f 100%); color: var(--text-color); padding: 2rem 1rem; text-align: center; box-shadow: 0 2px 4px var(--shadow-color); }
         header h1 { margin: 0 0 0.5rem 0; font-weight: 700; font-size: 2.2rem; }
         header p { margin: 0; font-size: 1.1rem; color: var(--text-muted); }
-        .container {
-            max-width: 900px; margin: 2rem auto; padding: 2rem; background: var(--container-background);
-            border-radius: 8px; border: 1px solid var(--container-border-color); box-shadow: 0 4px 12px var(--shadow-color);
-        }
+        .container { max-width: 900px; margin: 2rem auto; padding: 2rem; background: var(--container-background); border-radius: 8px; border: 1px solid var(--container-border-color); box-shadow: 0 4px 12px var(--shadow-color); }
         h2 { color: var(--accent-color); margin-top: 0; margin-bottom: 1.5rem; font-weight: 600; border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; }
         h3 { color: var(--accent-color); margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 600; }
         p { margin: 0 0 1rem 0; }
@@ -46,35 +30,19 @@
         ul { list-style: none; padding-left: 0; }
         li { margin-bottom: 0.75rem; position: relative; padding-left: 1.5rem; }
         li::before { content: '→'; position: absolute; left: 0; color: var(--accent-color); font-weight: bold; }
-        /* Specific style for quick links list if needed, defaults are fine */
-        .quick-links-list li::before { content: '🔗'; } /* Change icon for quick links */
-
-        .threejs-container {
-            width: 100%; height: 600px; margin: 2rem 0; background-color: var(--viz-background);
-            position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--container-border-color);
-            box-shadow: inset 0 0 10px var(--shadow-color);
-        }
+        .quick-links-list li::before { content: '🔗'; }
+        .threejs-container { width: 100%; height: 650px; /* Increased height slightly */ margin: 2rem 0; background-color: var(--viz-background); position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--container-border-color); box-shadow: inset 0 0 10px var(--shadow-color); }
         canvas { display: block; }
-        .label {
-            color: #fff; font-family: 'Inter', sans-serif; padding: 3px 6px; background: rgba(0, 0, 0, 0.7);
-            border-radius: 4px; font-size: 11px; font-weight: 600; pointer-events: none; user-select: none;
-            white-space: nowrap; position: absolute; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); transform: translate(-50%, 0);
-        }
-        #info-panel {
-            position: absolute; top: 15px; left: 15px; background-color: var(--info-panel-bg); color: var(--info-panel-text);
-            padding: 12px 18px; border-radius: 6px; max-width: 300px; font-size: 13px; border: 1px solid var(--container-border-color);
-            box-shadow: 0 2px 10px var(--shadow-color); z-index: 10; pointer-events: none; backdrop-filter: blur(3px);
-            transition: opacity 0.2s ease-in-out; opacity: 1;
-        }
+        .label { color: #fff; font-family: 'Inter', sans-serif; padding: 3px 6px; background: rgba(0, 0, 0, 0.7); border-radius: 4px; font-size: 11px; font-weight: 600; pointer-events: none; user-select: none; white-space: nowrap; position: absolute; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); transform: translate(-50%, 0); }
+        #info-panel { position: absolute; top: 15px; left: 15px; background-color: var(--info-panel-bg); color: var(--info-panel-text); padding: 12px 18px; border-radius: 6px; max-width: 300px; font-size: 13px; border: 1px solid var(--container-border-color); box-shadow: 0 2px 10px var(--shadow-color); z-index: 10; pointer-events: none; backdrop-filter: blur(3px); transition: opacity 0.2s ease-in-out; opacity: 1; }
         #info-panel:empty { opacity: 0; }
         #info-panel h3 { margin: 0 0 8px 0; color: var(--accent-color); font-size: 15px; font-weight: 700; border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 6px; }
         #info-panel p { margin: 4px 0; line-height: 1.5; }
         #info-panel p b { color: #aaaaff; font-weight: 600; margin-right: 5px; }
-        #info-panel .links-list {
-            margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 12px; color: #cccccc;
-        }
-         #info-panel .links-list b { color: #aaccaa; }
+        #info-panel .links-list { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 12px; color: #cccccc; }
+        #info-panel .links-list b { color: #aaccaa; }
+         /* Style for simulated data in info panel */
+         #info-panel .simulated-data { color: #ffcc66; font-style: italic; font-size: 12px; }
     </style>
     <script type="importmap">
         {
@@ -87,39 +55,25 @@
 </head>
 <body>
     <header>
-        <h1>Heim's Syntrometric Theory Visualization</h1>
-        <p>Discover Burkhard Heim's unified field theory through an interactive 3D model of the Syntrometric Framework.</p>
+        <h1>Heim's Syntrometric Theory Visualization & Agent Demo</h1>
+        <p>Explore Burkhard Heim's unified field theory and a conceptual demo of an integrated AI agent.</p>
     </header>
 
     <div class="container">
         <h2>About Syntrometric Theory</h2>
-        <p>Burkhard Heim's Syntrometric Theory is a unified field theory that describes reality as a 12-dimensional quantized system, integrating quantum mechanics, general relativity, and consciousness. It uses discrete metronic calculus and a hierarchical dimensional structure to explain physical phenomena and subjective experience.</p>
-        <h3>Key Concepts</h3>
-        <ul>
-            <li><b>Syntrix</b>: A self-referential information matrix encoding physical and conscious phenomena across all dimensions.</li>
-            <li><b>Metronische Gitter</b>: Quantum lattices (metrons) forming the discrete foundation of spacetime, matter, and energy.</li>
-            <li><b>12-Dimensional Framework</b>: Includes 6 physical dimensions (R1–R6) and 6 transdimensions (R7–R12).</li>
-            <li><b>Strukturkaskaden</b>: Recursive cascades generating complex structures.</li>
-            <li><b>Telezentrik</b>: A principle of purposeful organization.</li>
-        </ul>
-        <p>The theory employs reflexive abstraction and subjective logic to derive physical laws, quantized within a 6-dimensional physical subspace embedded in a 12-dimensional reality.</p>
-
-        <!-- === ADDED QUICK LINKS SECTION === -->
-        <h3>Quick Links</h3>
+        <p>Burkhard Heim's Syntrometric Theory describes reality as a 12-dimensional quantized system, integrating physics and consciousness. Key concepts include the Syntrix, Metrons, Dimensions (R1-R12), Strukturkaskaden, and Telezentrik.</p>
+         <h3>Quick Links</h3>
         <ul class="quick-links-list">
-             <!-- Adjust paths as needed for your file structure -->
             <li><a href="research/syntrometrie_framework.html" title="View 2D Diagram">Syntrometrie Framework Diagram</a></li>
             <li><a href="research/conscious_agent_arch.html" title="View Agent Architecture">Conscious Agent Architecture Diagram</a></li>
             <li><a href="../README.md" title="Go to Main Project Readme">Main Project README</a></li>
             <li><a href="https://heim-theory.com/" target="_blank" title="External Resource (Opens New Tab)">Heim Theory Resources</a></li>
         </ul>
-        <!-- === END OF QUICK LINKS SECTION === -->
-
     </div>
 
     <div class="container">
-        <h2>Interactive 3D Model</h2>
-        <p>Explore specific concepts from Heim's theory and their relationships. Hover over nodes for detailed information, including related concepts, and use mouse/touch to rotate, pan, and zoom.</p>
+        <h2>Interactive 3D Model & Agent Demo</h2>
+        <p>The visualization shows specific concepts from Heim's theory (hover for details). Added elements represent a simplified AI agent: its internal state influences an avatar placeholder and an "Emergence Core" based on simulated RIH principles. Use mouse/touch to explore.</p>
         <div class="threejs-container">
             <div id="info-panel"></div>
         </div>
@@ -135,26 +89,42 @@
         let scene, camera, renderer, labelRenderer, controls;
         let raycaster, mouse;
         let infoPanel;
-        const nodes = {}; // Store nodes { id: { object: mesh, label: labelObj, data: {...} } }
-        const edges = []; // Store edge tube meshes
+        const nodes = {}; // Stores original concept nodes { id: { object: mesh, label: labelObj, data: {...} } }
+        const edges = []; // Stores edge tube meshes
         let container;
+        let clock; // For delta time in animation
 
-        // --- Concept Data (From Original Script - Primary source for visualization) ---
+        // --- Simulation Placeholders ---
+        let agentStateMesh, avatarMesh, emergenceCoreMesh;
+        let agentStateLabel, avatarLabel, emergenceCoreLabel;
+        const simulatedEmotions = new THREE.Vector3(0.5, 0.5, 0.5); // Simplified 3D emotion vector (e.g., Valence, Arousal, Dominance proxy)
+        let simulatedPrevEmotions = simulatedEmotions.clone();
+        let simulatedIntegration = 0.5;
+        let simulatedReflexivity = 0.5;
+        const RHO_THRESHOLD = 0.8; // Example threshold for reflexivity
+        let simulatedThreshold = 0.6; // Example dynamic threshold tau(t)
+        let emergenceActive = false; // State for the RIH core
+
+        // List of objects for raycasting (includes original nodes and placeholders)
+        let interactableObjects = [];
+
+        // --- Concept Data (Source for original graph nodes) ---
         const conceptData = {
-            'reflexive_abstraction': { id: 'reflexive_abstraction', name: 'Reflexive Abstraktion', chapter: 1, position: new THREE.Vector3(0, 15, -20), type: 'method', links: ['syntrometry'], description: "Method to overcome subjective limits by analyzing reflection itself." },
-            'subjective_aspect': { id: 'subjective_aspect', name: 'Subjective Aspect (S)', chapter: 1, position: new THREE.Vector3(-10, 10, -18), type: 'structure', links: ['pradikatrix', 'dialektik', 'koordination', 'aspektivsystem'], description: "Contextual framework for statements; a viewpoint." },
-            'pradikatrix': { id: 'pradikatrix', name: 'Prädikatrix (Pm)', chapter: 1, position: new THREE.Vector3(-20, 15, -16), type: 'component', links: [], description: "Schema of potential statements/predicates." },
-            'dialektik': { id: 'dialektik', name: 'Dialektik (Dn)', chapter: 1, position: new THREE.Vector3(-15, 15, -16), type: 'component', links: [], description: "Schema of subjective qualifiers/biases." },
-            'koordination': { id: 'koordination', name: 'Koordination (Kn)', chapter: 1, position: new THREE.Vector3(-10, 15, -16), type: 'component', links: [], description: "Mechanism linking Prädikatrix and Dialektik." },
-            'aspektivsystem': { id: 'aspektivsystem', name: 'Aspektivsystem (P)', chapter: 1, position: new THREE.Vector3(10, 10, -18), type: 'structure', links: ['metropie', 'idee'], description: "Collection of related subjective aspects." },
-            'metropie': { id: 'metropie', name: 'Metropie (g)', chapter: 1, position: new THREE.Vector3(20, 15, -16), type: 'property', links: [], description: "Metric defining 'distance' between aspects." },
-            'idee': { id: 'idee', name: 'Idee (Apodiktic Core)', chapter: 1, position: new THREE.Vector3(15, 5, -16), type: 'core', links: [], description: "Invariant elements within an Aspektivsystem." },
-            'syntrometry': { id: 'syntrometry', name: 'Syntrometrie', chapter: 1, position: new THREE.Vector3(0, 0, -18), type: 'framework', links: ['syntrix'], description: "Heim's universal logic derived from Reflexive Abstraction." },
-            'syntrix': { id: 'syntrix', name: 'Syntrix (ã|=)', chapter: 2, position: new THREE.Vector3(0, 0, -10), type: 'structure', links: ['metrophor', 'synkolator', 'synkolation_stage', 'korporator'], description: "Formal, recursive structure embodying a Category." },
-            'metrophor': { id: 'metrophor', name: 'Metrophor (ã)', chapter: 2, position: new THREE.Vector3(-10, 5, -8), type: 'core', links: ['idee'], description: "Invariant core (Idee) of a Syntrix; base elements." },
-            'synkolator': { id: 'synkolator', name: 'Synkolator ({)', chapter: 2, position: new THREE.Vector3(0, 5, -8), type: 'operator', links: [], description: "Recursive correlation law generating complexity." },
-            'synkolation_stage': { id: 'synkolation_stage', name: 'Synkolation Stage (m)', chapter: 2, position: new THREE.Vector3(10, 5, -8), type: 'parameter', links: [], description: "Arity/depth of the Synkolator." },
-            'korporator': { id: 'korporator', name: 'Korporator ({})', chapter: 3, position: new THREE.Vector3(0, -5, -5), type: 'operator', links: ['syntrix'], description: "Operator combining multiple Syntrices." },
+            // ... (Concept data remains exactly the same as your previous version) ...
+            'reflexive_abstraction': { id: 'reflexive_abstraction', name: 'Reflexive Abstraktion', chapter: 1, position: new THREE.Vector3(0, 15, -20), type: 'method', links: ['syntrometry'], description: "Method to overcome subjective limits..." },
+            'subjective_aspect': { id: 'subjective_aspect', name: 'Subjective Aspect (S)', chapter: 1, position: new THREE.Vector3(-10, 10, -18), type: 'structure', links: ['pradikatrix', 'dialektik', 'koordination', 'aspektivsystem'], description: "Contextual framework..." },
+            'pradikatrix': { id: 'pradikatrix', name: 'Prädikatrix (Pm)', chapter: 1, position: new THREE.Vector3(-20, 15, -16), type: 'component', links: [], description: "Schema of potential statements..." },
+            'dialektik': { id: 'dialektik', name: 'Dialektik (Dn)', chapter: 1, position: new THREE.Vector3(-15, 15, -16), type: 'component', links: [], description: "Schema of subjective qualifiers..." },
+            'koordination': { id: 'koordination', name: 'Koordination (Kn)', chapter: 1, position: new THREE.Vector3(-10, 15, -16), type: 'component', links: [], description: "Mechanism linking..." },
+            'aspektivsystem': { id: 'aspektivsystem', name: 'Aspektivsystem (P)', chapter: 1, position: new THREE.Vector3(10, 10, -18), type: 'structure', links: ['metropie', 'idee'], description: "Collection of related aspects..." },
+            'metropie': { id: 'metropie', name: 'Metropie (g)', chapter: 1, position: new THREE.Vector3(20, 15, -16), type: 'property', links: [], description: "Metric defining 'distance'..." },
+            'idee': { id: 'idee', name: 'Idee (Apodiktic Core)', chapter: 1, position: new THREE.Vector3(15, 5, -16), type: 'core', links: [], description: "Invariant elements..." },
+            'syntrometry': { id: 'syntrometry', name: 'Syntrometrie', chapter: 1, position: new THREE.Vector3(0, 0, -18), type: 'framework', links: ['syntrix'], description: "Heim's universal logic..." },
+            'syntrix': { id: 'syntrix', name: 'Syntrix (ã|=)', chapter: 2, position: new THREE.Vector3(0, 0, -10), type: 'structure', links: ['metrophor', 'synkolator', 'synkolation_stage', 'korporator'], description: "Formal, recursive structure..." },
+            'metrophor': { id: 'metrophor', name: 'Metrophor (ã)', chapter: 2, position: new THREE.Vector3(-10, 5, -8), type: 'core', links: ['idee'], description: "Invariant core (Idee)..." },
+            'synkolator': { id: 'synkolator', name: 'Synkolator ({)', chapter: 2, position: new THREE.Vector3(0, 5, -8), type: 'operator', links: [], description: "Recursive correlation law..." },
+            'synkolation_stage': { id: 'synkolation_stage', name: 'Synkolation Stage (m)', chapter: 2, position: new THREE.Vector3(10, 5, -8), type: 'parameter', links: [], description: "Arity/depth of Synkolator..." },
+            'korporator': { id: 'korporator', name: 'Korporator ({})', chapter: 3, position: new THREE.Vector3(0, -5, -5), type: 'operator', links: ['syntrix'], description: "Operator combining Syntrices..." },
         };
 
 
@@ -163,17 +133,19 @@
             container = document.querySelector('.threejs-container');
             infoPanel = document.getElementById('info-panel');
             if (!container) { console.error("Container not found"); return; }
-            if (infoPanel) infoPanel.innerHTML = '';
+            if (infoPanel) infoPanel.innerHTML = ''; else console.warn("Info panel not found.");
+
+            clock = new THREE.Clock(); // Initialize clock for delta time
 
             const width = container.clientWidth;
             const height = container.clientHeight;
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x111122);
-            scene.fog = new THREE.Fog(0x111122, 50, 150); // Adjust fog for different scale
+            scene.fog = new THREE.Fog(0x111122, 60, 160); // Adjusted fog
 
-            camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000); // Slightly narrower FOV
-            camera.position.set(0, 10, 45); // Position further back to see all nodes
+            camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000);
+            camera.position.set(0, 15, 55); // Position further back and higher
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(width, height);
@@ -191,9 +163,9 @@
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.minDistance = 5;
-            controls.maxDistance = 120; // Allow zooming further out
-            controls.target.set(0, 5, -10); // Target the center of the node cloud
+            controls.minDistance = 10; // Adjusted min distance
+            controls.maxDistance = 150;
+            controls.target.set(0, 5, -10);
             controls.update();
 
             const ambientLight = new THREE.AmbientLight(0x707090);
@@ -205,229 +177,149 @@
             dirLight2.position.set(-5, -5, -5).normalize();
             scene.add(dirLight2);
 
-            // --- Call node and edge creation functions ---
-            createNodes();
-            createEdges();
-            // --- End of node/edge creation call ---
+            // --- Create Original Concept Graph AND Simulation Placeholders ---
+            createNodes(); // Creates original concept nodes
+            createEdges(); // Creates links between original nodes
+            createAgentSimulationPlaceholders(); // Creates the new placeholders
+            // ---
+
+            // Combine all interactable objects for raycasting
+            interactableObjects = Object.values(nodes).map(n => n.object);
+            if (agentStateMesh) interactableObjects.push(agentStateMesh);
+            if (avatarMesh) interactableObjects.push(avatarMesh);
+            if (emergenceCoreMesh) interactableObjects.push(emergenceCoreMesh);
 
             setupInteraction();
             window.addEventListener('resize', onWindowResize, false);
-            animate();
+            animate(); // Start animation loop
         }
 
-        // --- Node Creation (Adapted from Script 1 / Refined Version) ---
+        // --- Node Creation (Original Concepts - Unchanged) ---
         function createNodes() {
-            const baseSize = 1.5; // Base radius for nodes
-            const labelOffsetFactor = 0.6; // Factor for label distance
-
-            for (const id in conceptData) {
-                const data = conceptData[id];
-                let geometry;
-                let material;
-                let currentScale = 1.0; // Use scale instead of varying baseSize
-                let detail = 16; // Sphere/Cylinder detail
-
-                // Visual Metaphors for Nodes
+             const baseSize = 1.5; const labelOffsetFactor = 0.6;
+             for (const id in conceptData) { /* ... (same as previous version) ... */
+                const data = conceptData[id]; let geometry; let material; let currentScale = 1.0; let detail = 16;
                 switch (data.type) {
-                    case 'framework':
-                        geometry = new THREE.BoxGeometry(baseSize * 2.5, baseSize * 2.5, baseSize * 2.5);
-                        material = new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 60, transparent: true, opacity: 0.9 });
-                        break;
-                    case 'structure':
-                        geometry = new THREE.SphereGeometry(baseSize * 1.2, detail, Math.floor(detail / 2));
-                        material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 });
-                        break;
-                    case 'core':
-                        geometry = new THREE.SphereGeometry(baseSize * 0.9, detail, Math.floor(detail / 2));
-                        material = new THREE.MeshPhongMaterial({ color: 0xffff66, shininess: 100 }); // Yellowish core
-                        break;
-                    case 'component':
-                        geometry = new THREE.SphereGeometry(baseSize, detail, Math.floor(detail / 2));
-                        material = new THREE.MeshPhongMaterial({ color: 0x66ffaa, shininess: 50 }); // Greenish component
-                        break;
-                    case 'property':
-                        geometry = new THREE.SphereGeometry(baseSize * 0.8, detail, Math.floor(detail / 2));
-                        material = new THREE.MeshPhongMaterial({ color: 0xffaaff, shininess: 40 }); // Pinkish property
-                        break;
-                    case 'parameter':
-                        geometry = new THREE.SphereGeometry(baseSize * 0.7, detail, Math.floor(detail / 2));
-                        material = new THREE.MeshPhongMaterial({ color: 0xaaffff, shininess: 30 }); // Cyan parameter
-                        break;
-                    case 'operator':
-                        geometry = new THREE.OctahedronGeometry(baseSize * 1.1, 0);
-                        material = new THREE.MeshPhongMaterial({ color: 0xffaa66, shininess: 70 }); // Orange operator
-                        break;
-                    case 'method':
-                        geometry = new THREE.CylinderGeometry(baseSize * 0.6, baseSize * 0.6, baseSize * 2.0, detail);
-                        material = new THREE.MeshPhongMaterial({ color: 0xff66ff, shininess: 60 }); // Magenta method
-                        break;
-                    default:
-                        geometry = new THREE.BoxGeometry(baseSize, baseSize, baseSize);
-                        material = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 20 });
+                    case 'framework': geometry = new THREE.BoxGeometry(baseSize*2.5, baseSize*2.5, baseSize*2.5); material = new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 60, transparent: true, opacity: 0.9 }); break;
+                    case 'structure': geometry = new THREE.SphereGeometry(baseSize*1.2, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 }); break;
+                    case 'core': geometry = new THREE.SphereGeometry(baseSize*0.9, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffff66, shininess: 100 }); break;
+                    case 'component': geometry = new THREE.SphereGeometry(baseSize, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0x66ffaa, shininess: 50 }); break;
+                    case 'property': geometry = new THREE.SphereGeometry(baseSize*0.8, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffaaff, shininess: 40 }); break;
+                    case 'parameter': geometry = new THREE.SphereGeometry(baseSize*0.7, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xaaffff, shininess: 30 }); break;
+                    case 'operator': geometry = new THREE.OctahedronGeometry(baseSize*1.1, 0); material = new THREE.MeshPhongMaterial({ color: 0xffaa66, shininess: 70 }); break;
+                    case 'method': geometry = new THREE.CylinderGeometry(baseSize*0.6, baseSize*0.6, baseSize*2.0, detail); material = new THREE.MeshPhongMaterial({ color: 0xff66ff, shininess: 60 }); break;
+                    default: geometry = new THREE.BoxGeometry(baseSize, baseSize, baseSize); material = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 20 });
                 }
-
                 const nodeMesh = new THREE.Mesh(geometry, material);
-                // Use position directly from conceptData
-                if (data.position instanceof THREE.Vector3) {
-                    nodeMesh.position.copy(data.position);
-                } else {
-                    console.warn(`Node ${id} has invalid position data.`);
-                    nodeMesh.position.set(Math.random()*20-10, Math.random()*20-10, Math.random()*20-10); // Random fallback
-                }
+                if (data.position instanceof THREE.Vector3) { nodeMesh.position.copy(data.position); } else { nodeMesh.position.set(Math.random()*20-10, Math.random()*20-10, Math.random()*20-10); }
                 nodeMesh.scale.set(currentScale, currentScale, currentScale);
-                nodeMesh.userData = data; // Attach the full concept data
+                nodeMesh.userData = { type: 'concept', data: data }; // Mark as concept node
                 scene.add(nodeMesh);
-
-                // Create and attach label using CSS2DObject
-                const labelDiv = document.createElement('div');
-                labelDiv.className = 'label';
-                labelDiv.textContent = data.name; // Use name from data
-                const labelObject = new CSS2DObject(labelDiv);
-
-                geometry.computeBoundingSphere(); // Ensure bounding sphere is calculated
-                const boundingSphere = geometry.boundingSphere;
+                const labelDiv = document.createElement('div'); labelDiv.className = 'label'; labelDiv.textContent = data.name;
+                const labelObject = new CSS2DObject(labelDiv); geometry.computeBoundingSphere(); const boundingSphere = geometry.boundingSphere;
                 let yOffset = boundingSphere.radius * currentScale + labelOffsetFactor;
-                 // Special adjustments for non-spheres if needed
-                 if (geometry instanceof THREE.CylinderGeometry) {
-                     yOffset = (geometry.parameters.height / 2) * currentScale + labelOffsetFactor + 0.2;
-                 } else if (geometry instanceof THREE.BoxGeometry) {
-                      yOffset = (geometry.parameters.height / 2) * currentScale + labelOffsetFactor;
-                 }
-
-                labelObject.position.set(0, yOffset, 0); // Position relative to node center
-                nodeMesh.add(labelObject); // Attach label to the node mesh
-
-                // Store node info in the global 'nodes' map
+                 if (geometry instanceof THREE.CylinderGeometry) yOffset = (geometry.parameters.height/2)*currentScale + labelOffsetFactor + 0.2;
+                 else if (geometry instanceof THREE.BoxGeometry) yOffset = (geometry.parameters.height/2)*currentScale + labelOffsetFactor;
+                labelObject.position.set(0, yOffset, 0); nodeMesh.add(labelObject);
                 nodes[id] = { object: nodeMesh, label: labelObject, data: data };
-            }
+             }
+             console.log(`Created ${Object.keys(nodes).length} concept nodes.`);
         }
 
-        // --- Edge Creation (Adapted from Script 1 / Refined Version) ---
-        function createEdges() {
-            const visitedEdges = new Set();
-            const tubeRadius = 0.08; // Thinner tubes
-            const tubeDetail = 6;
-            const tubularSegments = 8;
-            const nodeRadiusFactor = 1.05; // Start slightly outside the node radius
-            const material = new THREE.MeshPhongMaterial({
-                color: 0x777799, // Muted edge color
+        // --- Edge Creation (Original Concepts - Unchanged) ---
+        function createEdges() { /* ... (same as previous version) ... */
+             const visitedEdges = new Set(); const tubeRadius = 0.08; const tubeDetail = 6; const tubularSegments = 8; const nodeRadiusFactor = 1.05; const material = new THREE.MeshPhongMaterial({ color: 0x777799, transparent: true, opacity: 0.5, shininess: 10 });
+             function getApproxBoundaryRadius(geometry, scale) { if (!geometry.boundingSphere) geometry.computeBoundingSphere(); return geometry.boundingSphere ? geometry.boundingSphere.radius * scale : 1.0 * scale; }
+             for (const id in nodes) { const sourceNode = nodes[id]; if (!sourceNode || !sourceNode.object) continue; const sourceScale = sourceNode.object.scale.x; const sourceBoundary = getApproxBoundaryRadius(sourceNode.object.geometry, sourceScale);
+                 sourceNode.data.links.forEach(targetId => { const targetNode = nodes[targetId]; if (targetNode && targetNode.object) { const edgeKey = `${id}-${targetId}`; const reverseEdgeKey = `${targetId}-${id}`; if (visitedEdges.has(edgeKey) || visitedEdges.has(reverseEdgeKey)) return; visitedEdges.add(edgeKey); const targetScale = targetNode.object.scale.x; const targetBoundary = getApproxBoundaryRadius(targetNode.object.geometry, targetScale); const startPoint = sourceNode.object.position; const endPoint = targetNode.object.position; const direction = new THREE.Vector3().subVectors(endPoint, startPoint); const distance = direction.length(); if (distance < 0.001) return; direction.normalize(); const shortenStart = sourceBoundary * nodeRadiusFactor; const shortenEnd = targetBoundary * nodeRadiusFactor; const minRequiredDistance = shortenStart + shortenEnd + tubeRadius * 2; if (distance <= minRequiredDistance) return; const adjustedStart = startPoint.clone().add(direction.clone().multiplyScalar(shortenStart)); const adjustedEnd = endPoint.clone().sub(direction.clone().multiplyScalar(shortenEnd)); if (adjustedStart.distanceTo(adjustedEnd) < tubeRadius) return; try { const curve = new THREE.LineCurve3(adjustedStart, adjustedEnd); const tubeGeometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, tubeDetail, false); const edge = new THREE.Mesh(tubeGeometry, material.clone()); scene.add(edge); edges.push(edge); } catch (e) { console.error(`Tube geom error "${id}"<->"${targetId}":`, e); } } else { console.warn(`Target node "${targetId}" not found for link from "${id}"`); } });
+             }
+             console.log(`Created ${edges.length} edges.`);
+        }
+
+        // --- Create Simulation Placeholder Objects --- *** NEW ***
+        function createAgentSimulationPlaceholders() {
+            const placeholderY = -15; // Position placeholders below the main graph
+
+            // 1. Agent Internal State Placeholder
+            const agentStateGeo = new THREE.SphereGeometry(2.5, 32, 16);
+            // Start with a neutral color, will be updated
+            const agentStateMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 60, transparent: true, opacity: 0.8 });
+            agentStateMesh = new THREE.Mesh(agentStateGeo, agentStateMat);
+            agentStateMesh.position.set(-15, placeholderY, -5);
+            agentStateMesh.userData = { type: 'agent_state', name: "Agent Internal State" }; // Mark type
+            scene.add(agentStateMesh);
+            agentStateLabel = createPlaceholderLabel("Agent State", agentStateMesh, 3.0);
+
+            // 2. Avatar Representation Placeholder
+            const avatarGeo = new THREE.CapsuleGeometry(1.2, 2.5, 4, 16); // Simple capsule shape
+            const avatarMat = new THREE.MeshPhongMaterial({ color: 0x9999ff, shininess: 40 }); // Bluish placeholder
+            avatarMesh = new THREE.Mesh(avatarGeo, avatarMat);
+            avatarMesh.position.set(0, placeholderY - 1, 0); // Slightly lower
+            avatarMesh.userData = { type: 'avatar', name: "Avatar Representation" };
+            scene.add(avatarMesh);
+            avatarLabel = createPlaceholderLabel("Avatar", avatarMesh, 2.8);
+
+            // 3. Emergence/RIH Core Placeholder
+            const emergenceGeo = new THREE.IcosahedronGeometry(1.8, 1); // Icosahedron for core
+            // Emissive material to make it glow when active
+            const emergenceMat = new THREE.MeshPhongMaterial({
+                color: 0xffcc00, // Yellowish base
+                emissive: 0x000000, // Start with no glow
+                shininess: 80,
                 transparent: true,
-                opacity: 0.5,
-                shininess: 10
+                opacity: 0.6
             });
+            emergenceCoreMesh = new THREE.Mesh(emergenceGeo, emergenceMat);
+            emergenceCoreMesh.position.set(15, placeholderY, -5);
+            emergenceCoreMesh.userData = { type: 'emergence_core', name: "Emergence Core (RIH)" };
+            scene.add(emergenceCoreMesh);
+            emergenceCoreLabel = createPlaceholderLabel("Emergence Core", emergenceCoreMesh, 2.5);
 
-            function getApproxBoundaryRadius(geometry, scale) {
-                 if (!geometry.boundingSphere) geometry.computeBoundingSphere();
-                 return geometry.boundingSphere ? geometry.boundingSphere.radius * scale : 1.0 * scale;
-            }
+            console.log("Created simulation placeholder objects.");
+        }
 
-            for (const id in nodes) {
-                const sourceNode = nodes[id];
-                if (!sourceNode || !sourceNode.object) continue;
-
-                const sourceScale = sourceNode.object.scale.x;
-                const sourceBoundary = getApproxBoundaryRadius(sourceNode.object.geometry, sourceScale);
-
-                // Iterate through links defined in the conceptData
-                sourceNode.data.links.forEach(targetId => {
-                    const targetNode = nodes[targetId]; // Find the target node object
-
-                    if (targetNode && targetNode.object) {
-                        const edgeKey = `${id}-${targetId}`;
-                        const reverseEdgeKey = `${targetId}-${id}`;
-                        if (visitedEdges.has(edgeKey) || visitedEdges.has(reverseEdgeKey)) return; // Avoid duplicates
-                        visitedEdges.add(edgeKey);
-
-                        const targetScale = targetNode.object.scale.x;
-                        const targetBoundary = getApproxBoundaryRadius(targetNode.object.geometry, targetScale);
-                        const startPoint = sourceNode.object.position;
-                        const endPoint = targetNode.object.position;
-                        const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
-                        const distance = direction.length();
-
-                        if (distance < 0.001) { console.warn(`Nodes "${id}"/"${targetId}" same pos.`); return; }
-                        direction.normalize();
-
-                        const shortenStart = sourceBoundary * nodeRadiusFactor;
-                        const shortenEnd = targetBoundary * nodeRadiusFactor;
-                        const minRequiredDistance = shortenStart + shortenEnd + tubeRadius * 2;
-
-                        if (distance <= minRequiredDistance) { console.warn(`Nodes "${id}"/"${targetId}" too close.`); return; }
-
-                        const adjustedStart = startPoint.clone().add(direction.clone().multiplyScalar(shortenStart));
-                        const adjustedEnd = endPoint.clone().sub(direction.clone().multiplyScalar(shortenEnd));
-
-                        if (adjustedStart.distanceTo(adjustedEnd) < tubeRadius) { console.warn(`Adj points too close "${id}"/"${targetId}".`); return; }
-
-                        try {
-                            const curve = new THREE.LineCurve3(adjustedStart, adjustedEnd);
-                            const tubeGeometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, tubeDetail, false);
-                            const edge = new THREE.Mesh(tubeGeometry, material.clone());
-                            scene.add(edge);
-                            edges.push(edge); // Add to edge array (optional)
-                        } catch (e) { console.error(`Tube geom error "${id}"<->"${targetId}":`, e); }
-                    } else { console.warn(`Target node "${targetId}" not found for link from "${id}"`); }
-                });
-            }
+        // Helper for placeholder labels
+        function createPlaceholderLabel(text, parentMesh, yOffset) {
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'label';
+            labelDiv.textContent = text;
+            labelDiv.style.fontSize = '13px'; // Make placeholder labels slightly larger
+            labelDiv.style.fontWeight = 'bold';
+            const labelObj = new CSS2DObject(labelDiv);
+            labelObj.position.set(0, yOffset, 0); // Position above the mesh center
+            parentMesh.add(labelObj);
+            return labelObj;
         }
 
 
         // --- Interaction Setup ---
-        function setupInteraction() {
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-            if (container) {
-                container.addEventListener('mousemove', onPointerMove, false);
-                container.addEventListener('touchmove', onPointerMove, { passive: false });
-                container.addEventListener('touchend', onPointerUp, false);
-                container.addEventListener('mouseleave', onPointerLeave, false);
-            }
+        function setupInteraction() { /* ... (same as previous) ... */
+            raycaster = new THREE.Raycaster(); mouse = new THREE.Vector2();
+            if (container) { container.addEventListener('mousemove', onPointerMove, false); container.addEventListener('touchmove', onPointerMove, { passive: false }); container.addEventListener('touchend', onPointerUp, false); container.addEventListener('mouseleave', onPointerLeave, false); }
         }
 
         let lastIntersected = null;
 
         // --- Unified Pointer Move Handler ---
-        function onPointerMove(event) { /* ... same as before ... */
-            let clientX, clientY;
-             if (event.touches && event.touches.length > 0) {
-                 clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; event.preventDefault();
-             } else {
-                 clientX = event.clientX; clientY = event.clientY;
-             }
-             updatePointerPosition(clientX, clientY);
-             checkIntersections(); // Call check function
-         }
-
-        // --- Pointer Up/Leave Handlers ---
+        function onPointerMove(event) { /* ... (same as previous) ... */
+            let clientX, clientY; if (event.touches && event.touches.length>0){ clientX=event.touches[0].clientX; clientY=event.touches[0].clientY; event.preventDefault(); } else { clientX=event.clientX; clientY=event.clientY; } updatePointerPosition(clientX, clientY); checkIntersections();
+        }
         function onPointerUp(event) { if (event.changedTouches) clearHover(); }
         function onPointerLeave(event) { clearHover(); }
+        function updatePointerPosition(clientX, clientY) { /* ... (same as previous) ... */ if (!container) return; const rect = container.getBoundingClientRect(); mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1; mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1; }
 
-        // --- Update Pointer Coordinates Relative to Container ---
-        function updatePointerPosition(clientX, clientY) { /* ... same as before ... */
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
-            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        }
-
-
-        // --- Check for Intersections (Adapted for 'nodes' map) ---
+        // --- Check for Intersections --- *** MODIFIED ***
         function checkIntersections() {
-            if (!camera || !raycaster || Object.keys(nodes).length === 0) return;
-
-            // Get array of mesh objects from the 'nodes' map
-            const nodeObjects = Object.values(nodes).map(n => n.object);
-            if (nodeObjects.length === 0) return; // No nodes to check
+            if (!camera || !raycaster || interactableObjects.length === 0) return;
 
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(nodeObjects, false); // Check only node meshes
+            // Raycast against the combined list of original nodes and placeholders
+            const intersects = raycaster.intersectObjects(interactableObjects, false);
 
             if (intersects.length > 0) {
                 const intersectedObject = intersects[0].object; // The intersected MESH
                 if (intersectedObject !== lastIntersected) {
-                    // Find the corresponding node entry in our 'nodes' map (optional, could pass object directly)
-                    // let intersectedNodeData = Object.values(nodes).find(n => n.object === intersectedObject);
-                    updateInfoPanel(intersectedObject); // Pass the MESH to the update function
+                    updateInfoPanel(intersectedObject); // Pass the MESH
                     lastIntersected = intersectedObject;
                 }
             } else {
@@ -435,71 +327,155 @@
             }
         }
 
-        // --- Update Info Panel Helper (Adapted for userData from conceptData) ---
-        function updateInfoPanel(nodeMesh) { // Takes the Mesh object
+        // --- Update Info Panel Helper --- *** MODIFIED ***
+        function updateInfoPanel(nodeMesh) {
             if (!infoPanel) return;
 
-            const data = nodeMesh.userData; // The conceptData entry is stored here
-            if (!data) { infoPanel.innerHTML = ''; return; } // No data associated
+            const userData = nodeMesh.userData; // Get data stored on the mesh
+            if (!userData || !userData.type) { infoPanel.innerHTML = ''; return; }
 
-            const safeName = (data.name || 'Unnamed Node').replace(/</g, "<").replace(/>/g, ">");
-            let linksHtml = '';
+            let panelHtml = '';
+            const safeName = (userData.name || 'Unnamed Object').replace(/</g, "<").replace(/>/g, ">");
 
-            // Use the links directly from the node's data
-            if (data.links && data.links.length > 0) {
-                const linkedNames = data.links
-                    .map(linkId => conceptData[linkId]?.name) // Look up names in global conceptData
-                    .filter(name => name)
-                    .map(name => name.replace(/</g, "<").replace(/>/g, ">"));
-
-                if (linkedNames.length > 0) {
-                    linksHtml = `
-                        <div class="links-list">
-                            <b>Links To:</b> ${linkedNames.join(', ')}
-                        </div>
-                    `;
+            // Display different info based on the type stored in userData
+            if (userData.type === 'concept' && userData.data) {
+                // Original concept node
+                const data = userData.data;
+                let linksHtml = '';
+                if (data.links && data.links.length > 0) {
+                    const linkedNames = data.links
+                        .map(linkId => conceptData[linkId]?.name)
+                        .filter(name => name)
+                        .map(name => name.replace(/</g, "<").replace(/>/g, ">"));
+                    if (linkedNames.length > 0) {
+                        linksHtml = `<div class="links-list"><b>Links To:</b> ${linkedNames.join(', ')}</div>`;
+                    }
                 }
+                panelHtml = `
+                    <h3>${safeName}</h3>
+                    ${data.type ? `<p><b>Type:</b> ${data.type}</p>` : ''}
+                    ${data.chapter ? `<p><b>Chapter:</b> ${data.chapter}</p>` : ''}
+                    ${data.description ? `<p><b>Desc:</b> ${data.description}</p>` : ''}
+                    ${linksHtml}`;
+            } else if (userData.type === 'agent_state') {
+                // Agent State Placeholder
+                 const emoStr = `[V: ${simulatedEmotions.x.toFixed(2)}, A: ${simulatedEmotions.y.toFixed(2)}, D: ${simulatedEmotions.z.toFixed(2)}]`;
+                panelHtml = `
+                    <h3>${safeName}</h3>
+                    <p class="simulated-data">Represents the AI's internal emotional state.</p>
+                    <p><b>Simulated Emotions:</b> ${emoStr}</p>`;
+            } else if (userData.type === 'avatar') {
+                // Avatar Placeholder
+                 const colorStr = `#${avatarMesh.material.color.getHexString()}`;
+                 panelHtml = `
+                     <h3>${safeName}</h3>
+                     <p class="simulated-data">A visual stand-in for the Live2D avatar.</p>
+                     <p><b>Current Color:</b> ${colorStr}</p>
+                     <p><b>(Color reflects agent's simulated emotion)</b></p>`;
+            } else if (userData.type === 'emergence_core') {
+                 // Emergence Core Placeholder
+                 const rihState = emergenceActive ? 'Met (Glowing)' : 'Not Met';
+                 panelHtml = `
+                     <h3>${safeName}</h3>
+                     <p class="simulated-data">Represents RIH-based emergence.</p>
+                     <p><b>Simulated I:</b> ${simulatedIntegration.toFixed(3)}</p>
+                     <p><b>Simulated Rho:</b> ${simulatedReflexivity.toFixed(3)} (Threshold: ${RHO_THRESHOLD.toFixed(2)})</p>
+                     <p><b>Simulated Tau(t):</b> ${simulatedThreshold.toFixed(3)}</p>
+                     <p><b>Emergence State:</b> ${rihState}</p>`;
+            } else {
+                // Fallback for unknown types
+                panelHtml = `<h3>${safeName}</h3><p>Unknown object type.</p>`;
             }
 
-            // Construct panel HTML using data from nodeMesh.userData
-            infoPanel.innerHTML = `
-                <h3>${safeName}</h3>
-                ${data.type ? `<p><b>Type:</b> ${data.type}</p>` : ''}
-                ${data.chapter ? `<p><b>Chapter:</b> ${data.chapter}</p>` : ''} <!-- Added Chapter -->
-                ${data.description ? `<p><b>Description:</b> ${data.description}</p>` : ''}
-                ${linksHtml}
-            `;
+            infoPanel.innerHTML = panelHtml;
         }
+
 
         // --- Clear Hover State ---
-        function clearHover() { /* ... same as before ... */
-            if (lastIntersected) { lastIntersected = null; }
-            if (infoPanel) { infoPanel.innerHTML = ''; }
-        }
-
-        // --- Node Type/Description Helpers (No longer needed as info comes from userData) ---
-        // function getNodeType(name) { ... } // REMOVED
-        // function getNodeDescription(name) { ... } // REMOVED
+        function clearHover() { /* ... (same as previous) ... */ if (lastIntersected) lastIntersected = null; if (infoPanel) infoPanel.innerHTML = ''; }
 
         // --- Resize Handler ---
-        function onWindowResize() { /* ... same as before ... */
-            if (!container || !camera || !renderer || !labelRenderer) return;
-            const width = container.clientWidth; const height = container.clientHeight;
-            camera.aspect = width / height; camera.updateProjectionMatrix();
-            renderer.setSize(width, height); labelRenderer.setSize(width, height);
+        function onWindowResize() { /* ... (same as previous) ... */ if (!container || !camera || !renderer || !labelRenderer) return; const width = container.clientWidth; const height = container.clientHeight; camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height); labelRenderer.setSize(width, height); }
+
+
+        // --- Simple Simulation Update --- *** NEW ***
+        function updateSimulationStep(deltaTime) {
+            if (!agentStateMesh || !avatarMesh || !emergenceCoreMesh) return; // Don't run if placeholders aren't created
+
+            // 1. Simulate Emotion Change (Simple random walk + decay)
+            simulatedPrevEmotions.copy(simulatedEmotions); // Store previous state
+            const decay = 0.995; // Slow decay towards center (0.5)
+            const noiseScale = 0.05; // Amount of random change per step
+            simulatedEmotions.x = (simulatedEmotions.x - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
+            simulatedEmotions.y = (simulatedEmotions.y - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
+            simulatedEmotions.z = (simulatedEmotions.z - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
+            simulatedEmotions.clampScalar(0.0, 1.0); // Keep emotions in [0, 1] range
+
+            // 2. Calculate Simplified Metric Proxies
+            // Proxy for I: Average emotional intensity?
+            simulatedIntegration = (simulatedEmotions.x + simulatedEmotions.y + simulatedEmotions.z) / 3.0;
+            // Proxy for rho: Cosine similarity between current and previous state (simplified)
+            const dot = simulatedEmotions.dot(simulatedPrevEmotions);
+            const lenSq1 = simulatedEmotions.lengthSq();
+            const lenSq2 = simulatedPrevEmotions.lengthSq();
+            simulatedReflexivity = (lenSq1 > 1e-6 && lenSq2 > 1e-6) ? dot / Math.sqrt(lenSq1 * lenSq2) : 1.0;
+            // Proxy for tau(t): Base value slightly modulated by 'stability' (e.g., low variance = more stable)
+            const emotionVariance = simulatedEmotions.clone().subScalar(simulatedIntegration).lengthSq() / 3.0;
+            const stabilityProxy = 1.0 - Math.min(1.0, emotionVariance * 5.0); // Higher variance -> lower stability
+            simulatedThreshold = 0.5 + stabilityProxy * 0.2 - simulatedIntegration * 0.1; // Example formula
+            simulatedThreshold = Math.max(0.1, Math.min(0.9, simulatedThreshold));
+
+            // 3. Determine Emergence State
+            emergenceActive = (simulatedIntegration >= simulatedThreshold) && (simulatedReflexivity >= RHO_THRESHOLD);
+
+            // 4. Update Visuals
+            // Agent State color based on emotions (e.g., map x,y,z to R,G,B)
+            agentStateMesh.material.color.setRGB(simulatedEmotions.x, simulatedEmotions.y, simulatedEmotions.z);
+            // Agent State opacity maybe based on integration?
+            agentStateMesh.material.opacity = 0.6 + simulatedIntegration * 0.4;
+
+            // Avatar color based on dominant emotion proxy (e.g., map x -> red, y -> green, z -> blue)
+            avatarMesh.material.color.setRGB(simulatedEmotions.x, simulatedEmotions.y, simulatedEmotions.z);
+             // Simple avatar "breathing" animation
+             const breathCycle = Math.sin(clock.getElapsedTime() * 2.0) * 0.05 + 1.0;
+             avatarMesh.scale.y = breathCycle;
+
+            // Emergence Core glow based on emergenceActive state
+            if (emergenceActive) {
+                emergenceCoreMesh.material.emissive.setHex(0xffcc00); // Set emissive color to yellow
+                 emergenceCoreMesh.material.opacity = 0.9;
+                 // Pulse the size slightly
+                 emergenceCoreMesh.scale.setScalar(1.0 + Math.sin(clock.getElapsedTime() * 5.0) * 0.1);
+            } else {
+                emergenceCoreMesh.material.emissive.setHex(0x000000); // Turn off glow
+                 emergenceCoreMesh.material.opacity = 0.6;
+                 emergenceCoreMesh.scale.setScalar(1.0); // Reset scale
+            }
         }
 
-        // --- Animation Loop ---
-        function animate() { /* ... same as before ... */
-            requestAnimationFrame(animate);
-            if (controls && controls.enabled) controls.update();
-            if (renderer && scene && camera) renderer.render(scene, camera);
-            if (labelRenderer && scene && camera) labelRenderer.render(scene, camera);
+        // --- Animation Loop --- *** MODIFIED ***
+        function animate() {
+            requestAnimationFrame(animate); // Loop
+
+            const deltaTime = clock.getDelta(); // Get time since last frame
+
+            // Update the simplified simulation state and visuals
+            updateSimulationStep(deltaTime);
+
+            if (controls && controls.enabled) {
+                 controls.update(); // Update controls if damping is enabled
+            }
+            if (renderer && scene && camera) {
+                 renderer.render(scene, camera); // Render the 3D scene
+            }
+            if (labelRenderer && scene && camera) {
+                 labelRenderer.render(scene, camera); // Render the 2D labels
+            }
         }
 
         // --- Start Application After DOM Loaded ---
-        document.addEventListener('DOMContentLoaded', () => { /* ... same as before ... */
-            console.log("DOM ready, initializing Concept visualization..."); // Updated log message
+        document.addEventListener('DOMContentLoaded', () => { /* ... (same as previous, init call is sufficient) ... */
+            console.log("DOM ready, initializing Heim Theory visualization & Agent Demo...");
             try { init(); } catch (error) {
                 console.error("Initialization failed:", error);
                 const errContainer = document.querySelector('.threejs-container') || document.body;
