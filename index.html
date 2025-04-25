@@ -3,207 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live2D Avatar AI Agent - Syntrometrie Visualization</title> <!-- Updated Title -->
+    <title>Heim's Syntrometric Theory 3D Visualization</title>
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* --- (CSS Styles remain exactly the same as your previous version) --- */
         :root {
-            /* Define color variables */
-            --primary-dark: #2c3e50; /* Header Background */
-            --primary-light: #34495e; /* Header Gradient End */
-            --secondary-blue: #3498db; /* Links & Accents */
-            --background-light: #f8f9fa; /* Body Background */
-            --background-card: #ffffff; /* Container Background */
-            --text-dark: #343a40; /* Main Text */
-            --text-light: #f0f0f0; /* Text on dark backgrounds */
-            --text-muted: #6c757d; /* Subdued text */
-            --border-color: #dee2e6;
-            --shadow-color: rgba(0, 0, 0, 0.08);
-            --viz-background: #1a1a2e; /* Slightly different dark for 3D bg */
-            --info-panel-bg: rgba(44, 62, 80, 0.9); /* Semi-transparent dark */
+            --background-color: #111122;
+            --text-color: #eeeeee;
+            --container-background: #1e1e2a;
+            --container-border-color: #333355;
+            --accent-color: #00aaff;
+            --link-hover-color: #66ccff;
+            --viz-background: #111122;
+            --info-panel-bg: rgba(40, 40, 60, 0.9);
+            --info-panel-text: #eeeeee;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --text-muted: #aaaaaa;
         }
-
         body {
-            font-family: 'Inter', Arial, sans-serif;
-            line-height: 1.7;
-            margin: 0;
-            padding: 0;
-            background-color: var(--background-light);
-            color: var(--text-dark);
-            font-size: 16px; /* Base font size */
+            font-family: 'Inter', sans-serif; line-height: 1.7; margin: 0; overflow-x: hidden;
+            background-color: var(--background-color); color: var(--text-color); font-size: 16px;
         }
-
         header {
-            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
-            color: var(--text-light);
-            padding: 2.5rem 1rem; /* Increased padding */
-            text-align: center;
-            margin-bottom: 2rem; /* Space below header */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #1f1f2f 0%, #2c2c3f 100%); color: var(--text-color);
+            padding: 2rem 1rem; text-align: center; box-shadow: 0 2px 4px var(--shadow-color);
         }
-
-        header h1 {
-            margin: 0 0 0.5rem 0;
-            font-weight: 700;
-            font-size: 2.2rem; /* Larger heading */
-        }
-
-        header p {
-            margin: 0;
-            font-size: 1.1rem;
-            color: rgba(255, 255, 255, 0.85); /* Slightly muted header text */
-            font-weight: 400;
-        }
-
+        header h1 { margin: 0 0 0.5rem 0; font-weight: 700; font-size: 2.2rem; }
+        header p { margin: 0; font-size: 1.1rem; color: var(--text-muted); }
         .container {
-            max-width: 800px;
-            margin: 0 auto 2rem auto; /* Consistent bottom margin */
-            padding: 2rem; /* More padding inside container */
-            background: var(--background-card);
-            border-radius: 10px; /* Slightly larger radius */
-            box-shadow: 0 4px 12px var(--shadow-color); /* Softer shadow */
-            border: 1px solid var(--border-color);
+            max-width: 900px; margin: 2rem auto; padding: 2rem; background: var(--container-background);
+            border-radius: 8px; border: 1px solid var(--container-border-color); box-shadow: 0 4px 12px var(--shadow-color);
         }
+        h2 { color: var(--accent-color); margin-top: 0; margin-bottom: 1.5rem; font-weight: 600; border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; }
+        h3 { color: var(--accent-color); margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 600; }
+        p { margin: 0 0 1rem 0; }
+        a { color: var(--accent-color); text-decoration: none; font-weight: 600; transition: color 0.3s ease; }
+        a:hover, a:focus { color: var(--link-hover-color); text-decoration: underline; }
+        ul { list-style: none; padding-left: 0; }
+        li { margin-bottom: 0.75rem; position: relative; padding-left: 1.5rem; }
+        li::before { content: '→'; position: absolute; left: 0; color: var(--accent-color); font-weight: bold; }
+        /* Specific style for quick links list if needed, defaults are fine */
+        .quick-links-list li::before { content: '🔗'; } /* Change icon for quick links */
 
-        h2 {
-            color: var(--primary-dark);
-            margin-top: 0;
-            margin-bottom: 1.5rem;
-            font-weight: 600;
-            border-bottom: 2px solid var(--secondary-blue);
-            padding-bottom: 0.5rem;
-            display: inline-block; /* Make border only wrap text */
-        }
-
-        h3 { /* General h3 styling */
-             color: var(--primary-dark);
-             margin-top: 1.5rem;
-             margin-bottom: 1rem;
-             font-weight: 600;
-        }
-
-        a {
-            color: var(--secondary-blue);
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.3s ease, text-decoration 0.3s ease;
-        }
-
-        a:hover, a:focus {
-            color: var(--primary-light);
-            text-decoration: underline;
-        }
-
-        ul {
-            list-style: none; /* Remove default bullets */
-            padding-left: 0;
-        }
-
-        li {
-            margin-bottom: 0.75rem; /* Space between list items */
-            position: relative;
-            padding-left: 1.5rem; /* Space for custom bullet */
-        }
-        li::before { /* Custom bullet style */
-             content: '→';
-             position: absolute;
-             left: 0;
-             color: var(--secondary-blue);
-             font-weight: bold;
-        }
-
-
-        /* Container for the 3D view */
         .threejs-container {
-            width: 100%; /* Take full width of its parent */
-            height: 550px; /* Increased height */
-            margin: 2rem auto 1rem auto; /* Adjusted margin */
-            background-color: var(--viz-background); /* Use variable */
-            position: relative; /* Needed for absolute positioning */
-            border-radius: 8px; /* Consistent radius */
-            overflow: hidden; /* Clip renderers to container bounds */
-            border: 1px solid var(--primary-light); /* Subtle border */
-            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3); /* Inner shadow */
+            width: 100%; height: 600px; margin: 2rem 0; background-color: var(--viz-background);
+            position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--container-border-color);
+            box-shadow: inset 0 0 10px var(--shadow-color);
         }
-
-        canvas {
-            display: block; /* Prevent extra space below canvas */
-        }
-
-        /* Label style (remains mostly functional) */
+        canvas { display: block; }
         .label {
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            padding: 3px 6px; /* Slightly more padding */
-            background: rgba(0, 0, 0, 0.7); /* Slightly darker bg */
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600; /* Make label text bolder */
-            pointer-events: none;
-            user-select: none;
-            white-space: nowrap;
-            position: absolute; /* Needed for CSS2DRenderer */
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Text shadow for readability */
+            color: #fff; font-family: 'Inter', sans-serif; padding: 3px 6px; background: rgba(0, 0, 0, 0.7);
+            border-radius: 4px; font-size: 11px; font-weight: 600; pointer-events: none; user-select: none;
+            white-space: nowrap; position: absolute; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); transform: translate(-50%, 0);
         }
-
-        /* Info panel style (Enhanced) */
         #info-panel {
-            position: absolute;
-            bottom: 15px; /* Consistent spacing */
-            left: 15px;
-            background-color: var(--info-panel-bg);
-            color: var(--text-light); /* Light text on dark bg */
-            padding: 12px 18px; /* Adjusted padding */
-            border-radius: 6px;
-            max-width: 300px; /* Slightly wider */
-            font-size: 13px; /* Slightly larger text */
-            display: block;
-            border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle light border */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); /* Enhanced shadow */
-            z-index: 10; /* Ensure it's above the canvas */
-            pointer-events: none; /* Don't interfere with controls */
-            backdrop-filter: blur(3px); /* Optional: frosted glass effect */
-            -webkit-backdrop-filter: blur(3px);
+            position: absolute; top: 15px; left: 15px; background-color: var(--info-panel-bg); color: var(--info-panel-text);
+            padding: 12px 18px; border-radius: 6px; max-width: 300px; font-size: 13px; border: 1px solid var(--container-border-color);
+            box-shadow: 0 2px 10px var(--shadow-color); z-index: 10; pointer-events: none; backdrop-filter: blur(3px);
+            transition: opacity 0.2s ease-in-out; opacity: 1;
         }
-
-         #info-panel h3 {
-             margin-top: 0;
-             margin-bottom: 10px;
-             color: var(--secondary-blue); /* Use accent color for heading */
-             font-size: 15px; /* Slightly larger heading */
-             font-weight: 700;
-             border-bottom: 1px solid rgba(255, 255, 255, 0.15); /* Subtle separator */
-             padding-bottom: 6px;
-         }
-
-         #info-panel p {
-             margin: 6px 0;
-             line-height: 1.5; /* Improved line spacing */
-         }
-
-          #info-panel p b {
-             color: #a0b4d0; /* Lighter, less saturated blue/grey */
-             font-weight: 600;
-             margin-right: 6px;
-          }
-
-          /* Style for loading/initial message */
-          #info-panel:empty::before,
-          #info-panel:not(:has(h3))::before { /* Show initial text if empty or only has default text */
-             content: 'Hover over nodes for details';
-             color: var(--text-muted);
-             font-style: italic;
-          }
-           #info-panel:has(h3)::before {
-              content: ''; /* Hide placeholder when content is loaded */
-           }
-
-
+        #info-panel:empty { opacity: 0; }
+        #info-panel h3 { margin: 0 0 8px 0; color: var(--accent-color); font-size: 15px; font-weight: 700; border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 6px; }
+        #info-panel p { margin: 4px 0; line-height: 1.5; }
+        #info-panel p b { color: #aaaaff; font-weight: 600; margin-right: 5px; }
+        #info-panel .links-list {
+            margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px; color: #cccccc;
+        }
+         #info-panel .links-list b { color: #aaccaa; }
     </style>
-    <!-- Import Map (No change needed here) -->
     <script type="importmap">
         {
             "imports": {
@@ -215,32 +87,45 @@
 </head>
 <body>
     <header>
-        <h1>Live2D Avatar AI Agent - Documentation</h1>
-        <p>Explore the architecture, setup, and advanced features of this project.</p>
+        <h1>Heim's Syntrometric Theory Visualization</h1>
+        <p>Discover Burkhard Heim's unified field theory through an interactive 3D model of the Syntrometric Framework.</p>
     </header>
 
     <div class="container">
-        <h2>Quick Links</h2>
+        <h2>About Syntrometric Theory</h2>
+        <p>Burkhard Heim's Syntrometric Theory is a unified field theory that describes reality as a 12-dimensional quantized system, integrating quantum mechanics, general relativity, and consciousness. It uses discrete metronic calculus and a hierarchical dimensional structure to explain physical phenomena and subjective experience.</p>
+        <h3>Key Concepts</h3>
         <ul>
-            <li><a href="research/syntrometrie_framework.html">Syntrometrie Framework Diagram</a></li>
-            <li><a href="research/conscious_agent_arch.html">Conscious Agent Architecture Diagram</a></li>
-            <li><a href="../README.md">Main Project README</a></li>
+            <li><b>Syntrix</b>: A self-referential information matrix encoding physical and conscious phenomena across all dimensions.</li>
+            <li><b>Metronische Gitter</b>: Quantum lattices (metrons) forming the discrete foundation of spacetime, matter, and energy.</li>
+            <li><b>12-Dimensional Framework</b>: Includes 6 physical dimensions (R1–R6) and 6 transdimensions (R7–R12).</li>
+            <li><b>Strukturkaskaden</b>: Recursive cascades generating complex structures.</li>
+            <li><b>Telezentrik</b>: A principle of purposeful organization.</li>
         </ul>
+        <p>The theory employs reflexive abstraction and subjective logic to derive physical laws, quantized within a 6-dimensional physical subspace embedded in a 12-dimensional reality.</p>
+
+        <!-- === ADDED QUICK LINKS SECTION === -->
+        <h3>Quick Links</h3>
+        <ul class="quick-links-list">
+             <!-- Adjust paths as needed for your file structure -->
+            <li><a href="research/syntrometrie_framework.html" title="View 2D Diagram">Syntrometrie Framework Diagram</a></li>
+            <li><a href="research/conscious_agent_arch.html" title="View Agent Architecture">Conscious Agent Architecture Diagram</a></li>
+            <li><a href="../README.md" title="Go to Main Project Readme">Main Project README</a></li>
+            <li><a href="https://heim-theory.com/" target="_blank" title="External Resource (Opens New Tab)">Heim Theory Resources</a></li>
+        </ul>
+        <!-- === END OF QUICK LINKS SECTION === -->
+
     </div>
 
     <div class="container">
-        <h2>3D Syntrometry Model</h2>
-        <p>This interactive 3D model visualizes the hierarchical structure of the Syntrometrie Framework. Hover over nodes to see details. Use mouse/touch to rotate, pan, and zoom.</p>
-
-        <!-- The container where the 3D scene will be rendered -->
-        <div class="threejs-container" id="threejs-container">
-            <!-- The info panel will be placed inside by CSS -->
-            <!-- Updated initial state handling via CSS -->
+        <h2>Interactive 3D Model</h2>
+        <p>Explore specific concepts from Heim's theory and their relationships. Hover over nodes for detailed information, including related concepts, and use mouse/touch to rotate, pan, and zoom.</p>
+        <div class="threejs-container">
             <div id="info-panel"></div>
         </div>
     </div>
 
-    <!-- JavaScript Module (No change needed here) -->
+    <!-- === START OF JAVASCRIPT MODULE === -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -249,373 +134,381 @@
         // --- Global Variables ---
         let scene, camera, renderer, labelRenderer, controls;
         let raycaster, mouse;
-        let infoPanel; // Will get element in init
-        const allNodes = []; // Keep track of all nodes for raycasting
-        let container; // The div element for the visualization
+        let infoPanel;
+        const nodes = {}; // Store nodes { id: { object: mesh, label: labelObj, data: {...} } }
+        const edges = []; // Store edge tube meshes
+        let container;
 
-        // --- Initialization ---
+        // --- Concept Data (From Original Script - Primary source for visualization) ---
+        const conceptData = {
+            'reflexive_abstraction': { id: 'reflexive_abstraction', name: 'Reflexive Abstraktion', chapter: 1, position: new THREE.Vector3(0, 15, -20), type: 'method', links: ['syntrometry'], description: "Method to overcome subjective limits by analyzing reflection itself." },
+            'subjective_aspect': { id: 'subjective_aspect', name: 'Subjective Aspect (S)', chapter: 1, position: new THREE.Vector3(-10, 10, -18), type: 'structure', links: ['pradikatrix', 'dialektik', 'koordination', 'aspektivsystem'], description: "Contextual framework for statements; a viewpoint." },
+            'pradikatrix': { id: 'pradikatrix', name: 'Prädikatrix (Pm)', chapter: 1, position: new THREE.Vector3(-20, 15, -16), type: 'component', links: [], description: "Schema of potential statements/predicates." },
+            'dialektik': { id: 'dialektik', name: 'Dialektik (Dn)', chapter: 1, position: new THREE.Vector3(-15, 15, -16), type: 'component', links: [], description: "Schema of subjective qualifiers/biases." },
+            'koordination': { id: 'koordination', name: 'Koordination (Kn)', chapter: 1, position: new THREE.Vector3(-10, 15, -16), type: 'component', links: [], description: "Mechanism linking Prädikatrix and Dialektik." },
+            'aspektivsystem': { id: 'aspektivsystem', name: 'Aspektivsystem (P)', chapter: 1, position: new THREE.Vector3(10, 10, -18), type: 'structure', links: ['metropie', 'idee'], description: "Collection of related subjective aspects." },
+            'metropie': { id: 'metropie', name: 'Metropie (g)', chapter: 1, position: new THREE.Vector3(20, 15, -16), type: 'property', links: [], description: "Metric defining 'distance' between aspects." },
+            'idee': { id: 'idee', name: 'Idee (Apodiktic Core)', chapter: 1, position: new THREE.Vector3(15, 5, -16), type: 'core', links: [], description: "Invariant elements within an Aspektivsystem." },
+            'syntrometry': { id: 'syntrometry', name: 'Syntrometrie', chapter: 1, position: new THREE.Vector3(0, 0, -18), type: 'framework', links: ['syntrix'], description: "Heim's universal logic derived from Reflexive Abstraction." },
+            'syntrix': { id: 'syntrix', name: 'Syntrix (ã|=)', chapter: 2, position: new THREE.Vector3(0, 0, -10), type: 'structure', links: ['metrophor', 'synkolator', 'synkolation_stage', 'korporator'], description: "Formal, recursive structure embodying a Category." },
+            'metrophor': { id: 'metrophor', name: 'Metrophor (ã)', chapter: 2, position: new THREE.Vector3(-10, 5, -8), type: 'core', links: ['idee'], description: "Invariant core (Idee) of a Syntrix; base elements." },
+            'synkolator': { id: 'synkolator', name: 'Synkolator ({)', chapter: 2, position: new THREE.Vector3(0, 5, -8), type: 'operator', links: [], description: "Recursive correlation law generating complexity." },
+            'synkolation_stage': { id: 'synkolation_stage', name: 'Synkolation Stage (m)', chapter: 2, position: new THREE.Vector3(10, 5, -8), type: 'parameter', links: [], description: "Arity/depth of the Synkolator." },
+            'korporator': { id: 'korporator', name: 'Korporator ({})', chapter: 3, position: new THREE.Vector3(0, -5, -5), type: 'operator', links: ['syntrix'], description: "Operator combining multiple Syntrices." },
+        };
+
+
+        // --- Initialization Function ---
         function init() {
-            container = document.getElementById('threejs-container');
+            container = document.querySelector('.threejs-container');
             infoPanel = document.getElementById('info-panel');
-
-            if (!container) {
-                console.error("Error: Could not find container element #threejs-container");
-                if(infoPanel) infoPanel.innerHTML = "Error: Container not found."; // Basic error
-                return;
-            }
-             if (!infoPanel) {
-                 console.warn("Info panel #info-panel not found.");
-             } else {
-                 // infoPanel.innerHTML = 'Hover over nodes to see details.'; // Initial text now handled by CSS :empty selector
-                 infoPanel.innerHTML = ''; // Start empty, let CSS handle placeholder
-             }
+            if (!container) { console.error("Container not found"); return; }
+            if (infoPanel) infoPanel.innerHTML = '';
 
             const width = container.clientWidth;
             const height = container.clientHeight;
 
-            // Scene
             scene = new THREE.Scene();
-            // Use color variable from CSS (via getComputedStyle if needed, or just hardcode the same value)
-             scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--viz-background').trim() || 0x1a1a2e); // Fallback needed as CSS vars aren't directly accessible
-            scene.fog = new THREE.Fog(scene.background, 40, 100); // Fog matches background
+            scene.background = new THREE.Color(0x111122);
+            scene.fog = new THREE.Fog(0x111122, 50, 150); // Adjust fog for different scale
 
-            // Camera
-            camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
-            camera.position.set(0, 5, 25);
+            camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000); // Slightly narrower FOV
+            camera.position.set(0, 10, 45); // Position further back to see all nodes
 
-            // Renderer (WebGL)
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(width, height);
             renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement); // Append to container
+            container.appendChild(renderer.domElement);
 
-            // CSS2DRenderer for Labels
             labelRenderer = new CSS2DRenderer();
             labelRenderer.setSize(width, height);
-            labelRenderer.domElement.style.position = 'absolute'; // Position relative to container
+            labelRenderer.domElement.style.position = 'absolute';
             labelRenderer.domElement.style.top = '0px';
-            labelRenderer.domElement.style.left = '0px'; // Align top-left
-            labelRenderer.domElement.style.pointerEvents = 'none'; // Crucial!
-            container.appendChild(labelRenderer.domElement); // Append to container
+            labelRenderer.domElement.style.left = '0px';
+            labelRenderer.domElement.style.pointerEvents = 'none';
+            container.appendChild(labelRenderer.domElement);
 
-            // Orbit Controls (Attach to the main renderer's element)
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.enableZoom = true;
-            controls.enablePan = true;
             controls.minDistance = 5;
-            controls.maxDistance = 80;
-            controls.target.set(0, 0, -10); // Target the center of the layers
+            controls.maxDistance = 120; // Allow zooming further out
+            controls.target.set(0, 5, -10); // Target the center of the node cloud
             controls.update();
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0x8080a0); // Slightly brighter ambient
+            const ambientLight = new THREE.AmbientLight(0x707090);
             scene.add(ambientLight);
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2); // Brighter key light
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.9);
             dirLight1.position.set(5, 10, 7).normalize();
             scene.add(dirLight1);
-            const dirLight2 = new THREE.DirectionalLight(0xffaacc, 0.5); // Slightly stronger fill
-            dirLight2.position.set(-5, -5, -2).normalize();
+            const dirLight2 = new THREE.DirectionalLight(0xaaaaff, 0.4);
+            dirLight2.position.set(-5, -5, -5).normalize();
             scene.add(dirLight2);
 
-            // Colors for Layers (Keep as is, distinct colors are good here)
-            const colors = {
-                foundational: 0x44aa44,
-                recursive: 0x4444ff,
-                geometric: 0xdddd55,
-                emergence: 0xff4444,
-                framework: 0xaaaaee
-            };
+            // --- Call node and edge creation functions ---
+            createNodes();
+            createEdges();
+            // --- End of node/edge creation call ---
 
-            // Build the Syntrometrie Framework Visualization
-            buildFramework(colors);
-
-            // Setup Interaction
             setupInteraction();
-
-            // Handle Resize
             window.addEventListener('resize', onWindowResize, false);
-
-            // Start Animation Loop
             animate();
         }
 
-        // --- Helper Functions ---
-        function createNode(name, color, size = 0.5, position) {
-            const geometry = new THREE.SphereGeometry(size, 32, 24); // Slightly smoother sphere
-            const material = new THREE.MeshPhongMaterial({
-                color: color,
-                shininess: 80, // A bit shinier
-             });
-            const node = new THREE.Mesh(geometry, material);
-            node.name = name;
-            node.userData = { description: getNodeDescription(name), type: getNodeType(name) };
-            node.position.copy(position);
-            scene.add(node);
-            allNodes.push(node);
-            return node;
-        }
+        // --- Node Creation (Adapted from Script 1 / Refined Version) ---
+        function createNodes() {
+            const baseSize = 1.5; // Base radius for nodes
+            const labelOffsetFactor = 0.6; // Factor for label distance
 
-        function createLabel(text, node) {
-            const div = document.createElement('div');
-            div.className = 'label'; // Class for CSS styling
-            div.textContent = text;
-            const label = new CSS2DObject(div); // Use CSS2DObject
-            const nodeSize = node.geometry.parameters.radius || 0.5;
-            // Adjust label position slightly higher
-            label.position.set(0, nodeSize * 1.2 + 0.35, 0);
-            node.add(label); // Attach label TO the node mesh
-            return label;
-        }
+            for (const id in conceptData) {
+                const data = conceptData[id];
+                let geometry;
+                let material;
+                let currentScale = 1.0; // Use scale instead of varying baseSize
+                let detail = 16; // Sphere/Cylinder detail
 
-
-        function createConnectionLine(startPos, endPos, color = 0xaaaaaa) {
-            const points = [startPos, endPos];
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({
-                 color: color,
-                 linewidth: 1, // Note: linewidth > 1 may not work reliably on all platforms
-                 transparent: true,
-                 opacity: 0.4 // Slightly less opaque
-            });
-            const line = new THREE.Line(geometry, material);
-            scene.add(line);
-            return line;
-        }
-
-        // --- Build Framework ---
-        function buildFramework(colors) {
-            const rootPosition = new THREE.Vector3(0, 0, 0);
-            const root = createNode("Syntrometrie Framework", colors.framework, 1, rootPosition);
-            createLabel("Framework Root", root);
-
-            const layers = [
-                { name: "Foundational Logic", color: colors.foundational, zOffset: -6, nodeCount: 4, radius: 4 },
-                { name: "Recursive Hierarchy", color: colors.recursive, zOffset: -12, nodeCount: 6, radius: 6 },
-                { name: "Geometric Structure", color: colors.geometric, zOffset: -18, nodeCount: 8, radius: 8 },
-                { name: "Emergence Layer", color: colors.emergence, zOffset: -24, nodeCount: 10, radius: 10 },
-            ];
-
-            const layerNodeObjects = {};
-            layerNodeObjects["Root"] = [root];
-
-            layers.forEach((layer, index) => {
-                const nodesInLayer = [];
-                for (let i = 0; i < layer.nodeCount; i++) {
-                    const angle = (i / layer.nodeCount) * Math.PI * 2;
-                     const yVariation = (Math.random() - 0.5) * 1.0; // Slightly more variation
-                     const xVariation = (Math.random() - 0.5) * 0.5; // Slight x variation
-                    const x = Math.cos(angle) * layer.radius + xVariation;
-                    const y = Math.sin(angle) * layer.radius + yVariation;
-                    const z = layer.zOffset;
-                    const nodeName = `${layer.name} Concept ${i + 1}`;
-                    const node = createNode(nodeName, layer.color, 0.6, new THREE.Vector3(x, y, z));
-                    createLabel(`Concept ${i + 1}`, node);
-                    nodesInLayer.push(node);
+                // Visual Metaphors for Nodes
+                switch (data.type) {
+                    case 'framework':
+                        geometry = new THREE.BoxGeometry(baseSize * 2.5, baseSize * 2.5, baseSize * 2.5);
+                        material = new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 60, transparent: true, opacity: 0.9 });
+                        break;
+                    case 'structure':
+                        geometry = new THREE.SphereGeometry(baseSize * 1.2, detail, Math.floor(detail / 2));
+                        material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 });
+                        break;
+                    case 'core':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.9, detail, Math.floor(detail / 2));
+                        material = new THREE.MeshPhongMaterial({ color: 0xffff66, shininess: 100 }); // Yellowish core
+                        break;
+                    case 'component':
+                        geometry = new THREE.SphereGeometry(baseSize, detail, Math.floor(detail / 2));
+                        material = new THREE.MeshPhongMaterial({ color: 0x66ffaa, shininess: 50 }); // Greenish component
+                        break;
+                    case 'property':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.8, detail, Math.floor(detail / 2));
+                        material = new THREE.MeshPhongMaterial({ color: 0xffaaff, shininess: 40 }); // Pinkish property
+                        break;
+                    case 'parameter':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.7, detail, Math.floor(detail / 2));
+                        material = new THREE.MeshPhongMaterial({ color: 0xaaffff, shininess: 30 }); // Cyan parameter
+                        break;
+                    case 'operator':
+                        geometry = new THREE.OctahedronGeometry(baseSize * 1.1, 0);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffaa66, shininess: 70 }); // Orange operator
+                        break;
+                    case 'method':
+                        geometry = new THREE.CylinderGeometry(baseSize * 0.6, baseSize * 0.6, baseSize * 2.0, detail);
+                        material = new THREE.MeshPhongMaterial({ color: 0xff66ff, shininess: 60 }); // Magenta method
+                        break;
+                    default:
+                        geometry = new THREE.BoxGeometry(baseSize, baseSize, baseSize);
+                        material = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 20 });
                 }
-                layerNodeObjects[layer.name] = nodesInLayer;
 
-                 const prevLayerName = index === 0 ? "Root" : layers[index - 1].name;
-                 const prevNodes = layerNodeObjects[prevLayerName];
+                const nodeMesh = new THREE.Mesh(geometry, material);
+                // Use position directly from conceptData
+                if (data.position instanceof THREE.Vector3) {
+                    nodeMesh.position.copy(data.position);
+                } else {
+                    console.warn(`Node ${id} has invalid position data.`);
+                    nodeMesh.position.set(Math.random()*20-10, Math.random()*20-10, Math.random()*20-10); // Random fallback
+                }
+                nodeMesh.scale.set(currentScale, currentScale, currentScale);
+                nodeMesh.userData = data; // Attach the full concept data
+                scene.add(nodeMesh);
 
-                 if (prevNodes && prevNodes.length > 0) {
-                     // Connect each node to one or two parents for more structure
-                     nodesInLayer.forEach((node, i) => {
-                         const parentIndex1 = Math.floor(i * prevNodes.length / nodesInLayer.length);
-                         const parentNode1 = prevNodes[parentIndex1 % prevNodes.length];
-                         createConnectionLine(parentNode1.position, node.position, layer.color);
+                // Create and attach label using CSS2DObject
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'label';
+                labelDiv.textContent = data.name; // Use name from data
+                const labelObject = new CSS2DObject(labelDiv);
 
-                         // Optional: Connect to a second, nearby parent for visual density
-                         if (prevNodes.length > 1) {
-                              const parentIndex2 = (parentIndex1 + 1) % prevNodes.length;
-                              const parentNode2 = prevNodes[parentIndex2];
-                              // Only add second line if it's reasonably different from the first
-                              if (parentNode1 !== parentNode2 && Math.random() < 0.3) { // Add randomness
-                                   createConnectionLine(parentNode2.position, node.position, layer.color);
-                              }
-                         }
-                     });
+                geometry.computeBoundingSphere(); // Ensure bounding sphere is calculated
+                const boundingSphere = geometry.boundingSphere;
+                let yOffset = boundingSphere.radius * currentScale + labelOffsetFactor;
+                 // Special adjustments for non-spheres if needed
+                 if (geometry instanceof THREE.CylinderGeometry) {
+                     yOffset = (geometry.parameters.height / 2) * currentScale + labelOffsetFactor + 0.2;
+                 } else if (geometry instanceof THREE.BoxGeometry) {
+                      yOffset = (geometry.parameters.height / 2) * currentScale + labelOffsetFactor;
                  }
-            });
+
+                labelObject.position.set(0, yOffset, 0); // Position relative to node center
+                nodeMesh.add(labelObject); // Attach label to the node mesh
+
+                // Store node info in the global 'nodes' map
+                nodes[id] = { object: nodeMesh, label: labelObject, data: data };
+            }
         }
 
-        // --- Interaction ---
+        // --- Edge Creation (Adapted from Script 1 / Refined Version) ---
+        function createEdges() {
+            const visitedEdges = new Set();
+            const tubeRadius = 0.08; // Thinner tubes
+            const tubeDetail = 6;
+            const tubularSegments = 8;
+            const nodeRadiusFactor = 1.05; // Start slightly outside the node radius
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x777799, // Muted edge color
+                transparent: true,
+                opacity: 0.5,
+                shininess: 10
+            });
+
+            function getApproxBoundaryRadius(geometry, scale) {
+                 if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+                 return geometry.boundingSphere ? geometry.boundingSphere.radius * scale : 1.0 * scale;
+            }
+
+            for (const id in nodes) {
+                const sourceNode = nodes[id];
+                if (!sourceNode || !sourceNode.object) continue;
+
+                const sourceScale = sourceNode.object.scale.x;
+                const sourceBoundary = getApproxBoundaryRadius(sourceNode.object.geometry, sourceScale);
+
+                // Iterate through links defined in the conceptData
+                sourceNode.data.links.forEach(targetId => {
+                    const targetNode = nodes[targetId]; // Find the target node object
+
+                    if (targetNode && targetNode.object) {
+                        const edgeKey = `${id}-${targetId}`;
+                        const reverseEdgeKey = `${targetId}-${id}`;
+                        if (visitedEdges.has(edgeKey) || visitedEdges.has(reverseEdgeKey)) return; // Avoid duplicates
+                        visitedEdges.add(edgeKey);
+
+                        const targetScale = targetNode.object.scale.x;
+                        const targetBoundary = getApproxBoundaryRadius(targetNode.object.geometry, targetScale);
+                        const startPoint = sourceNode.object.position;
+                        const endPoint = targetNode.object.position;
+                        const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+                        const distance = direction.length();
+
+                        if (distance < 0.001) { console.warn(`Nodes "${id}"/"${targetId}" same pos.`); return; }
+                        direction.normalize();
+
+                        const shortenStart = sourceBoundary * nodeRadiusFactor;
+                        const shortenEnd = targetBoundary * nodeRadiusFactor;
+                        const minRequiredDistance = shortenStart + shortenEnd + tubeRadius * 2;
+
+                        if (distance <= minRequiredDistance) { console.warn(`Nodes "${id}"/"${targetId}" too close.`); return; }
+
+                        const adjustedStart = startPoint.clone().add(direction.clone().multiplyScalar(shortenStart));
+                        const adjustedEnd = endPoint.clone().sub(direction.clone().multiplyScalar(shortenEnd));
+
+                        if (adjustedStart.distanceTo(adjustedEnd) < tubeRadius) { console.warn(`Adj points too close "${id}"/"${targetId}".`); return; }
+
+                        try {
+                            const curve = new THREE.LineCurve3(adjustedStart, adjustedEnd);
+                            const tubeGeometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, tubeDetail, false);
+                            const edge = new THREE.Mesh(tubeGeometry, material.clone());
+                            scene.add(edge);
+                            edges.push(edge); // Add to edge array (optional)
+                        } catch (e) { console.error(`Tube geom error "${id}"<->"${targetId}":`, e); }
+                    } else { console.warn(`Target node "${targetId}" not found for link from "${id}"`); }
+                });
+            }
+        }
+
+
+        // --- Interaction Setup ---
         function setupInteraction() {
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
-            // Listen for mouse move events on the container, not the whole window
             if (container) {
-                container.addEventListener('mousemove', onMouseMove, false);
-                // Add touch support if needed (basic example)
-                container.addEventListener('touchmove', onTouchMove, false);
-                container.addEventListener('touchend', onTouchEnd, false); // Clear on touch end
-                 container.addEventListener('mouseleave', clearHover, false); // Clear when mouse leaves container
+                container.addEventListener('mousemove', onPointerMove, false);
+                container.addEventListener('touchmove', onPointerMove, { passive: false });
+                container.addEventListener('touchend', onPointerUp, false);
+                container.addEventListener('mouseleave', onPointerLeave, false);
             }
         }
 
         let lastIntersected = null;
-         let hoverScaleTween = null; // For smooth scaling (optional advanced)
 
-        function updateMousePosition(clientX, clientY) {
-             if (!container) return;
-             const rect = container.getBoundingClientRect();
-             mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-             mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-         }
-
-         function onMouseMove(event) {
-             updateMousePosition(event.clientX, event.clientY);
-             checkIntersections();
-         }
-
-         function onTouchMove(event) {
-             // Prevent scroll while interacting with canvas
-             event.preventDefault();
-             if (event.touches.length > 0) {
-                 updateMousePosition(event.touches[0].clientX, event.touches[0].clientY);
-                 checkIntersections();
+        // --- Unified Pointer Move Handler ---
+        function onPointerMove(event) { /* ... same as before ... */
+            let clientX, clientY;
+             if (event.touches && event.touches.length > 0) {
+                 clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; event.preventDefault();
+             } else {
+                 clientX = event.clientX; clientY = event.clientY;
              }
+             updatePointerPosition(clientX, clientY);
+             checkIntersections(); // Call check function
          }
 
-         function onTouchEnd(event) {
-             // When touch ends, clear the hover effect
-             clearHover();
-         }
+        // --- Pointer Up/Leave Handlers ---
+        function onPointerUp(event) { if (event.changedTouches) clearHover(); }
+        function onPointerLeave(event) { clearHover(); }
+
+        // --- Update Pointer Coordinates Relative to Container ---
+        function updatePointerPosition(clientX, clientY) { /* ... same as before ... */
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        }
 
 
+        // --- Check for Intersections (Adapted for 'nodes' map) ---
         function checkIntersections() {
-            if (!camera || !raycaster) return;
+            if (!camera || !raycaster || Object.keys(nodes).length === 0) return;
+
+            // Get array of mesh objects from the 'nodes' map
+            const nodeObjects = Object.values(nodes).map(n => n.object);
+            if (nodeObjects.length === 0) return; // No nodes to check
 
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(allNodes, false); // `false` means don't check children
+            const intersects = raycaster.intersectObjects(nodeObjects, false); // Check only node meshes
 
             if (intersects.length > 0) {
-                const intersectedObject = intersects[0].object;
+                const intersectedObject = intersects[0].object; // The intersected MESH
                 if (intersectedObject !== lastIntersected) {
-                    clearHoverVisuals(); // Clear previous visual effect
-
-                    // --- Optional: Add visual feedback (e.g., scaling) ---
-                    // Simple immediate scale:
-                    // intersectedObject.scale.set(1.2, 1.2, 1.2);
-                    // You could implement smooth scaling using a tweening library or simple interpolation in animate()
-
-                    if (infoPanel && intersectedObject.userData && intersectedObject.userData.type) {
-                        // Use textContent or innerHTML carefully if descriptions might contain HTML
-                        infoPanel.innerHTML = `
-                            <h3>${intersectedObject.name}</h3>
-                            <p><b>Type:</b> ${intersectedObject.userData.type}</p>
-                            <p><b>Description:</b> ${intersectedObject.userData.description}</p>
-                        `;
-                    } else if (infoPanel) {
-                         // Use textContent for safety if name might have special chars
-                         const tempDiv = document.createElement('div');
-                         tempDiv.textContent = intersectedObject.name || 'Unnamed Node';
-                         infoPanel.innerHTML = `<h3>${tempDiv.innerHTML}</h3><p>No details available.</p>`;
-                     }
+                    // Find the corresponding node entry in our 'nodes' map (optional, could pass object directly)
+                    // let intersectedNodeData = Object.values(nodes).find(n => n.object === intersectedObject);
+                    updateInfoPanel(intersectedObject); // Pass the MESH to the update function
                     lastIntersected = intersectedObject;
                 }
             } else {
-                clearHover(); // Clear both info panel and visual effect if nothing is intersected
+                clearHover();
             }
         }
 
-         function clearHoverVisuals() {
-             if (lastIntersected) {
-                 // Reset visual feedback
-                  // Simple immediate scale reset:
-                  // lastIntersected.scale.set(1, 1, 1);
-                 // If using tweens, cancel the outgoing tween
-             }
-         }
+        // --- Update Info Panel Helper (Adapted for userData from conceptData) ---
+        function updateInfoPanel(nodeMesh) { // Takes the Mesh object
+            if (!infoPanel) return;
 
-         function clearHover() {
-             clearHoverVisuals(); // Reset any visual effect
-             if (infoPanel) {
-                 infoPanel.innerHTML = ''; // Clear content, CSS :empty will show placeholder
-             }
-             lastIntersected = null;
-         }
+            const data = nodeMesh.userData; // The conceptData entry is stored here
+            if (!data) { infoPanel.innerHTML = ''; return; } // No data associated
 
-        // --- Helper Functions for Node Metadata (No change needed here) ---
-        function getNodeType(name) {
-            if (name.includes("Framework")) return "Central Framework";
-            if (name.includes("Foundational")) return "Foundational Component";
-            if (name.includes("Recursive")) return "Hierarchical Element";
-            if (name.includes("Geometric")) return "Structural Proxy";
-            if (name.includes("Emergence")) return "Emergent Phenomenon";
-            return "Concept";
-        }
-        function getNodeDescription(name) {
-             if (name === "Syntrometrie Framework") return "The core integrating structure of the Syntrometrie model.";
-             const layerMatch = name.match(/^(Foundational Logic|Recursive Hierarchy|Geometric Structure|Emergence Layer)/);
-             const conceptNumMatch = name.match(/Concept (\d+)$/);
-             const layer = layerMatch ? layerMatch[1] : "Unknown Layer";
-             const num = conceptNumMatch ? parseInt(conceptNumMatch[1], 10) : 0;
-             // Descriptions kept the same - providing diverse placeholders
-             switch (layer) {
-                 case "Foundational Logic":
-                     const foundationalDesc = ["Represents basic logical operators or axioms.", "A primitive element of subjective experience.", "Defines fundamental constraints or rules.", "Core building block of the logical layer."];
-                     return foundationalDesc[num % foundationalDesc.length];
-                 case "Recursive Hierarchy":
-                      const recursiveDesc = ["A self-referential structure or process.", "Represents levels of abstraction or complexity.", "Element within a nested hierarchical system.", "Connects different scales of the model.", "Illustrates recursive definition or generation.", "Part of the iterative refinement process."];
-                      return recursiveDesc[num % recursiveDesc.length];
-                 case "Geometric Structure":
-                      const geometricDesc = ["Defines spatial or relational properties.", "Represents a metric or topology.", "A structural component defining form.", "Proxy for geometric organization.", "Relates elements within a dimensional space.", "Component of the framework's structural manifold.", "Embodies symmetry or transformation rules.", "Abstract geometric representation."];
-                      return geometricDesc[num % geometricDesc.length];
-                 case "Emergence Layer":
-                      const emergenceDesc = ["Represents properties arising from lower levels.", "An emergent phenomenon like consciousness or meaning.", "Higher-order integrated information.", "Result of complex system interactions.", "Novel property not present in constituents.", "Top-level outcome of the framework.", "Represents integrated wholeness.", "Outcome of reflexive processes.", "Manifestation of system dynamics.", "Correlate of subjective qualia."];
-                      return emergenceDesc[num % emergenceDesc.length];
-                 default: return "A conceptual component within the Syntrometrie Framework.";
-             }
+            const safeName = (data.name || 'Unnamed Node').replace(/</g, "<").replace(/>/g, ">");
+            let linksHtml = '';
+
+            // Use the links directly from the node's data
+            if (data.links && data.links.length > 0) {
+                const linkedNames = data.links
+                    .map(linkId => conceptData[linkId]?.name) // Look up names in global conceptData
+                    .filter(name => name)
+                    .map(name => name.replace(/</g, "<").replace(/>/g, ">"));
+
+                if (linkedNames.length > 0) {
+                    linksHtml = `
+                        <div class="links-list">
+                            <b>Links To:</b> ${linkedNames.join(', ')}
+                        </div>
+                    `;
+                }
+            }
+
+            // Construct panel HTML using data from nodeMesh.userData
+            infoPanel.innerHTML = `
+                <h3>${safeName}</h3>
+                ${data.type ? `<p><b>Type:</b> ${data.type}</p>` : ''}
+                ${data.chapter ? `<p><b>Chapter:</b> ${data.chapter}</p>` : ''} <!-- Added Chapter -->
+                ${data.description ? `<p><b>Description:</b> ${data.description}</p>` : ''}
+                ${linksHtml}
+            `;
         }
 
+        // --- Clear Hover State ---
+        function clearHover() { /* ... same as before ... */
+            if (lastIntersected) { lastIntersected = null; }
+            if (infoPanel) { infoPanel.innerHTML = ''; }
+        }
+
+        // --- Node Type/Description Helpers (No longer needed as info comes from userData) ---
+        // function getNodeType(name) { ... } // REMOVED
+        // function getNodeDescription(name) { ... } // REMOVED
 
         // --- Resize Handler ---
-        function onWindowResize() {
+        function onWindowResize() { /* ... same as before ... */
             if (!container || !camera || !renderer || !labelRenderer) return;
-
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-
-            renderer.setSize(width, height);
-            labelRenderer.setSize(width, height);
+            const width = container.clientWidth; const height = container.clientHeight;
+            camera.aspect = width / height; camera.updateProjectionMatrix();
+            renderer.setSize(width, height); labelRenderer.setSize(width, height);
         }
 
         // --- Animation Loop ---
-        function animate() {
+        function animate() { /* ... same as before ... */
             requestAnimationFrame(animate);
-
-            // Update controls only if needed (saves performance)
-            if (controls && controls.enabled) {
-                controls.update();
-             }
-
-            // --- Optional: Add smooth node scaling ---
-            // if (hoverScaleTween) hoverScaleTween.update();
-
+            if (controls && controls.enabled) controls.update();
             if (renderer && scene && camera) renderer.render(scene, camera);
             if (labelRenderer && scene && camera) labelRenderer.render(scene, camera);
         }
 
-        // --- Start Application ---
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM ready, initializing Syntrometrie Framework visualization...");
-             try {
-                 init();
-             } catch (error) {
-                 console.error("Initialization failed:", error);
-                 const errContainer = document.getElementById('threejs-container') || document.body;
-                 // More styled error message
-                 errContainer.innerHTML = `<div style="color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 1rem; border-radius: 6px; text-align: center; font-weight: bold;">Error during 3D visualization initialization: ${error.message}<br>Please check the browser console for more details.</div>`;
-                 if(infoPanel) infoPanel.style.display = 'none'; // Hide potentially broken panel
-             }
-         });
-
+        // --- Start Application After DOM Loaded ---
+        document.addEventListener('DOMContentLoaded', () => { /* ... same as before ... */
+            console.log("DOM ready, initializing Concept visualization..."); // Updated log message
+            try { init(); } catch (error) {
+                console.error("Initialization failed:", error);
+                const errContainer = document.querySelector('.threejs-container') || document.body;
+                errContainer.innerHTML = `<div style="color: #ff4444; background-color: #2a1e2a; border: 1px solid #553355; padding: 1rem; border-radius: 6px; text-align: center; font-weight: bold;">Error initializing 3D visualization: ${error.message}<br>Check console for details.</div>`;
+                if (infoPanel) infoPanel.style.display = 'none';
+            }
+        });
     </script>
+    <!-- === END OF JAVASCRIPT MODULE === -->
 
 </body>
 </html>
