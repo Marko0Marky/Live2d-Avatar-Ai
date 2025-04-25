@@ -10,6 +10,7 @@ Meet a **Live2D Cubism 3** avatar that doesn’t just animate—it *thinks* and 
 This is where AI meets emotional intelligence in a virtual companion. It’s a playground for AI enthusiasts, animators, and developers to experiment with reinforcement learning (DDQN, PER), natural language processing (Transformers), and Live2D animation. The result? A responsive, evolving avatar aiming for believable interaction and presence.
 
 ---
+[Live-demo!](https://marko0marky.github.io/Live2d-Avatar-Ai/)
 
 ## 🚀 Key Features
 
@@ -42,7 +43,6 @@ This is where AI meets emotional intelligence in a virtual companion. It’s a p
 *   **Richer Emotions:** Variable decay rates allow different emotions to persist differently.
 
 ---
-[Live-demo!](https://marko0marky.github.io/Live2d-Avatar-Ai/)
 
 ## 📊 Project Status
 
