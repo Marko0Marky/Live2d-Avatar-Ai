@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live2D Avatar AI Agent - Documentation</title>
+    <title>Live2D Avatar AI Agent - Syntrometrie Visualization</title> <!-- Updated Title -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -34,17 +34,73 @@
         a:hover {
             text-decoration: underline;
         }
+        /* Container for the 3D view */
         .threejs-container {
-            width: 100%;
-            height: 500px;
-            margin: 20px auto;
-            background-color: #000;
-            position: relative;
+            width: 100%; /* Take full width of its parent */
+            height: 550px; /* Increased height */
+            margin: 20px auto; /* Center */
+            background-color: #111122; /* Match scene background */
+            position: relative; /* Needed for absolute positioning of renderers */
+            border-radius: 5px; /* Optional styling */
+            overflow: hidden; /* Clip renderers to container bounds */
         }
         canvas {
-            display: block;
+            display: block; /* Prevent extra space below canvas */
         }
+
+        /* Label style (from the previous script) */
+        .label {
+            color: #fff;
+            font-family: sans-serif;
+            padding: 2px 5px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 3px;
+            font-size: 11px;
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+            position: absolute; /* Needed for CSS2DRenderer */
+        }
+        /* Info panel style (from the previous script) */
+        #info-panel { /* Ensure this matches the JS selector */
+            position: absolute;
+            bottom: 10px; /* Position at bottom-left corner of container */
+            left: 10px;
+            background-color: rgba(40, 40, 60, 0.85);
+            color: #eee;
+            padding: 10px 15px;
+            border-radius: 5px;
+            max-width: 280px; /* Slightly narrower */
+            font-size: 12px; /* Slightly smaller text */
+            display: block;
+            border: 1px solid #555577;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            z-index: 10; /* Make sure it's above the canvas */
+            pointer-events: none; /* Don't interfere with controls */
+        }
+         #info-panel h3 {
+             margin-top: 0;
+             margin-bottom: 8px;
+             color: #00aaff;
+             font-size: 14px;
+         }
+         #info-panel p {
+             margin: 4px 0;
+         }
+          #info-panel p b {
+             color: #aaaaff;
+             margin-right: 5px;
+          }
     </style>
+    <!-- Import Map required for ES Modules -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+            }
+        }
+    </script>
 </head>
 <body>
     <header>
@@ -63,140 +119,351 @@
 
     <div class="container">
         <h2>3D Syntrometry Model</h2>
-        <p>This interactive 3D model visualizes the hierarchical structure of the Syntrometrie Framework, including foundational logic, recursive hierarchy, geometric proxies, and emergent properties.</p>
-        <div class="threejs-container" id="threejs-container"></div>
+        <p>This interactive 3D model visualizes the hierarchical structure of the Syntrometrie Framework. Hover over nodes to see details. Use mouse/touch to rotate, pan, and zoom.</p>
+        <!-- The container where the 3D scene will be rendered -->
+        <div class="threejs-container" id="threejs-container">
+            <!-- The info panel will be placed inside by CSS -->
+            <div id="info-panel">Loading visualization...</div>
+        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.157/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.157/examples/js/controls/OrbitControls.js"></script>
-    <script>
-        // Initialize Three.js scene
-        const container = document.getElementById('threejs-container');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
+    <!-- Removed old script tags -->
 
-        // Add orbit controls for navigation
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableZoom = true;
-        controls.enablePan = true;
+    <!-- Replaced inline script with the module script -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-        // Set up lighting
-        const ambientLight = new THREE.AmbientLight(0x404040, 1); // soft white light
-        scene.add(ambientLight);
+        // --- Global Variables ---
+        let scene, camera, renderer, labelRenderer, controls;
+        let raycaster, mouse;
+        let infoPanel; // Will get element in init
+        const allNodes = []; // Keep track of all nodes for raycasting
+        let container; // The div element for the visualization
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(1, 1, 1).normalize();
-        scene.add(directionalLight);
+        // --- Initialization ---
+        function init() {
+            container = document.getElementById('threejs-container');
+            infoPanel = document.getElementById('info-panel');
 
-        // Define colors for different layers
-        const colors = [
-            0x00ff00, // Foundational Logic
-            0x0000ff, // Recursive Hierarchy
-            0xffff00, // Geometric Structure
-            0xff0000, // Emergence Layer
-        ];
+            if (!container) {
+                console.error("Error: Could not find container element #threejs-container");
+                if(infoPanel) infoPanel.innerHTML = "Error: Container not found.";
+                return;
+            }
+             if (!infoPanel) {
+                 console.warn("Info panel #info-panel not found.");
+                 // Allow visualization to continue without the panel
+             } else {
+                 infoPanel.innerHTML = 'Hover over nodes to see details.'; // Set initial text
+             }
 
-        // Create hierarchical structure
-        function createNode(name, depth, parent) {
-            const geometry = new THREE.SphereGeometry(1, 32, 32);
-            const material = new THREE.MeshStandardMaterial({ color: colors[depth] });
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111122);
+            scene.fog = new THREE.Fog(0x111122, 40, 100);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
+            camera.position.set(0, 5, 25);
+
+            // Renderer (WebGL)
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement); // Append to container
+
+            // CSS2DRenderer for Labels
+            labelRenderer = new CSS2DRenderer();
+            labelRenderer.setSize(width, height);
+            labelRenderer.domElement.style.position = 'absolute'; // Position relative to container
+            labelRenderer.domElement.style.top = '0px';
+            labelRenderer.domElement.style.left = '0px'; // Align top-left
+            labelRenderer.domElement.style.pointerEvents = 'none'; // Crucial!
+            container.appendChild(labelRenderer.domElement); // Append to container
+
+            // Orbit Controls (Attach to the main renderer's element)
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.enableZoom = true;
+            controls.enablePan = true;
+            controls.minDistance = 5;
+            controls.maxDistance = 80;
+            controls.target.set(0, 0, -10); // Target the center of the layers
+            controls.update();
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x606080);
+            scene.add(ambientLight);
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight1.position.set(5, 10, 7).normalize();
+            scene.add(dirLight1);
+            const dirLight2 = new THREE.DirectionalLight(0xffaacc, 0.4);
+            dirLight2.position.set(-5, -5, -2).normalize();
+            scene.add(dirLight2);
+
+            // Colors for Layers
+            const colors = {
+                foundational: 0x44aa44,
+                recursive: 0x4444ff,
+                geometric: 0xdddd55,
+                emergence: 0xff4444,
+                framework: 0xaaaaee
+            };
+
+            // Build the Syntrometrie Framework Visualization
+            buildFramework(colors);
+
+            // Setup Interaction
+            setupInteraction();
+
+            // Handle Resize
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Start Animation Loop
+            animate();
+        }
+
+        // --- Helper Functions ---
+        function createNode(name, color, size = 0.5, position) {
+            const geometry = new THREE.SphereGeometry(size, 24, 16);
+            const material = new THREE.MeshPhongMaterial({
+                color: color,
+                shininess: 60,
+             });
             const node = new THREE.Mesh(geometry, material);
             node.name = name;
-            node.userData.depth = depth;
-
-            if (parent) {
-                parent.add(node);
-                const line = new THREE.Line(
-                    new THREE.BufferGeometry().setFromPoints([
-                        new THREE.Vector3(0, 0, 0),
-                        new THREE.Vector3(0, 0, -5)
-                    ]),
-                    new THREE.LineBasicMaterial({ color: 0xffffff })
-                );
-                parent.add(line);
-            }
-
+            node.userData = { description: getNodeDescription(name), type: getNodeType(name) };
+            node.position.copy(position);
+            scene.add(node);
+            allNodes.push(node);
             return node;
         }
 
-        // Build the Syntrometrie Framework
-        const root = createNode("Root", 0, null);
-        scene.add(root);
-
-        // Foundational Logic
-        const foundationalLogic = createNode("Foundational Logic", 1, root);
-        foundationalLogic.position.set(0, 0, -5);
-
-        const primordialExp = createNode("Primordial Exp.", 2, foundationalLogic);
-        const reflection = createNode("Reflection", 2, foundationalLogic);
-        const subjectiveAspect = createNode("Subjective Aspect", 2, foundationalLogic);
-
-        // Recursive Hierarchy
-        const recursiveHierarchy = createNode("Recursive Hierarchy", 1, root);
-        recursiveHierarchy.position.set(0, 0, -10);
-
-        const metrophor = createNode("Metrophor", 2, recursiveHierarchy);
-        const synkolator = createNode("Synkolator", 2, recursiveHierarchy);
-        const syntrixLevels = createNode("Syntrix Levels", 2, recursiveHierarchy);
-
-        // Geometric Structure
-        const geometricStructure = createNode("Geometric Structure", 1, root);
-        geometricStructure.position.set(0, 0, -15);
-
-        const metricTensor = createNode("Metric Tensor", 2, geometricStructure);
-        const connection = createNode("Connection", 2, geometricStructure);
-        const curvature = createNode("Curvature", 2, geometricStructure);
-
-        // Emergence Layer
-        const emergenceLayer = createNode("Emergence Layer", 1, root);
-        emergenceLayer.position.set(0, 0, -20);
-
-        const rih = createNode("RIH", 2, emergenceLayer);
-        const integration = createNode("Integration", 2, emergenceLayer);
-        const reflexivity = createNode("Reflexivity", 2, emergenceLayer);
-        const threshold = createNode("Threshold", 2, emergenceLayer);
-        const emergentConsciousness = createNode("Emergent Consciousness", 2, emergenceLayer);
-
-        // Positioning and Scaling
-        const spacing = 5;
-        let currentY = 0;
-
-        [primordialExp, reflection, subjectiveAspect].forEach((node, index) => {
-            node.position.y = currentY + index * spacing;
-        });
-
-        [metrophor, synkolator, syntrixLevels].forEach((node, index) => {
-            node.position.y = currentY + index * spacing;
-        });
-
-        [metricTensor, connection, curvature].forEach((node, index) => {
-            node.position.y = currentY + index * spacing;
-        });
-
-        [integration, reflexivity, threshold].forEach((node, index) => {
-            node.position.y = currentY + index * spacing;
-        });
-
-        // Camera setup
-        camera.position.z = 50;
-
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
+        function createLabel(text, node) {
+            const div = document.createElement('div');
+            div.className = 'label'; // Class for CSS styling
+            div.textContent = text;
+            const label = new CSS2DObject(div); // Use CSS2DObject
+            const nodeSize = node.geometry.parameters.radius || 0.5;
+            label.position.set(0, nodeSize * 1.1 + 0.3, 0);
+            node.add(label); // Attach label TO the node mesh
+            return label;
         }
 
-        animate();
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            camera.aspect = container.clientWidth / container.clientHeight;
+        function createConnectionLine(startPos, endPos, color = 0xaaaaaa) {
+            const points = [startPos, endPos];
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({
+                 color: color,
+                 linewidth: 1,
+                 transparent: true,
+                 opacity: 0.5
+            });
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            return line;
+        }
+
+        // --- Build Framework ---
+        function buildFramework(colors) {
+            const rootPosition = new THREE.Vector3(0, 0, 0);
+            const root = createNode("Syntrometrie Framework", colors.framework, 1, rootPosition);
+            createLabel("Framework Root", root);
+
+            const layers = [
+                { name: "Foundational Logic", color: colors.foundational, zOffset: -6, nodeCount: 4, radius: 4 },
+                { name: "Recursive Hierarchy", color: colors.recursive, zOffset: -12, nodeCount: 6, radius: 6 },
+                { name: "Geometric Structure", color: colors.geometric, zOffset: -18, nodeCount: 8, radius: 8 },
+                { name: "Emergence Layer", color: colors.emergence, zOffset: -24, nodeCount: 10, radius: 10 },
+            ];
+
+            const layerNodeObjects = {};
+            layerNodeObjects["Root"] = [root];
+
+            layers.forEach((layer, index) => {
+                const nodesInLayer = [];
+                for (let i = 0; i < layer.nodeCount; i++) {
+                    const angle = (i / layer.nodeCount) * Math.PI * 2;
+                    const yVariation = (Math.random() - 0.5) * 0.5;
+                    const x = Math.cos(angle) * layer.radius;
+                    const y = Math.sin(angle) * layer.radius + yVariation;
+                    const z = layer.zOffset;
+                    const nodeName = `${layer.name} Concept ${i + 1}`;
+                    const node = createNode(nodeName, layer.color, 0.6, new THREE.Vector3(x, y, z));
+                    createLabel(`Concept ${i + 1}`, node);
+                    nodesInLayer.push(node);
+                }
+                layerNodeObjects[layer.name] = nodesInLayer;
+
+                 const prevLayerName = index === 0 ? "Root" : layers[index - 1].name;
+                 const prevNodes = layerNodeObjects[prevLayerName];
+
+                 if (prevNodes && prevNodes.length > 0) {
+                     nodesInLayer.forEach((node, i) => {
+                         const parentIndex1 = Math.floor(i * prevNodes.length / nodesInLayer.length);
+                         const parentNode1 = prevNodes[parentIndex1 % prevNodes.length];
+                         createConnectionLine(parentNode1.position, node.position, layer.color);
+                     });
+                 }
+            });
+        }
+
+        // --- Interaction ---
+        function setupInteraction() {
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            // Listen for mouse move events on the container, not the whole window
+            if (container) {
+                container.addEventListener('mousemove', onMouseMove, false);
+                // Add touch support if needed (basic example)
+                container.addEventListener('touchmove', onTouchMove, false);
+                container.addEventListener('touchend', onTouchEnd, false);
+            }
+        }
+
+        let lastIntersected = null;
+
+        function updateMousePosition(clientX, clientY) {
+             if (!container) return;
+             const rect = container.getBoundingClientRect();
+             mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+             mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+         }
+
+         function onMouseMove(event) {
+             updateMousePosition(event.clientX, event.clientY);
+             checkIntersections();
+         }
+
+         function onTouchMove(event) {
+             if (event.touches.length > 0) {
+                 updateMousePosition(event.touches[0].clientX, event.touches[0].clientY);
+                 checkIntersections();
+             }
+         }
+
+         function onTouchEnd(event) {
+             // When touch ends, clear the hover effect
+             clearHover();
+         }
+
+
+        function checkIntersections() {
+            if (!camera || !raycaster) return;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(allNodes, false);
+
+            if (intersects.length > 0) {
+                const intersectedObject = intersects[0].object;
+                if (intersectedObject !== lastIntersected) {
+                    // Optional: Add visual feedback
+                    // if (lastIntersected) { lastIntersected.scale.set(1,1,1); }
+                    // intersectedObject.scale.set(1.2, 1.2, 1.2);
+
+                    if (infoPanel && intersectedObject.userData && intersectedObject.userData.type) {
+                        infoPanel.innerHTML = `
+                            <h3>${intersectedObject.name}</h3>
+                            <p><b>Type:</b> ${intersectedObject.userData.type}</p>
+                            <p><b>Description:</b> ${intersectedObject.userData.description}</p>
+                        `;
+                    } else if (infoPanel) {
+                         infoPanel.innerHTML = `<h3>${intersectedObject.name}</h3><p>No details available.</p>`;
+                     }
+                    lastIntersected = intersectedObject;
+                }
+            } else {
+                clearHover();
+            }
+        }
+
+         function clearHover() {
+             if (lastIntersected) {
+                 // Optional: Reset visual feedback
+                 // lastIntersected.scale.set(1, 1, 1);
+                 if (infoPanel) {
+                     infoPanel.innerHTML = 'Hover over nodes to see details.';
+                 }
+                 lastIntersected = null;
+             }
+         }
+
+        // --- Helper Functions for Node Metadata (Placeholder descriptions) ---
+        function getNodeType(name) {
+            if (name.includes("Framework")) return "Central Framework";
+            if (name.includes("Foundational")) return "Foundational Component";
+            if (name.includes("Recursive")) return "Hierarchical Element";
+            if (name.includes("Geometric")) return "Structural Proxy";
+            if (name.includes("Emergence")) return "Emergent Phenomenon";
+            return "Concept";
+        }
+
+        function getNodeDescription(name) {
+             if (name === "Syntrometrie Framework") return "The core integrating structure of the Syntrometrie model.";
+             const layerMatch = name.match(/^(Foundational Logic|Recursive Hierarchy|Geometric Structure|Emergence Layer)/);
+             const conceptNumMatch = name.match(/Concept (\d+)$/);
+             const layer = layerMatch ? layerMatch[1] : "Unknown Layer";
+             const num = conceptNumMatch ? parseInt(conceptNumMatch[1], 10) : 0;
+             switch (layer) {
+                 case "Foundational Logic":
+                     const foundationalDesc = ["Represents basic logical operators or axioms.", "A primitive element of subjective experience.", "Defines fundamental constraints or rules.", "Core building block of the logical layer."];
+                     return foundationalDesc[num % foundationalDesc.length];
+                 case "Recursive Hierarchy":
+                      const recursiveDesc = ["A self-referential structure or process.", "Represents levels of abstraction or complexity.", "Element within a nested hierarchical system.", "Connects different scales of the model.", "Illustrates recursive definition or generation.", "Part of the iterative refinement process."];
+                      return recursiveDesc[num % recursiveDesc.length];
+                 case "Geometric Structure":
+                      const geometricDesc = ["Defines spatial or relational properties.", "Represents a metric or topology.", "A structural component defining form.", "Proxy for geometric organization.", "Relates elements within a dimensional space.", "Component of the framework's structural manifold.", "Embodies symmetry or transformation rules.", "Abstract geometric representation."];
+                      return geometricDesc[num % geometricDesc.length];
+                 case "Emergence Layer":
+                      const emergenceDesc = ["Represents properties arising from lower levels.", "An emergent phenomenon like consciousness or meaning.", "Higher-order integrated information.", "Result of complex system interactions.", "Novel property not present in constituents.", "Top-level outcome of the framework.", "Represents integrated wholeness.", "Outcome of reflexive processes.", "Manifestation of system dynamics.", "Correlate of subjective qualia."];
+                      return emergenceDesc[num % emergenceDesc.length];
+                 default: return "A conceptual component within the Syntrometrie Framework.";
+             }
+        }
+
+        // --- Resize Handler ---
+        function onWindowResize() {
+            if (!container || !camera || !renderer || !labelRenderer) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            camera.aspect = width / height;
             camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        });
+
+            renderer.setSize(width, height);
+            labelRenderer.setSize(width, height);
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            if (controls) controls.update(); // Update controls if damping is enabled
+            if (renderer && scene && camera) renderer.render(scene, camera);
+            if (labelRenderer && scene && camera) labelRenderer.render(scene, camera);
+        }
+
+        // --- Start Application ---
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM ready, initializing Syntrometrie Framework visualization...");
+             try {
+                 init();
+             } catch (error) {
+                 console.error("Initialization failed:", error);
+                 const errContainer = document.getElementById('threejs-container') || document.body;
+                 errContainer.innerHTML = `<div style="color: red; padding: 20px; font-size: 1.2em;">Error during initialization: ${error.message}<br>Check console for details.</div>`;
+                 if(infoPanel) infoPanel.style.display = 'none';
+             }
+         });
+
     </script>
+
 </body>
 </html>
