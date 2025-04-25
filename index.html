@@ -3,68 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Title can remain or be updated -->
-    <title>Syntrometrie Framework 3D Visualization</title>
+    <title>Live2D Avatar AI Agent - Syntrometrie Visualization</title> <!-- Updated Title -->
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
     <style>
-        /* Styles are directly from the script you want to use */
+        :root {
+            /* Define color variables */
+            --primary-dark: #2c3e50; /* Header Background */
+            --primary-light: #34495e; /* Header Gradient End */
+            --secondary-blue: #3498db; /* Links & Accents */
+            --background-light: #f8f9fa; /* Body Background */
+            --background-card: #ffffff; /* Container Background */
+            --text-dark: #343a40; /* Main Text */
+            --text-light: #f0f0f0; /* Text on dark backgrounds */
+            --text-muted: #6c757d; /* Subdued text */
+            --border-color: #dee2e6;
+            --shadow-color: rgba(0, 0, 0, 0.08);
+            --viz-background: #1a1a2e; /* Slightly different dark for 3D bg */
+            --info-panel-bg: rgba(44, 62, 80, 0.9); /* Semi-transparent dark */
+        }
+
         body {
+            font-family: 'Inter', Arial, sans-serif;
+            line-height: 1.7;
             margin: 0;
-            overflow: hidden;
-            background-color: #111122; /* Consistent background */
-            color: #eee;
-            font-family: sans-serif;
+            padding: 0;
+            background-color: var(--background-light);
+            color: var(--text-dark);
+            font-size: 16px; /* Base font size */
         }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
+            color: var(--text-light);
+            padding: 2.5rem 1rem; /* Increased padding */
+            text-align: center;
+            margin-bottom: 2rem; /* Space below header */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            margin: 0 0 0.5rem 0;
+            font-weight: 700;
+            font-size: 2.2rem; /* Larger heading */
+        }
+
+        header p {
+            margin: 0;
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.85); /* Slightly muted header text */
+            font-weight: 400;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto 2rem auto; /* Consistent bottom margin */
+            padding: 2rem; /* More padding inside container */
+            background: var(--background-card);
+            border-radius: 10px; /* Slightly larger radius */
+            box-shadow: 0 4px 12px var(--shadow-color); /* Softer shadow */
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            color: var(--primary-dark);
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--secondary-blue);
+            padding-bottom: 0.5rem;
+            display: inline-block; /* Make border only wrap text */
+        }
+
+        h3 { /* General h3 styling */
+             color: var(--primary-dark);
+             margin-top: 1.5rem;
+             margin-bottom: 1rem;
+             font-weight: 600;
+        }
+
+        a {
+            color: var(--secondary-blue);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease, text-decoration 0.3s ease;
+        }
+
+        a:hover, a:focus {
+            color: var(--primary-light);
+            text-decoration: underline;
+        }
+
+        ul {
+            list-style: none; /* Remove default bullets */
+            padding-left: 0;
+        }
+
+        li {
+            margin-bottom: 0.75rem; /* Space between list items */
+            position: relative;
+            padding-left: 1.5rem; /* Space for custom bullet */
+        }
+        li::before { /* Custom bullet style */
+             content: '→';
+             position: absolute;
+             left: 0;
+             color: var(--secondary-blue);
+             font-weight: bold;
+        }
+
+
+        /* Container for the 3D view */
+        .threejs-container {
+            width: 100%; /* Take full width of its parent */
+            height: 550px; /* Increased height */
+            margin: 2rem auto 1rem auto; /* Adjusted margin */
+            background-color: var(--viz-background); /* Use variable */
+            position: relative; /* Needed for absolute positioning */
+            border-radius: 8px; /* Consistent radius */
+            overflow: hidden; /* Clip renderers to container bounds */
+            border: 1px solid var(--primary-light); /* Subtle border */
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3); /* Inner shadow */
+        }
+
         canvas {
-            display: block;
+            display: block; /* Prevent extra space below canvas */
         }
+
+        /* Label style (remains mostly functional) */
         .label {
             color: #fff;
-            font-family: sans-serif;
-            padding: 2px 5px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 3px;
-            font-size: 11px; /* Slightly smaller */
-            pointer-events: none; /* Allow clicks/hovers to pass through */
+            font-family: 'Inter', sans-serif;
+            padding: 3px 6px; /* Slightly more padding */
+            background: rgba(0, 0, 0, 0.7); /* Slightly darker bg */
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600; /* Make label text bolder */
+            pointer-events: none;
             user-select: none;
             white-space: nowrap;
-            /* position: absolute; Needed for CSS2DRenderer - it handles placement */
+            position: absolute; /* Needed for CSS2DRenderer */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Text shadow for readability */
         }
-        #info-panel { /* Use ID to match JS */
+
+        /* Info panel style (Enhanced) */
+        #info-panel {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            background-color: rgba(40, 40, 60, 0.85); /* Consistent style */
-            color: #eee;
-            padding: 10px 15px; /* Adjusted padding */
-            border-radius: 5px;
-            max-width: 300px;
-            font-size: 13px; /* Adjusted size */
-            display: block; /* Keep visible */
-            border: 1px solid #555577;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            z-index: 10; /* Ensure it's on top */
-            pointer-events: none; /* Prevent interaction blocking */
+            bottom: 15px; /* Consistent spacing */
+            left: 15px;
+            background-color: var(--info-panel-bg);
+            color: var(--text-light); /* Light text on dark bg */
+            padding: 12px 18px; /* Adjusted padding */
+            border-radius: 6px;
+            max-width: 300px; /* Slightly wider */
+            font-size: 13px; /* Slightly larger text */
+            display: block;
+            border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle light border */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); /* Enhanced shadow */
+            z-index: 10; /* Ensure it's above the canvas */
+            pointer-events: none; /* Don't interfere with controls */
+            backdrop-filter: blur(3px); /* Optional: frosted glass effect */
+            -webkit-backdrop-filter: blur(3px);
         }
+
          #info-panel h3 {
              margin-top: 0;
-             margin-bottom: 8px;
-             color: #00aaff;
-             font-size: 15px;
+             margin-bottom: 10px;
+             color: var(--secondary-blue); /* Use accent color for heading */
+             font-size: 15px; /* Slightly larger heading */
+             font-weight: 700;
+             border-bottom: 1px solid rgba(255, 255, 255, 0.15); /* Subtle separator */
+             padding-bottom: 6px;
          }
-         #info-panel p {
-             margin: 4px 0;
-         }
-          #info-panel p b {
-             color: #aaaaff;
-             margin-right: 5px;
-          }
-    </style>
-</head>
-<body>
-    <!-- Info panel is required by the script -->
-    <div id="info-panel">Loading visualization...</div>
 
-    <!-- Import map is required by the script -->
+         #info-panel p {
+             margin: 6px 0;
+             line-height: 1.5; /* Improved line spacing */
+         }
+
+          #info-panel p b {
+             color: #a0b4d0; /* Lighter, less saturated blue/grey */
+             font-weight: 600;
+             margin-right: 6px;
+          }
+
+          /* Style for loading/initial message */
+          #info-panel:empty::before,
+          #info-panel:not(:has(h3))::before { /* Show initial text if empty or only has default text */
+             content: 'Hover over nodes for details';
+             color: var(--text-muted);
+             font-style: italic;
+          }
+           #info-panel:has(h3)::before {
+              content: ''; /* Hide placeholder when content is loaded */
+           }
+
+
+    </style>
+    <!-- Import Map (No change needed here) -->
     <script type="importmap">
         {
             "imports": {
@@ -73,8 +212,35 @@
             }
         }
     </script>
+</head>
+<body>
+    <header>
+        <h1>Live2D Avatar AI Agent - Documentation</h1>
+        <p>Explore the architecture, setup, and advanced features of this project.</p>
+    </header>
 
-    <!-- === PASTE THE JAVASCRIPT MODULE HERE === -->
+    <div class="container">
+        <h2>Quick Links</h2>
+        <ul>
+            <li><a href="research/syntrometrie_framework.html">Syntrometrie Framework Diagram</a></li>
+            <li><a href="research/conscious_agent_arch.html">Conscious Agent Architecture Diagram</a></li>
+            <li><a href="../README.md">Main Project README</a></li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>3D Syntrometry Model</h2>
+        <p>This interactive 3D model visualizes the hierarchical structure of the Syntrometrie Framework. Hover over nodes to see details. Use mouse/touch to rotate, pan, and zoom.</p>
+
+        <!-- The container where the 3D scene will be rendered -->
+        <div class="threejs-container" id="threejs-container">
+            <!-- The info panel will be placed inside by CSS -->
+            <!-- Updated initial state handling via CSS -->
+            <div id="info-panel"></div>
+        </div>
+    </div>
+
+    <!-- JavaScript Module (No change needed here) -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -83,45 +249,58 @@
         // --- Global Variables ---
         let scene, camera, renderer, labelRenderer, controls;
         let raycaster, mouse;
-        let infoPanel; // Will grab the element
+        let infoPanel; // Will get element in init
         const allNodes = []; // Keep track of all nodes for raycasting
+        let container; // The div element for the visualization
 
         // --- Initialization ---
         function init() {
-            // Get the info panel element
+            container = document.getElementById('threejs-container');
             infoPanel = document.getElementById('info-panel');
+
+            if (!container) {
+                console.error("Error: Could not find container element #threejs-container");
+                if(infoPanel) infoPanel.innerHTML = "Error: Container not found."; // Basic error
+                return;
+            }
              if (!infoPanel) {
-                 console.warn("Info panel #info-panel not found. Hover info will not be displayed.");
+                 console.warn("Info panel #info-panel not found.");
              } else {
-                 infoPanel.innerHTML = 'Hover over nodes to see details.'; // Initial text
+                 // infoPanel.innerHTML = 'Hover over nodes to see details.'; // Initial text now handled by CSS :empty selector
+                 infoPanel.innerHTML = ''; // Start empty, let CSS handle placeholder
              }
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
 
             // Scene
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111122);
-            scene.fog = new THREE.Fog(0x111122, 40, 100); // Add some fog
+            // Use color variable from CSS (via getComputedStyle if needed, or just hardcode the same value)
+             scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--viz-background').trim() || 0x1a1a2e); // Fallback needed as CSS vars aren't directly accessible
+            scene.fog = new THREE.Fog(scene.background, 40, 100); // Fog matches background
 
             // Camera
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000); // Slightly wider FOV
-            camera.position.set(0, 5, 25); // Adjusted camera start position
+            camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
+            camera.position.set(0, 5, 25);
 
-            // Renderer (Attaches to body)
+            // Renderer (WebGL)
             renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(width, height);
             renderer.setPixelRatio(window.devicePixelRatio);
-            document.body.appendChild(renderer.domElement);
+            container.appendChild(renderer.domElement); // Append to container
 
-            // CSS2DRenderer for Labels (Attaches to body)
+            // CSS2DRenderer for Labels
             labelRenderer = new CSS2DRenderer();
-            labelRenderer.setSize(window.innerWidth, window.innerHeight);
-            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.setSize(width, height);
+            labelRenderer.domElement.style.position = 'absolute'; // Position relative to container
             labelRenderer.domElement.style.top = '0px';
+            labelRenderer.domElement.style.left = '0px'; // Align top-left
             labelRenderer.domElement.style.pointerEvents = 'none'; // Crucial!
-            document.body.appendChild(labelRenderer.domElement);
+            container.appendChild(labelRenderer.domElement); // Append to container
 
-            // Orbit Controls (Uses main renderer element)
+            // Orbit Controls (Attach to the main renderer's element)
             controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; // Smoother interaction
+            controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.enableZoom = true;
             controls.enablePan = true;
@@ -130,26 +309,23 @@
             controls.target.set(0, 0, -10); // Target the center of the layers
             controls.update();
 
-
-            // Lighting (Adjusted for Phong/Standard material)
-            const ambientLight = new THREE.AmbientLight(0x606080); // Less intense ambient
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x8080a0); // Slightly brighter ambient
             scene.add(ambientLight);
-
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2); // Brighter key light
             dirLight1.position.set(5, 10, 7).normalize();
             scene.add(dirLight1);
-
-            const dirLight2 = new THREE.DirectionalLight(0xffaacc, 0.4); // Subtle colored light
+            const dirLight2 = new THREE.DirectionalLight(0xffaacc, 0.5); // Slightly stronger fill
             dirLight2.position.set(-5, -5, -2).normalize();
             scene.add(dirLight2);
 
-            // Colors for Layers
+            // Colors for Layers (Keep as is, distinct colors are good here)
             const colors = {
-                foundational: 0x44aa44, // Adjusted Green
-                recursive: 0x4444ff,   // Adjusted Blue
-                geometric: 0xdddd55,   // Adjusted Yellow
-                emergence: 0xff4444,   // Adjusted Red
-                framework: 0xaaaaee    // Color for the central node
+                foundational: 0x44aa44,
+                recursive: 0x4444ff,
+                geometric: 0xdddd55,
+                emergence: 0xff4444,
+                framework: 0xaaaaee
             };
 
             // Build the Syntrometrie Framework Visualization
@@ -167,50 +343,52 @@
 
         // --- Helper Functions ---
         function createNode(name, color, size = 0.5, position) {
-            const geometry = new THREE.SphereGeometry(size, 24, 16); // Slightly less detail
+            const geometry = new THREE.SphereGeometry(size, 32, 24); // Slightly smoother sphere
             const material = new THREE.MeshPhongMaterial({
                 color: color,
-                shininess: 60,
+                shininess: 80, // A bit shinier
              });
             const node = new THREE.Mesh(geometry, material);
-            node.name = name; // Used for identification
-            node.userData = { description: getNodeDescription(name), type: getNodeType(name) }; // Store info
+            node.name = name;
+            node.userData = { description: getNodeDescription(name), type: getNodeType(name) };
             node.position.copy(position);
             scene.add(node);
-            allNodes.push(node); // Add to list for raycasting
+            allNodes.push(node);
             return node;
         }
 
         function createLabel(text, node) {
             const div = document.createElement('div');
-            div.className = 'label'; // CSS class
+            div.className = 'label'; // Class for CSS styling
             div.textContent = text;
-            const label = new CSS2DObject(div);
+            const label = new CSS2DObject(div); // Use CSS2DObject
             const nodeSize = node.geometry.parameters.radius || 0.5;
-            label.position.set(0, nodeSize * 1.1 + 0.3, 0); // Relative offset
+            // Adjust label position slightly higher
+            label.position.set(0, nodeSize * 1.2 + 0.35, 0);
             node.add(label); // Attach label TO the node mesh
             return label;
         }
+
 
         function createConnectionLine(startPos, endPos, color = 0xaaaaaa) {
             const points = [startPos, endPos];
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
             const material = new THREE.LineBasicMaterial({
                  color: color,
-                 linewidth: 1, // Note: May not be supported on all platforms/drivers
+                 linewidth: 1, // Note: linewidth > 1 may not work reliably on all platforms
                  transparent: true,
-                 opacity: 0.5
+                 opacity: 0.4 // Slightly less opaque
             });
             const line = new THREE.Line(geometry, material);
             scene.add(line);
-            return line; // Return line if needed later
+            return line;
         }
 
         // --- Build Framework ---
         function buildFramework(colors) {
             const rootPosition = new THREE.Vector3(0, 0, 0);
             const root = createNode("Syntrometrie Framework", colors.framework, 1, rootPosition);
-            createLabel("Framework Root", root); // Simpler label
+            createLabel("Framework Root", root);
 
             const layers = [
                 { name: "Foundational Logic", color: colors.foundational, zOffset: -6, nodeCount: 4, radius: 4 },
@@ -219,15 +397,16 @@
                 { name: "Emergence Layer", color: colors.emergence, zOffset: -24, nodeCount: 10, radius: 10 },
             ];
 
-            const layerNodeObjects = {}; // Store node Meshes
+            const layerNodeObjects = {};
             layerNodeObjects["Root"] = [root];
 
             layers.forEach((layer, index) => {
                 const nodesInLayer = [];
                 for (let i = 0; i < layer.nodeCount; i++) {
                     const angle = (i / layer.nodeCount) * Math.PI * 2;
-                    const yVariation = (Math.random() - 0.5) * 0.5;
-                    const x = Math.cos(angle) * layer.radius;
+                     const yVariation = (Math.random() - 0.5) * 1.0; // Slightly more variation
+                     const xVariation = (Math.random() - 0.5) * 0.5; // Slight x variation
+                    const x = Math.cos(angle) * layer.radius + xVariation;
                     const y = Math.sin(angle) * layer.radius + yVariation;
                     const z = layer.zOffset;
                     const nodeName = `${layer.name} Concept ${i + 1}`;
@@ -241,10 +420,21 @@
                  const prevNodes = layerNodeObjects[prevLayerName];
 
                  if (prevNodes && prevNodes.length > 0) {
+                     // Connect each node to one or two parents for more structure
                      nodesInLayer.forEach((node, i) => {
                          const parentIndex1 = Math.floor(i * prevNodes.length / nodesInLayer.length);
                          const parentNode1 = prevNodes[parentIndex1 % prevNodes.length];
                          createConnectionLine(parentNode1.position, node.position, layer.color);
+
+                         // Optional: Connect to a second, nearby parent for visual density
+                         if (prevNodes.length > 1) {
+                              const parentIndex2 = (parentIndex1 + 1) % prevNodes.length;
+                              const parentNode2 = prevNodes[parentIndex2];
+                              // Only add second line if it's reasonably different from the first
+                              if (parentNode1 !== parentNode2 && Math.random() < 0.3) { // Add randomness
+                                   createConnectionLine(parentNode2.position, node.position, layer.color);
+                              }
+                         }
                      });
                  }
             });
@@ -254,83 +444,100 @@
         function setupInteraction() {
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
-            // Use mousemove on the window for full-screen hover
-            window.addEventListener('mousemove', onMouseMove, false);
-            // Add touch support for mobile hover (basic)
-             window.addEventListener('touchmove', onTouchMove, { passive: false }); // passive:false may be needed if preventDefault is used later
-             window.addEventListener('touchend', onTouchEnd, false);
+            // Listen for mouse move events on the container, not the whole window
+            if (container) {
+                container.addEventListener('mousemove', onMouseMove, false);
+                // Add touch support if needed (basic example)
+                container.addEventListener('touchmove', onTouchMove, false);
+                container.addEventListener('touchend', onTouchEnd, false); // Clear on touch end
+                 container.addEventListener('mouseleave', clearHover, false); // Clear when mouse leaves container
+            }
         }
 
         let lastIntersected = null;
+         let hoverScaleTween = null; // For smooth scaling (optional advanced)
 
-         // Helper to update mouse/touch coordinates
-         function updatePointerPosition(clientX, clientY) {
-             mouse.x = (clientX / window.innerWidth) * 2 - 1;
-             mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+        function updateMousePosition(clientX, clientY) {
+             if (!container) return;
+             const rect = container.getBoundingClientRect();
+             mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+             mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
          }
 
          function onMouseMove(event) {
-             updatePointerPosition(event.clientX, event.clientY);
+             updateMousePosition(event.clientX, event.clientY);
              checkIntersections();
          }
 
          function onTouchMove(event) {
-             // Prevent default scroll behavior when touching the visualization
-             // event.preventDefault(); // Uncomment if needed
+             // Prevent scroll while interacting with canvas
+             event.preventDefault();
              if (event.touches.length > 0) {
-                 updatePointerPosition(event.touches[0].clientX, event.touches[0].clientY);
+                 updateMousePosition(event.touches[0].clientX, event.touches[0].clientY);
                  checkIntersections();
              }
          }
 
          function onTouchEnd(event) {
-             // When touch ends (finger lifts), clear the hover state
+             // When touch ends, clear the hover effect
              clearHover();
          }
+
 
         function checkIntersections() {
             if (!camera || !raycaster) return;
 
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(allNodes, false);
+            const intersects = raycaster.intersectObjects(allNodes, false); // `false` means don't check children
 
             if (intersects.length > 0) {
                 const intersectedObject = intersects[0].object;
                 if (intersectedObject !== lastIntersected) {
-                    // Optional: Visual feedback (e.g., scale)
-                    // if (lastIntersected) { lastIntersected.scale.set(1,1,1); }
+                    clearHoverVisuals(); // Clear previous visual effect
+
+                    // --- Optional: Add visual feedback (e.g., scaling) ---
+                    // Simple immediate scale:
                     // intersectedObject.scale.set(1.2, 1.2, 1.2);
+                    // You could implement smooth scaling using a tweening library or simple interpolation in animate()
 
                     if (infoPanel && intersectedObject.userData && intersectedObject.userData.type) {
+                        // Use textContent or innerHTML carefully if descriptions might contain HTML
                         infoPanel.innerHTML = `
                             <h3>${intersectedObject.name}</h3>
                             <p><b>Type:</b> ${intersectedObject.userData.type}</p>
                             <p><b>Description:</b> ${intersectedObject.userData.description}</p>
                         `;
                     } else if (infoPanel) {
-                         infoPanel.innerHTML = `<h3>${intersectedObject.name}</h3><p>No details available.</p>`;
+                         // Use textContent for safety if name might have special chars
+                         const tempDiv = document.createElement('div');
+                         tempDiv.textContent = intersectedObject.name || 'Unnamed Node';
+                         infoPanel.innerHTML = `<h3>${tempDiv.innerHTML}</h3><p>No details available.</p>`;
                      }
                     lastIntersected = intersectedObject;
                 }
             } else {
-                // No intersection, clear previous hover state
-                clearHover();
+                clearHover(); // Clear both info panel and visual effect if nothing is intersected
             }
         }
 
-        function clearHover() {
+         function clearHoverVisuals() {
              if (lastIntersected) {
-                 // Optional: Reset visual feedback
-                 // lastIntersected.scale.set(1, 1, 1);
-                 if (infoPanel) {
-                     infoPanel.innerHTML = 'Hover over nodes to see details.';
-                 }
-                 lastIntersected = null;
+                 // Reset visual feedback
+                  // Simple immediate scale reset:
+                  // lastIntersected.scale.set(1, 1, 1);
+                 // If using tweens, cancel the outgoing tween
              }
          }
 
+         function clearHover() {
+             clearHoverVisuals(); // Reset any visual effect
+             if (infoPanel) {
+                 infoPanel.innerHTML = ''; // Clear content, CSS :empty will show placeholder
+             }
+             lastIntersected = null;
+         }
 
-        // --- Helper Functions for Node Metadata (Placeholder descriptions) ---
+        // --- Helper Functions for Node Metadata (No change needed here) ---
         function getNodeType(name) {
             if (name.includes("Framework")) return "Central Framework";
             if (name.includes("Foundational")) return "Foundational Component";
@@ -339,13 +546,13 @@
             if (name.includes("Emergence")) return "Emergent Phenomenon";
             return "Concept";
         }
-
         function getNodeDescription(name) {
              if (name === "Syntrometrie Framework") return "The core integrating structure of the Syntrometrie model.";
              const layerMatch = name.match(/^(Foundational Logic|Recursive Hierarchy|Geometric Structure|Emergence Layer)/);
              const conceptNumMatch = name.match(/Concept (\d+)$/);
              const layer = layerMatch ? layerMatch[1] : "Unknown Layer";
              const num = conceptNumMatch ? parseInt(conceptNumMatch[1], 10) : 0;
+             // Descriptions kept the same - providing diverse placeholders
              switch (layer) {
                  case "Foundational Logic":
                      const foundationalDesc = ["Represents basic logical operators or axioms.", "A primitive element of subjective experience.", "Defines fundamental constraints or rules.", "Core building block of the logical layer."];
@@ -363,44 +570,52 @@
              }
         }
 
+
         // --- Resize Handler ---
         function onWindowResize() {
-            // Update camera aspect ratio and renderer sizes based on window dimensions
-            camera.aspect = window.innerWidth / window.innerHeight;
+            if (!container || !camera || !renderer || !labelRenderer) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            camera.aspect = width / height;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+
+            renderer.setSize(width, height);
+            labelRenderer.setSize(width, height);
         }
 
         // --- Animation Loop ---
         function animate() {
             requestAnimationFrame(animate);
-            // Update controls if damping/auto-rotate is enabled
-            if (controls) controls.update();
-            // Render the scene
+
+            // Update controls only if needed (saves performance)
+            if (controls && controls.enabled) {
+                controls.update();
+             }
+
+            // --- Optional: Add smooth node scaling ---
+            // if (hoverScaleTween) hoverScaleTween.update();
+
             if (renderer && scene && camera) renderer.render(scene, camera);
-            // Render the labels
             if (labelRenderer && scene && camera) labelRenderer.render(scene, camera);
         }
 
         // --- Start Application ---
-        // Use DOMContentLoaded to ensure the body and info-panel are ready
         document.addEventListener('DOMContentLoaded', () => {
             console.log("DOM ready, initializing Syntrometrie Framework visualization...");
              try {
                  init();
              } catch (error) {
                  console.error("Initialization failed:", error);
-                 // Display error message in the body if init fails
-                 document.body.innerHTML = `<div style="color: red; padding: 20px; font-size: 1.2em; background: #333;">Error during initialization: ${error.message}<br>Check console for details.</div>`;
-                 // Attempt to hide info panel if it exists and error occurs
-                 const panel = document.getElementById('info-panel');
-                 if(panel) panel.style.display = 'none';
+                 const errContainer = document.getElementById('threejs-container') || document.body;
+                 // More styled error message
+                 errContainer.innerHTML = `<div style="color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 1rem; border-radius: 6px; text-align: center; font-weight: bold;">Error during 3D visualization initialization: ${error.message}<br>Please check the browser console for more details.</div>`;
+                 if(infoPanel) infoPanel.style.display = 'none'; // Hide potentially broken panel
              }
          });
 
     </script>
-    <!-- === END OF JAVASCRIPT MODULE === -->
 
 </body>
 </html>
