@@ -1,9 +1,10 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heim's Syntrometric Theory & Live2D Agent Demo (Refactored)</title>
+    <title>Heim's Syntrometric Theory & Live2D Agent Demo</title>
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,781 +12,1732 @@
 
     <style>
         :root {
-            --background-color: #111122; --text-color: #eeeeee; --container-background: #1e1e2a;
-            --container-border-color: #333355; --accent-color: #00aaff; --link-hover-color: #66ccff;
-            --viz-background: #111122; --info-panel-bg: rgba(40, 40, 60, 0.9); --info-panel-text: #eeeeee;
-            --shadow-color: rgba(0, 0, 0, 0.5); --text-muted: #aaaaaa;
+            --background-color: #111122;
+            --text-color: #eeeeee;
+            --container-background: #1e1e2a;
+            --container-border-color: #333355;
+            --accent-color: #00aaff;
+            --link-hover-color: #66ccff;
+            --viz-background: #1a1a1a;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --text-muted: #aaaaaa;
         }
         body {
-            font-family: 'Inter', sans-serif; line-height: 1.7; margin: 0; overflow-x: hidden;
-            background-color: var(--background-color); color: var(--text-color); font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            margin: 0;
+            overflow-x: hidden;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-size: 16px;
         }
         header {
-            background: linear-gradient(135deg, #1f1f2f 0%, #2c2c3f 100%); color: var(--text-color);
-            padding: 2rem 1rem; text-align: center; box-shadow: 0 2px 4px var(--shadow-color);
+            background: linear-gradient(135deg, #1f1f2f 0%, #2c2c3f 100%);
+            color: var(--text-color);
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px var(--shadow-color);
         }
-        header h1 { margin: 0 0 0.5rem 0; font-weight: 700; font-size: 2.2rem; }
-        header p { margin: 0; font-size: 1.1rem; color: var(--text-muted); }
+        header h1 {
+            margin: 0 0 0.5rem 0;
+            font-weight: 700;
+            font-size: 2.2rem;
+        }
+        header p {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
         .container {
-            max-width: 900px; margin: 2rem auto; padding: 2rem; background: var(--container-background);
-            border-radius: 8px; border: 1px solid var(--container-border-color); box-shadow: 0 4px 12px var(--shadow-color);
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--container-background);
+            border-radius: 8px;
+            border: 1px solid var(--container-border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
         }
         h2 {
-            color: var(--accent-color); margin-top: 0; margin-bottom: 1.5rem; font-weight: 600;
-            border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem;
+            color: var(--accent-color);
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 0.5rem;
         }
-        h3 { color: var(--accent-color); margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 600; }
-        p { margin: 0 0 1rem 0; }
-        a { color: var(--accent-color); text-decoration: none; font-weight: 600; transition: color 0.3s ease; }
-        a:hover, a:focus { color: var(--link-hover-color); text-decoration: underline; }
-        ul { list-style: none; padding-left: 0; }
-        li { margin-bottom: 0.75rem; position: relative; padding-left: 1.5rem; }
-        li::before { content: '→'; position: absolute; left: 0; color: var(--accent-color); font-weight: bold; }
-        .quick-links-list li::before { content: '🔗'; }
-        .threejs-container {
-            width: 100%; height: 650px; margin: 2rem 0; background-color: var(--viz-background);
-            position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--container-border-color);
+        h3 {
+            color: var(--accent-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        p {
+            margin: 0 0 1rem 0;
+        }
+        a {
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        a:hover, a:focus {
+            color: var(--link-hover-color);
+            text-decoration: underline;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        li {
+            margin-bottom: 0.75rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+        li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .quick-links-list li::before {
+            content: '🔗';
+        }
+        .threejs-container, .threejs-container-concept {
+            width: 100%;
+            height: 650px;
+            margin: 2rem 0;
+            background-color: var(--viz-background);
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--container-border-color);
             box-shadow: inset 0 0 10px var(--shadow-color);
         }
-        canvas { display: block; }
-        .label {
-            color: #fff; font-family: 'Inter', sans-serif; padding: 3px 6px; background: rgba(0, 0, 0, 0.7);
-            border-radius: 4px; font-size: 11px; font-weight: 600; pointer-events: none; user-select: none;
-            white-space: nowrap; position: absolute; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); transform: translate(-50%, 0);
-        }
-        #info-panel {
-            position: absolute; top: 15px; left: 15px; background-color: var(--info-panel-bg);
-            color: var(--info-panel-text); padding: 12px 18px; border-radius: 6px; max-width: 300px;
-            font-size: 13px; border: 1px solid var(--container-border-color); box-shadow: 0 2px 10px var(--shadow-color);
-            z-index: 10; pointer-events: none; backdrop-filter: blur(3px); transition: opacity 0.2s ease-in-out; opacity: 1;
-        }
-        #info-panel:empty { opacity: 0; }
-        #info-panel h3 {
-            margin: 0 0 8px 0; color: var(--accent-color); font-size: 15px; font-weight: 700;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 6px;
-        }
-        #info-panel p { margin: 4px 0; line-height: 1.5; }
-        #info-panel p b { color: #aaaaff; font-weight: 600; margin-right: 5px; }
-        #info-panel .simulated-data { color: #ffcc66; font-style: italic; font-size: 12px; }
-        #info-panel .links-list {
-            margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 12px; color: #cccccc;
-        }
-        #info-panel .links-list b { color: #aaccaa; }
-        #live2d-offscreen-canvas {
-            position: fixed; top: -9999px; left: -9999px; width: 512px; height: 512px;
-            opacity: 0; pointer-events: none; visibility: hidden;
+        canvas {
+            display: block;
         }
         .error-message {
-            color: #ff4444; background-color: #2a1e2a; border: 1px solid #553355;
-            padding: 1rem; border-radius: 6px; text-align: center; font-weight: bold;
+            color: #ff4444;
+            background-color: #2a1e2a;
+            border: 1px solid #553355;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
             margin-top: 1rem;
+            z-index: 10000;
+        }
+        .threejs-container .error-message, .threejs-container-concept .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 80%;
+        }
+        #live2d-container {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+            height: 400px;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+        }
+        #chat-container {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 350px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+        #chat-output {
+            height: 150px;
+            overflow-y: auto;
+            color: #ccc;
+            margin-bottom: 10px;
+            border: 1px solid #444;
+            padding: 8px;
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        #chat-output div {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        #chat-output div b {
+            color: #8bf;
+        }
+        #chat-input {
+            width: calc(100% - 16px);
+            padding: 8px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        #chat-input:hover, #chat-input:focus {
+            border-color: #8bf;
+            outline: none;
+        }
+        #controls {
+            position: absolute;
+            top: 180px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+            width: 250px;
+        }
+        #metrics {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+        #controls label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        #controls input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        #controls input[type="range"]:hover {
+            cursor: pointer;
+        }
+        #controls span {
+            color: #aaa;
+            font-size: 0.9em;
+            margin-left: 8px;
+        }
+        #chat-output::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-output::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+        #chat-output::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        #chat-output::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+        #live2d-offscreen-canvas {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 512px;
+            height: 512px;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+            border: 1px solid var(--container-border-color);
+        }
+        #info-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.2em;
+            color: var(--accent-color);
+        }
+        #info-panel p {
+            margin: 5px 0;
+        }
+        #info-panel .links-list {
+            margin-top: 10px;
+        }
+        .label {
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
+        }
+        .simulated-data {
+            color: #66ccff;
         }
     </style>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
-            }
-        }
-    </script>
 </head>
 <body>
     <header>
-        <h1>Heim's Syntrometric Theory Visualization & Live2D Agent Demo</h1>
-        <p>Explore Burkhard Heim's unified field theory and a conceptual demo of an integrated AI agent with Live2D.</p>
+        <h1>Heim's Syntrometric Theory & Live2D Agent Demo</h1>
+        <p>Interactive visualization of Syntrometric concepts with an AI-driven Live2D agent.</p>
     </header>
 
     <div class="container">
-        <h2>About Syntrometric Theory</h2>
-        <p>Burkhard Heim's Syntrometric Theory describes reality as a 12-dimensional quantized system, integrating physics and consciousness. Key concepts include the Syntrix, Metrons, Dimensions (R1-R12), Strukturkaskaden, and Telezentrik.</p>
-        <h3>Quick Links</h3>
-        <ul class="quick-links-list">
-            <li><a href="research/syntrometrie_framework.html" title="View 2D Diagram">Syntrometrie Framework Diagram</a></li>
-            <li><a href="research/conscious_agent_arch.html" title="View Agent Architecture">Conscious Agent Architecture Diagram</a></li>
-            <li><a href="../README.md" title="Go to Main Project Readme">Main Project README</a></li>
-            <li><a href="https://heim-theory.com/" target="_blank" title="External Resource (Opens New Tab)">Heim Theory Resources</a></li>
-        </ul>
-    </div>
-
-    <div class="container">
-        <h2>Interactive 3D Model & Live2D Agent Demo</h2>
-        <p>The visualization shows Syntrometric concepts and integrates a Live2D avatar placeholder. The agent's simulated internal state influences the avatar's parameters and an "Emergence Core". Hover for details. Use mouse/touch to explore.</p>
-        <div class="threejs-container">
-            <div id="info-panel"></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 2rem;">
+            <div style="flex: 1; min-width: 300px;">
+                <h2>Syntrometric Theory</h2>
+                <p>
+                    Heim's Syntrometric Theory proposes a framework for understanding complex systems through higher-dimensional interactions of Syntrix and Metrons, governed by Reflexive Integration and Structural Condensation. This demo visualizes these concepts interactively, with an AI agent reflecting emotional states via a Live2D avatar.
+                </p>
+                <h3>Quick Links</h3>
+                <ul class="quick-links-list">
+                    <li><a href="/metron-analysis">Metron Analysis</a>: Explore the fundamental units of Syntrometric systems.</li>
+                    <li><a href="/syntrix-explorer">Syntrix Explorer</a>: Interact with dynamic Syntrix formations.</li>
+                    <li><a href="/rih-calculator">RIH Calculator</a>: Compute Reflexive Integration scores.</li>
+                    <li><a href="/cascade-simulator">Cascade Simulator</a>: Simulate Structural Condensation cascades.</li>
+                </ul>
+            </div>
+            <div style="flex: 1; min-width: 300px;">
+                <h2>Interactive Visualization</h2>
+                <p>Control the simulation parameters and observe the agent's emotional responses in real-time.</p>
+                <div class="threejs-container" id="syntrometry-panel">
+                    <div id="error-message" class="error-message"></div>
+                    <div id="live2d-container"></div>
+                    <div id="chat-container">
+                        <div id="chat-output"><div><b>System:</b> Welcome to the Syntrometric Simulation.</div></div>
+                        <input id="chat-input" type="text" placeholder="Interact with the simulation...">
+                    </div>
+                    <div id="metrics">Loading metrics...</div>
+                    <div id="controls">
+                        <label for="integration-slider">Integration (I(S)): <span id="integration-value">0.50</span></label>
+                        <input type="range" id="integration-slider" min="0" max="1" step="0.01" value="0.5">
+                        <label for="reflexivity-slider">Reflexivity (Ψ): <span id="reflexivity-value">0.50</span></label>
+                        <input type="range" id="reflexivity-slider" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                </div>
+                <h2>Concept Graph Visualization</h2>
+                <p>Explore the relationships between Syntrometric concepts with interactive tooltips.</p>
+                <div class="threejs-container-concept" id="concept-panel">
+                    <div id="concept-error-message" class="error-message"></div>
+                    <div id="info-panel"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <canvas id="live2d-offscreen-canvas"></canvas>
 
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.3/dist/pixi.min.js"></script>
-    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
-
     <script>
-        window.sharedLive2DState = {
-            pixiApp: null,
-            live2dModel: null,
-            live2dCanvas: null,
-            initialized: false,
-            error: null
+        function handleScriptError(library, fallback, message) {
+            console.error(`[Error] Failed to load ${library}. ${message || ''}`);
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.innerHTML += `[Error] Failed to load ${library}. ${message || ''}<br>`;
+            errorDiv.style.display = 'block';
+            if (fallback) {
+                console.log(`[Error] Attempting to load fallback: ${fallback}`);
+                const script = document.createElement('script');
+                script.src = fallback;
+                script.onerror = () => console.error(`[Error] Fallback script ${fallback} also failed.`);
+                document.head.appendChild(script);
+            }
+        }
+
+        // Suppress X3557 shader warnings
+        const originalConsoleWarn = console.warn;
+        console.warn = function (...args) {
+            if (typeof args[0] === 'string' && args[0].includes('gl.getProgramInfoLog') && args[0].includes('X3557')) {
+                return; // Suppress X3557 warnings
+            }
+            originalConsoleWarn.apply(console, args);
         };
-    
-        console.log("[Live2D Init] Initializing sharedLive2DState.");
-    
-        async function initLive2D() {
-            const requiredLibs = {
-                PIXI: window.PIXI,
-                CubismCore: window.Live2DCubismCore,
-                Live2DPlugin: window.PIXI?.live2d
-            };
-    
-            for (const [name, lib] of Object.entries(requiredLibs)) {
-                if (!lib) {
-                    throw new Error(`Missing dependency: ${name}`);
-                }
-            }
-    
-            const canvas = document.getElementById('live2d-offscreen-canvas');
-            if (!canvas) {
-                throw new Error("Live2D canvas element not found.");
-            }
-    
-            const app = new PIXI.Application({
-                view: canvas,
-                width: 512,
-                height: 512,
-                backgroundAlpha: 0,
-                antialias: true,
-                powerPreference: "high-performance"
-            });
-    
-            try {
-                const modelPath = 'https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Hiyori/Hiyori.model3.json'; // Option 2: CDN
-                const model = await PIXI.live2d.Live2DModel.from(modelPath, {
-                    autoInteract: false,
-                    motionPreload: 'NONE'
-                });
-    
-                model.anchor.set(0.5, 0.5);
-                model.position.set(app.screen.width / 2, app.screen.height * 0.8);
-                model.scale.set(0.2, 0.2);
-                app.stage.addChild(model);
-    
-                window.sharedLive2DState = {
-                    pixiApp: app,
-                    live2dModel: model,
-                    live2dCanvas: app.view,
-                    initialized: true
-                };
-    
-                console.log("[Live2D Init] Model loaded successfully:", modelPath);
-            } catch (error) {
-                console.error("[Live2D Init] Model loading failed:", error);
-                throw new Error(`Model loading failed: ${error.message}`);
-            }
-        }
-    
-        function showErrorToUser(message) {
-            const existing = document.getElementById('live2d-error-message');
-            if (existing) existing.remove();
-    
-            const errorDiv = document.createElement('div');
-            errorDiv.id = 'live2d-error-message';
-            errorDiv.className = 'error-message';
-            errorDiv.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                padding: 15px;
-                background: #ff4444;
-                color: white;
-                border-radius: 5px;
-                z-index: 10000;
-                max-width: 80%;
-                text-align: center;
-                font-family: 'Inter', sans-serif;
-            `;
-            errorDiv.textContent = message;
-            document.body.appendChild(errorDiv);
-            console.log("[Live2D Init] Displayed error message to user.");
-        }
-    
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("[Live2D Init] DOM ready. Starting Live2D init...");
-            const timeout = setTimeout(() => {
-                if (!window.sharedLive2DState.initialized && !window.sharedLive2DState.error) {
-                    window.sharedLive2DState.error = "Live2D initialization timed out.";
-                    showErrorToUser("Live2D initialization timed out. Check model path or network.");
-                }
-            }, 10000);
-            initLive2D().then(() => clearTimeout(timeout)).catch((error) => {
-                clearTimeout(timeout);
-                window.sharedLive2DState.error = error.message;
-                showErrorToUser(error.message);
-            });
-        });
     </script>
+   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"
+   onerror="handleScriptError('TensorFlow.js', null, 'Could not load TensorFlow.js.')"></script>
+<script src="https://unpkg.com/three@0.132.2/build/three.min.js"
+   onerror="handleScriptError('Three.js', 'https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js', 'Could not load Three.js.')"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"
+   onerror="handleScriptError('OrbitControls', null, 'Could not load OrbitControls.')"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/renderers/CSS2DRenderer.js"
+   onerror="handleScriptError('CSS2DRenderer', null, 'Could not load CSS2DRenderer.')"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.3/dist/pixi.min.js"
+   onerror="handleScriptError('Pixi.js', 'https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.3/pixi.min.js', 'Could not load Pixi.js.')"></script>
+<script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"
+   onerror="handleScriptError('Cubism 4 Core', null, 'Could not load Cubism 4 Core.')"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"
+   onerror="handleScriptError('pixi-live2d-display', 'https://unpkg.com/pixi-live2d-display@0.4.0/dist/cubism4.min.js', 'Could not load pixi-live2d-display.')"></script>
+    <script>
+        console.log("[Debug] PIXI:", window.PIXI);
+        console.log("[Debug] Live2DCubismCore:", window.Live2DCubismCore);
+        console.log("[Debug] PIXI.live2d:", window.PIXI?.live2d);
+        console.log("[Debug] PIXI.live2d.Live2DModel:", window.PIXI?.live2d?.Live2DModel);
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+        let criticalError = false;
+        function displayError(message, isCritical = false, target = 'error-message') {
+            console.error(message);
+            const errorDiv = document.getElementById(target);
+            errorDiv.innerHTML += message + '<br>';
+            errorDiv.style.display = 'block';
+            if (isCritical) criticalError = true;
+        }
 
-        console.log("[Main Mod] Main Three.js module loading...");
+        const Config = {
+            METRON_TAU: 0.1,
+            DIMENSIONS: 12,
+            CASCADE_LEVELS: 4,
+            TELE_THRESHOLD: 0.85,
+            DYSVARIANT_PROB: 0.02,
+            RIH_SCALE: 0.5,
+            Agent: {
+                STATE_DIM: 524,
+                BASE_STATE_DIM: 18,
+                EMOTION_DIM: 6,
+                HIDDEN_DIM: 64,
+                HISTORY_SIZE: 10,
+                TAU: 0.01,
+                ATTENTION_THRESHOLD: 0.7
+            },
+            Env: {
+                EVENT_FREQ: 0.15,
+                EVENT_DURATION: 8,
+                EVENT_GAP: 15
+            }
+        };
 
-        let scene, camera, renderer, labelRenderer, controls;
-        let raycaster, mouse;
-        let infoPanel;
-        const nodes = {};
-        const edges = [];
-        let container;
-        let clock;
-        let agentStateMesh, emergenceCoreMesh;
-        let agentStateLabel, emergenceCoreLabel;
-        const simulatedEmotions = new THREE.Vector3(0.5, 0.5, 0.5);
-        let simulatedPrevEmotions = simulatedEmotions.clone();
-        let simulatedIntegration = 0.5;
-        let simulatedReflexivity = 0.5;
-        const RHO_THRESHOLD = 0.8;
-        let simulatedThreshold = 0.6;
-        let emergenceActive = false;
-        let live2dPlane;
-        let live2dTexture = null;
-        let interactableObjects = [];
+        const emotionKeywords = {
+            0: { name: "Joy", keywords: ["happy", "joy", "great", "wonderful", "love", "good", "nice", "yay", "fun"], strength: 0.9, baseChange: 0.05 },
+            1: { name: "Fear", keywords: ["scary", "fear", "afraid", "nervous", "danger", "anxious", "worried"], strength: 0.9, baseChange: -0.05 },
+            2: { name: "Curiosity", keywords: ["interesting", "curious", "what", "how", "why", "explain", "learn", "question"], strength: 0.8, baseChange: 0.03 },
+            3: { name: "Frustration", keywords: ["ugh", "annoying", "frustrating", "bad", "hate", "stupid", "wrong", "error", "glitch"], strength: 0.8, baseChange: -0.05 },
+            4: { name: "Calm", keywords: ["calm", "peaceful", "relax", "quiet", "gentle", "serene", "okay", "fine"], strength: 0.7, baseChange: 0.04 },
+            5: { name: "Surprise", keywords: ["wow", "whoa", "surprise", "really", "omg", "sudden", "unexpected"], strength: 0.85, baseChange: 0.02 }
+        };
+        const emotionNames = Object.values(emotionKeywords).map(e => e.name);
+
+        const HEAD_MOVEMENT_LABELS = ["nod", "shake", "tilt_left", "tilt_right", "idle"];
+        const NUM_HEAD_MOVEMENTS = HEAD_MOVEMENT_LABELS.length;
+
+        function zeros(shape) {
+            if (!Array.isArray(shape) || shape.length === 0) return 0;
+            if (shape.length === 1) return new Array(shape[0]).fill(0);
+            return Array(shape[0]).fill(null).map(() => zeros(shape.slice(1)));
+        }
+
+        function tensor(data, shape) {
+            if (typeof tf === 'undefined') { displayError("TensorFlow.js not loaded, cannot create tensor.", false); return null; }
+            try {
+                return tf.tensor(data, shape);
+            } catch (e) {
+                displayError(`TensorFlow Error creating tensor: ${e.message}`, false);
+                return null;
+            }
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function clampArray(arr, min, max) {
+            return arr.map(x => clamp(x, min, max));
+        }
+
+        function norm(arr) {
+            return Math.sqrt(arr.reduce((sum, x) => sum + x * x, 0));
+        }
+
+        function softmax(arr) {
+            const maxVal = Math.max(...arr);
+            const exps = arr.map(x => Math.exp(x - maxVal));
+            const sumExps = exps.reduce((a, b) => a + b, 0);
+            return exps.map(e => e / sumExps);
+        }
+
+        class Enyphansyntrix {
+            constructor(type = 'discrete') {
+                this.type = type;
+            }
+
+            apply(state) {
+                if (this.type === 'discrete') {
+                    return state.map(x => Math.round(x / Config.METRON_TAU) * Config.METRON_TAU);
+                } else {
+                    return state.map(x => x + (Math.random() - 0.5) * Config.METRON_TAU * 0.5);
+                }
+            }
+        }
+
+        class Affinitaetssyndrom {
+            compute(syndromeA, syndromeB) {
+                if (!syndromeA || !syndromeB || typeof tf === 'undefined') {
+                    console.warn("[Affinitaetssyndrom] Invalid inputs or TensorFlow.js not loaded.");
+                    return tf.scalar(0);
+                }
+
+                try {
+                    return tf.tidy(() => {
+                        let tensorA = (syndromeA instanceof tf.Tensor) ? syndromeA : tf.tensor1d(Array.isArray(syndromeA) ? syndromeA : [syndromeA]);
+                        let tensorB = (syndromeB instanceof tf.Tensor) ? syndromeB : tf.tensor1d(Array.isArray(syndromeB) ? syndromeB : [syndromeB]);
+
+                        if (tensorA.rank === 0) tensorA = tf.tensor1d([tensorA.arraySync()]);
+                        if (tensorB.rank === 0) tensorB = tf.tensor1d([tensorB.arraySync()]);
+
+                        console.log("[Affinitaetssyndrom] Input shapes:", tensorA.shape, tensorB.shape);
+
+                        if (tensorA.rank < 1 || tensorB.rank < 1) {
+                            console.warn("[Affinitaetssyndrom] Invalid tensor ranks:", tensorA.rank, tensorB.rank);
+                            return tf.scalar(0);
+                        }
+
+                        tensorA = tensorA.rank === 1 ? tensorA : tensorA.flatten();
+                        tensorB = tensorB.rank === 1 ? tensorB : tensorB.flatten();
+
+                        console.log("[Debug] syndromeA shape:", tensorA.shape);
+                        console.log("[Debug] syndromeB shape:", tensorB.shape);
+
+                        const normA = tf.norm(tensorA);
+                        const normB = tf.norm(tensorB);
+
+                        const normAValue = normA.arraySync();
+                        const normBValue = normB.arraySync();
+
+                        if (normAValue === 0 || normBValue === 0) {
+                            console.warn("[Affinitaetssyndrom] Zero norm detected.");
+                            return tf.scalar(0);
+                        }
+
+                        const dotProduct = tf.dot(tensorA, tensorB);
+                        return dotProduct.div(tf.mul(normA, normB)).clipByValue(-1, 1);
+                    });
+                } catch (e) {
+                    displayError(`TF Error in Affinitaetssyndrom: ${e.message}`, false);
+                    console.error("[Affinitaetssyndrom] Full error:", e);
+                    return tf.scalar(0);
+                }
+            }
+
+            process() {
+                try {
+                    const syndromeA = this.getSyndromeA() || [0, 0, 0];
+                    const syndromeB = this.getSyndromeB() || [0, 0, 0];
+                    console.log("[Debug] syndromeA:", syndromeA, "type:", typeof syndromeA);
+                    console.log("[Debug] syndromeB:", syndromeB, "type:", typeof syndromeB);
+                    const similarity = this.compute(syndromeA, syndromeB);
+                    console.log("[Affinitaetssyndrom] Similarity:", similarity.arraySync());
+                    return similarity;
+                } catch (e) {
+                    displayError(`TF Error in Affinitaetssyndrom process: ${e.message}`, false);
+                    return tf.scalar(0);
+                }
+            }
+
+            getSyndromeA() {
+                return [1, 2, 3];
+            }
+
+            getSyndromeB() {
+                return [4, 5, 6];
+            }
+        }
+
+        class Synkolator {
+            constructor(type = 'pyramidal', stage = 2) {
+                this.type = type;
+            }
+
+            apply(elements) {
+                if (!elements || elements.length === 0) return [0, 0];
+                if (elements.length < 2) return [elements[0] || 0, 0];
+                if (this.type === 'pyramidal') {
+                    const syndromes = [];
+                    for (let i = 0; i < elements.length - 1; i++) {
+                        syndromes.push((elements[i] + elements[i + 1]) / 2);
+                    }
+                    return syndromes.length >= 2 ? syndromes : [syndromes[0] || 0, 0];
+                } else {
+                    const avg = elements.reduce((a, b) => a + b, 0) / elements.length;
+                    return [avg, 0];
+                }
+            }
+        }
+
+        class ReflexiveIntegration {
+            compute(syndromesTensor) {
+                if (!syndromesTensor || typeof tf === 'undefined') return 0;
+                try {
+                    return tf.tidy(() => {
+                        if (syndromesTensor.size === 0) return tf.scalar(0);
+                        const mean = tf.mean(syndromesTensor);
+                        const variance = tf.moments(syndromesTensor).variance;
+                        const varianceVal = variance.arraySync();
+                        if (varianceVal < 1e-6) return tf.scalar(0);
+                        return tf.abs(mean.div(tf.sqrt(variance))).mul(Config.RIH_SCALE).clipByValue(0, 1);
+                    });
+                } catch (e) {
+                    displayError(`TF Error in ReflexiveIntegration: ${e.message}`, false);
+                    return tf.scalar(0);
+                }
+            }
+        }
+
+        class Strukturkondensation {
+            constructor(levels) {
+                this.levels = levels;
+                this.synkolators = [];
+                for (let i = 0; i < levels; i++) {
+                    this.synkolators.push(new Synkolator('pyramidal'));
+                }
+            }
+
+            process(initialElements) {
+                let currentLevelElements = [...initialElements];
+                const history = [currentLevelElements];
+                for (const synkolator of this.synkolators) {
+                    if (currentLevelElements.length < 1) break;
+                    currentLevelElements = synkolator.apply(currentLevelElements);
+                    if (currentLevelElements.length > 0) {
+                        if (currentLevelElements.length < 2) {
+                            currentLevelElements.push(0); // Ensure at least two elements
+                        }
+                        history.push(currentLevelElements);
+                    } else {
+                        history.push([0, 0]); // Default to two zeros
+                        break;
+                    }
+                }
+                return history;
+            }
+        }
+
+        class SyntrometricAgent {
+            constructor() {
+                this.enyphansyntrix = new Enyphansyntrix('discrete');
+                this.affinitaetssyndrom = new Affinitaetssyndrom();
+                this.strukturkondensation = new Strukturkondensation(Config.CASCADE_LEVELS);
+                this.reflexiveIntegration = new ReflexiveIntegration();
+                this.emotionalModule = null;
+                this.headMovementHead = null;
+                if (typeof tf !== 'undefined') {
+                    try {
+                        this.emotionalModule = this._buildEmotionalModel();
+                        this.headMovementHead = this._buildHeadMovementModel();
+                    } catch(e) {
+                        displayError(`Failed to build TF models: ${e.message}`, false);
+                    }
+                }
+                this.history = [];
+                this.prevEmotions = (typeof tf !== 'undefined') ?
+                    tf.zeros([1, Config.Agent.EMOTION_DIM]) :
+                    tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]);
+            }
+
+            _buildEmotionalModel() {
+                const model = tf.sequential();
+                const inputDim = Config.Agent.BASE_STATE_DIM + Config.Agent.EMOTION_DIM + 1 + 1;
+                model.add(tf.layers.dense({ units: 32, inputShape: [inputDim], activation: 'relu' }));
+                model.add(tf.layers.dense({ units: 16, activation: 'relu' }));
+                model.add(tf.layers.dense({ units: Config.Agent.EMOTION_DIM, activation: 'sigmoid' }));
+                return model;
+            }
+
+            _buildHeadMovementModel() {
+                const model = tf.sequential();
+                const inputDim = 1 + 1 + 1 + Config.Agent.EMOTION_DIM;
+                model.add(tf.layers.dense({ units: 16, inputShape: [inputDim], activation: 'relu' }));
+                model.add(tf.layers.dense({ units: NUM_HEAD_MOVEMENTS }));
+                return model;
+            }
+
+            async process(rawState, integrationParam, reflexivityParam, environmentContext = { eventType: null, reward: 0 }) {
+                if (criticalError) return this._getFallbackResponse();
+                const discretizedState = this.enyphansyntrix.apply(rawState);
+                this.history.push(discretizedState);
+                if (this.history.length > Config.Agent.HISTORY_SIZE) this.history.shift();
+                const cascadeHistory = this.strukturkondensation.process(discretizedState);
+                const flatSyndromes = cascadeHistory.flat();
+                const syndromesTensor = tensor(flatSyndromes, [flatSyndromes.length]);
+                const rihScoreTensor = this.reflexiveIntegration.compute(syndromesTensor);
+                const rihScore = rihScoreTensor ? rihScoreTensor.arraySync() : 0;
+                const affinities = [];
+                if (cascadeHistory.length > 1 && typeof tf !== 'undefined') {
+                    for (let i = 0; i < cascadeHistory.length - 1; i++) {
+                        if (cascadeHistory[i].length > 1 && cascadeHistory[i+1].length > 1) {
+                            const level1 = tensor(cascadeHistory[i], [cascadeHistory[i].length]);
+                            const level2 = tensor(cascadeHistory[i+1], [cascadeHistory[i+1].length]);
+                            if (level1 && level2 && level1.rank === 1 && level2.rank === 1) {
+                                const mean1 = tf.mean(level1);
+                                const mean2 = tf.mean(level2);
+                                if (mean1.rank === 0 && mean2.rank === 0) {
+                                    affinities.push(0);
+                                    tf.dispose([level1, level2, mean1, mean2]);
+                                } else {
+                                    const affinityTensor = this.affinitaetssyndrom.compute(mean1, mean2);
+                                    affinities.push(affinityTensor ? affinityTensor.arraySync() : 0);
+                                    tf.dispose([level1, level2, mean1, mean2, affinityTensor]);
+                                }
+                            } else {
+                                affinities.push(0);
+                                tf.dispose([level1, level2]);
+                            }
+                        } else {
+                            affinities.push(0);
+                        }
+                    }
+                }
+                const avgAffinity = affinities.length > 0 ? affinities.reduce((a, b) => a + b, 0) / affinities.length : 0;
+                let currentEmotions;
+                if (this.emotionalModule && this.prevEmotions && typeof tf !== 'undefined') {
+                    try {
+                        currentEmotions = await tf.tidy(() => {
+                            const stateTensor = tensor(rawState, [1, Config.Agent.BASE_STATE_DIM]);
+                            const rewardTensor = tensor([[environmentContext.reward || 0]], [1, 1]);
+                            const contextSignal = tensor([[environmentContext.eventType ? 1 : 0]], [1, 1]);
+                            const input = tf.concat([stateTensor, this.prevEmotions, rewardTensor, contextSignal], 1);
+                            const predictedEmotions = this.emotionalModule.predict(input);
+                            return this.prevEmotions.mul(0.8).add(predictedEmotions.mul(0.2)).clipByValue(0, 1);
+                        });
+                    } catch (e) {
+                        displayError(`TF Error during emotion prediction: ${e.message}`, false);
+                        currentEmotions = this.prevEmotions.clone();
+                    }
+                } else {
+                    if(this.prevEmotions && typeof this.prevEmotions.arraySync === 'function') {
+                        const prevEmoArray = this.prevEmotions.arraySync()[0];
+                        const newEmoArray = prevEmoArray.map(e => clamp(e * 0.98 + (Math.random() - 0.48) * 0.05, 0, 1));
+                        currentEmotions = tensor([newEmoArray], [1, Config.Agent.EMOTION_DIM]);
+                    } else {
+                        currentEmotions = tensor(zeros([1,Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]);
+                    }
+                }
+                tf.dispose(this.prevEmotions);
+                this.prevEmotions = currentEmotions.clone();
+                let hmLabel = "idle";
+                const emotionArray = currentEmotions.arraySync()[0];
+                const dominantEmotionIndex = emotionArray.indexOf(Math.max(...emotionArray));
+                if (this.headMovementHead && typeof tf !== 'undefined') {
+                    try {
+                        const hmLogits = await tf.tidy(() => {
+                            const rihTensor = tensor([[rihScore]], [1, 1]);
+                            const avgAffinityTensor = tensor([[avgAffinity]], [1, 1]);
+                            const dominantEmotionTensor = tensor([[dominantEmotionIndex]], [1, 1]);
+                            const emotionTensorInput = currentEmotions.reshape([1, Config.Agent.EMOTION_DIM]);
+                            const input = tf.concat([rihTensor, avgAffinityTensor, dominantEmotionTensor, emotionTensorInput], 1);
+                            return this.headMovementHead.predict(input);
+                        });
+                        const hmIdx = tf.argMax(hmLogits, 1).arraySync()[0];
+                        hmLabel = HEAD_MOVEMENT_LABELS[hmIdx];
+                        tf.dispose(hmLogits);
+                    } catch (e) {
+                        displayError(`TF Error during head movement prediction: ${e.message}`, false);
+                        hmLabel = "idle";
+                    }
+                } else {
+                    if (rihScore > 0.7) hmLabel = "nod";
+                    else if (avgAffinity < 0.2 && dominantEmotionIndex === 3) hmLabel = "shake";
+                    else if (dominantEmotionIndex === 2 && Math.random() > 0.5) hmLabel = Math.random() > 0.5 ? "tilt_left" : "tilt_right";
+                    else hmLabel = "idle";
+                }
+                const responseText = `State processed. RIH: ${rihScore.toFixed(2)}, Avg Affinity: ${avgAffinity.toFixed(2)}. Feeling: ${emotionNames[dominantEmotionIndex]}.`;
+                tf.dispose([syndromesTensor, rihScoreTensor]);
+                return {
+                    cascadeHistory,
+                    rihScore,
+                    affinities,
+                    emotions: currentEmotions,
+                    hmLabel,
+                    responseText
+                };
+            }
+
+            _getFallbackResponse() {
+                return {
+                    cascadeHistory: [[...Array(Config.DIMENSIONS)].map(() => 0)],
+                    rihScore: 0,
+                    affinities: [],
+                    emotions: tensor(zeros([1,Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]),
+                    hmLabel: "idle",
+                    responseText: "Simulation paused due to critical errors."
+                };
+            }
+        }
+
+        class EmotionalSpace {
+            constructor() {
+                this.events = [
+                    ["Joy", "A pleasant resonance occurs.", 1.5],
+                    ["Fear", "A dissonant pattern is detected.", -1.8],
+                    ["Curiosity", "An unexpected structural variation appears.", 1.2],
+                    ["Frustration", "System encounters processing resistance.", -1.0],
+                    ["Calm", "Patterns stabilize into harmony.", 0.8],
+                    ["Surprise", "A sudden cascade shift happens.", 1.6]
+                ];
+                this.emotionNames = this.events.map(e => e[0]);
+                this.baseEmotions = tensor([[0.6, 0.1, 0.3, 0.1, 0.5, 0.2]], [1, Config.Agent.EMOTION_DIM]);
+                this.stepCount = 0;
+                this.eventTimer = 0;
+                this.gapTimer = Config.Env.EVENT_GAP;
+                this.currentEvent = null;
+                this.currentStateVector = new Array(Config.Agent.BASE_STATE_DIM).fill(0.0);
+                this._updateStateVector(this.baseEmotions);
+            }
+
+            reset() {
+        this.stepCount = 0;
+        this.eventTimer = 0;
+        this.gapTimer = Config.Env.EVENT_GAP;
+        this.currentEvent = null;
+        this.baseEmotions = tensor([[0.6, 0.1, 0.3, 0.1, 0.5, 0.2]], [1, Config.Agent.EMOTION_DIM]);
+        this._updateStateVector(this.baseEmotions);
+        console.log("Environment Reset.");
+        return {
+            state: this._getState() // Return as object with state property
+        };
+    }
+
+            async step(agentEmotionsTensor) {
+                this.stepCount++;
+                let reward = 0;
+                let context = "Ambient fluctuations.";
+                let eventTriggered = false;
+                let triggeredEventType = null;
+                const agentEmotions = agentEmotionsTensor.arraySync()[0];
+                const currentBaseEmotions = this.baseEmotions.arraySync()[0];
+                const newBaseEmotionsArray = currentBaseEmotions.map((baseVal, i) => {
+                    let drift = (agentEmotions[i] - baseVal) * 0.005 + (0.4 - baseVal) * 0.001;
+                    return clamp(baseVal + drift, 0, 1);
+                });
+                tf.dispose(this.baseEmotions);
+                this.baseEmotions = tensor([newBaseEmotionsArray], [1, Config.Agent.EMOTION_DIM]);
+                if (this.eventTimer > 0) {
+                    this.eventTimer--;
+                    context = this.currentEvent.context;
+                    reward = this.currentEvent.reward * (this.eventTimer / Config.Env.EVENT_DURATION) * 0.1;
+                    triggeredEventType = this.currentEvent.type;
+                    if (this.eventTimer === 0) {
+                        this.currentEvent = null;
+                        this.gapTimer = Config.Env.EVENT_GAP;
+                        context = "Event concluded. System stabilizing.";
+                    }
+                } else if (this.gapTimer > 0) {
+                    this.gapTimer--;
+                    context = "System stable.";
+                } else if (Math.random() < Config.Env.EVENT_FREQ) {
+                    const eventData = this.events[Math.floor(Math.random() * this.events.length)];
+                    this.currentEvent = { type: eventData[0], context: eventData[1], reward: eventData[2] };
+                    context = this.currentEvent.context;
+                    triggeredEventType = this.currentEvent.type;
+                    const emotionIndex = this.emotionNames.indexOf(this.currentEvent.type);
+                    reward = this.currentEvent.reward * (newBaseEmotionsArray[emotionIndex] * 0.5 + 0.5);
+                    this.eventTimer = Config.Env.EVENT_DURATION;
+                    eventTriggered = true;
+                    console.log(`Event Triggered: ${this.currentEvent.type} - ${this.currentEvent.context}`);
+                }
+                this._updateStateVector(this.baseEmotions, triggeredEventType);
+                if (Math.random() < Config.DYSVARIANT_PROB) {
+                    const randomIndex = Math.floor(Math.random() * Config.DIMENSIONS);
+                    this.currentStateVector[randomIndex] += (Math.random() - 0.5) * 0.2;
+                    this.currentStateVector[randomIndex] = clamp(this.currentStateVector[randomIndex], -1, 1);
+                    context += " (Dysvariant fluctuation detected)";
+                }
+                const stateTensor = this._getState();
+                const done = this.stepCount >= 100000;
+                return {
+                    state: stateTensor,
+                    reward,
+                    done,
+                    context,
+                    eventType: triggeredEventType
+                };
+            }
+
+            _updateStateVector(emotionTensor, eventType = null) {
+                const emotions = emotionTensor.arraySync()[0];
+                this.currentStateVector[0] = (emotions[0] - emotions[1]) / 2;
+                this.currentStateVector[1] = (emotions[4] - emotions[3]) / 2;
+                this.currentStateVector[2] = (emotions[2] - 0.5) * 2;
+                this.currentStateVector[3] = (emotions[5] - 0.5) * 2;
+                const overallIntensity = norm(emotions);
+                for (let i = 4; i < Config.DIMENSIONS; i++) {
+                    this.currentStateVector[i] = clamp(this.currentStateVector[i] * 0.95 + (emotions[i % Config.Agent.EMOTION_DIM] - 0.5) * 0.1 + (Math.random() - 0.5) * 0.05, -1, 1);
+                }
+                if (eventType) {
+                    const emotionIndex = this.emotionNames.indexOf(eventType);
+                    if (emotionIndex !== -1) {
+                        this.currentStateVector[emotionIndex % Config.DIMENSIONS] = clamp(this.currentStateVector[emotionIndex % Config.DIMENSIONS] + 0.3, -1, 1);
+                        this.currentStateVector[(emotionIndex + 1) % Config.DIMENSIONS] = clamp(this.currentStateVector[(emotionIndex + 1) % Config.DIMENSIONS] + 0.1, -1, 1);
+                    }
+                }
+                for (let i = 0; i < Config.Agent.EMOTION_DIM; i++) {
+                    this.currentStateVector[Config.DIMENSIONS + i] = emotions[i];
+                }
+            }
+
+            _getState() {
+                return tensor([this.currentStateVector], [1, Config.Agent.BASE_STATE_DIM]);
+            }
+
+            getEmotionalImpactFromText(text) {
+                const impact = zeros([Config.Agent.EMOTION_DIM]);
+                let foundKeyword = false;
+                const lowerText = text.toLowerCase();
+                for (let idx in emotionKeywords) {
+                    const info = emotionKeywords[idx];
+                    for (let keyword of info.keywords) {
+                        if (lowerText.includes(keyword)) {
+                            impact[idx] = Math.max(impact[idx], info.strength);
+                            foundKeyword = true;
+                            const currentBase = this.baseEmotions.arraySync()[0];
+                            currentBase[idx] = clamp(currentBase[idx] + info.baseChange, 0, 1);
+                            tf.dispose(this.baseEmotions);
+                            this.baseEmotions = tensor([currentBase], [1, Config.Agent.EMOTION_DIM]);
+                        }
+                    }
+                }
+                if (!foundKeyword) {
+                    impact[2] = 0.4;
+                    impact[4] = 0.3;
+                }
+                return tensor([impact], [1, Config.Agent.EMOTION_DIM]);
+            }
+        }
+
+        // Original Three.js Visualization (Syntrometry Panel)
+        let scene, camera, renderer, nodes = [], edgesGroup, rihNode;
+        const nodeBaseScale = 0.08;
+        let threeInitialized = false;
+
+        function initThreeJS() {
+            if (criticalError || typeof THREE === 'undefined') {
+                displayError("Three.js not loaded or critical error occurred.", true);
+                return false;
+            }
+            try {
+                const container = document.getElementById('syntrometry-panel');
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x1a1a1a);
+                camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.z = 3.5;
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(renderer.domElement);
+                const nodeGeometry = new THREE.SphereGeometry(nodeBaseScale, 16, 12);
+                const angleStep = (2 * Math.PI) / Config.DIMENSIONS;
+                const radius = 1.5;
+                for (let i = 0; i < Config.DIMENSIONS; i++) {
+                    const material = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x113311, specular: 0x555555, shininess: 30 });
+                    const node = new THREE.Mesh(nodeGeometry, material);
+                    node.position.set(
+                        Math.cos(i * angleStep) * radius,
+                        Math.sin(i * angleStep) * radius,
+                        0
+                    );
+                    scene.add(node);
+                    nodes.push(node);
+                }
+                const rihGeometry = new THREE.SphereGeometry(nodeBaseScale * 1.5, 20, 16);
+                const rihMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0x331111, specular: 0x888888, shininess: 50 });
+                rihNode = new THREE.Mesh(rihGeometry, rihMaterial);
+                rihNode.position.set(0, 0, 0);
+                scene.add(rihNode);
+                edgesGroup = new THREE.Group();
+                scene.add(edgesGroup);
+                const ambientLight = new THREE.AmbientLight(0x404040);
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(1, 1, 1);
+                scene.add(directionalLight);
+                window.addEventListener('resize', onWindowResize, false);
+                console.log('Three.js initialized successfully.');
+                threeInitialized = true;
+                return true;
+            } catch (e) {
+                displayError(`Error initializing Three.js: ${e.message}`, false);
+                return false;
+            }
+        }
+
+        function updateThreeJS(stateVector, rihScore, affinities, integrationParam, reflexivityParam) {
+            if (!threeInitialized || criticalError) return;
+            for (let i = 0; i < Config.DIMENSIONS; i++) {
+                const value = stateVector[i];
+                nodes[i].position.z = value * 0.5;
+                const hue = value > 0 ? 0.33 : 0.66;
+                const saturation = 0.8;
+                const lightness = 0.4 + Math.abs(value) * 0.3;
+                nodes[i].material.color.setHSL(hue, saturation, lightness);
+                nodes[i].material.emissive.setHSL(hue, saturation, lightness * 0.3);
+                const scale = 1.0 + integrationParam * 0.5 + Math.abs(value) * 0.2;
+                nodes[i].scale.set(scale, scale, scale);
+            }
+            const rihScale = 1.0 + rihScore * 1.5;
+            rihNode.material.color.setHSL(0.15 * (1 - rihScore), 0.9, 0.5 + rihScore * 0.3);
+            rihNode.material.emissive.setHSL(0.15 * (1 - rihScore), 0.9, (0.5 + rihScore * 0.3) * 0.4);
+            rihNode.scale.set(rihScale, rihScale, rihScale);
+            rihNode.position.z = rihScore * 0.3 - 0.15;
+            edgesGroup.children.length = 0;
+            const edgeMaterialBase = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true });
+            for (let i = 0; i < Config.DIMENSIONS; i++) {
+                for (let j = i + 1; j < Config.DIMENSIONS; j++) {
+                    const distSq = nodes[i].position.distanceToSquared(nodes[j].position);
+                    if (distSq < 4.0) {
+                        const valueDiff = Math.abs(stateVector[i] - stateVector[j]);
+                        const opacity = clamp(1.0 - valueDiff * 0.8, 0.05, 0.6);
+                        const edgeMaterial = edgeMaterialBase.clone();
+                        edgeMaterial.opacity = opacity;
+                        const geometry = new THREE.BufferGeometry();
+                        const positions = new Float32Array(6);
+                        nodes[i].position.toArray(positions, 0);
+                        nodes[j].position.toArray(positions, 3);
+                        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                        const colors = new Float32Array(6);
+                        nodes[i].material.color.toArray(colors, 0);
+                        nodes[j].material.color.toArray(colors, 3);
+                        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                        const edge = new THREE.Line(geometry, edgeMaterial);
+                        edgesGroup.add(edge);
+                    }
+                }
+                const rihEdgeMaterial = edgeMaterialBase.clone();
+                rihEdgeMaterial.opacity = clamp(Math.abs(stateVector[i]) * 0.5 + rihScore * 0.3, 0.05, 0.7);
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(6);
+                nodes[i].position.toArray(positions, 0);
+                rihNode.position.toArray(positions, 3);
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                const colors = new Float32Array(6);
+                nodes[i].material.color.toArray(colors, 0);
+                rihNode.material.color.toArray(colors, 3);
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                const rihEdge = new THREE.Line(geometry, rihEdgeMaterial);
+                edgesGroup.add(rihEdge);
+            }
+            if (reflexivityParam > 0.1) {
+                nodes.forEach((node, i) => {
+                    const loopRadius = nodeBaseScale * node.scale.x * (0.5 + reflexivityParam * 0.5);
+                    const curve = new THREE.EllipseCurve(
+                        node.position.x, node.position.y,
+                        loopRadius, loopRadius * 0.8,
+                        0, 2 * Math.PI,
+                        false,
+                        node.position.z > 0 ? Math.PI / 4 : -Math.PI/4
+                    );
+                    const points = curve.getPoints(20);
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(points.length * 3);
+                    points.forEach((point, i) => {
+                        positions[i * 3] = point.x;
+                        positions[i * 3 + 1] = point.y;
+                        positions[i * 3 + 2] = point.z || 0;
+                    });
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    const material = new THREE.LineBasicMaterial({
+                        color: node.material.color,
+                        opacity: clamp(reflexivityParam * 0.6, 0.1, 0.5),
+                        transparent: true
+                    });
+                    const loop = new THREE.Line(geometry, material);
+                    loop.position.copy(node.position);
+                    loop.position.z = node.position.z;
+                    node.add(loop);
+                });
+                rihNode.material.color.lerp(new THREE.Color(1,1,1), reflexivityParam * 0.5);
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            if (!threeInitialized || !camera || !renderer) return;
+            const container = document.getElementById('syntrometry-panel');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Concept Graph Visualization
+        let conceptScene, conceptCamera, conceptRenderer, conceptLabelRenderer, conceptControls;
+        let conceptRaycaster, conceptMouse;
+        let conceptNodes = {}, conceptEdges = [];
+        let conceptContainer, conceptInfoPanel;
+        let conceptClock;
+        let agentStateMesh, emergenceCoreMesh, agentStateLabel, emergenceCoreLabel, live2dPlane;
+        let conceptInteractableObjects = [];
+        let conceptInitialized = false;
+
+        let actualAgentEmotions = null;
+        let actualRIHScore = 0;
+        let actualAvgAffinity = 0;
+        let actualHmLabel = "idle";
 
         const conceptData = {
-            'reflexive_abstraction': { id: 'reflexive_abstraction', name: 'Reflexive Abstraktion', chapter: 1, position: new THREE.Vector3(0, 15, -20), type: 'method', links: ['syntrometry'], description: "Method to overcome subjective limits by analyzing reflection itself." },
-            'subjective_aspect': { id: 'subjective_aspect', name: 'Subjective Aspect (S)', chapter: 1, position: new THREE.Vector3(-10, 10, -18), type: 'structure', links: ['pradikatrix', 'dialektik', 'koordination', 'aspektivsystem'], description: "Contextual framework for statements; a viewpoint." },
-            'pradikatrix': { id: 'pradikatrix', name: 'Prädikatrix (Pm)', chapter: 1, position: new THREE.Vector3(-20, 15, -16), type: 'component', links: [], description: "Schema of potential statements/predicates." },
-            'dialektik': { id: 'dialektik', name: 'Dialektik (Dn)', chapter: 1, position: new THREE.Vector3(-15, 15, -16), type: 'component', links: [], description: "Schema of subjective qualifiers/biases." },
-            'koordination': { id: 'koordination', name: 'Koordination (Kn)', chapter: 1, position: new THREE.Vector3(-10, 15, -16), type: 'component', links: [], description: "Mechanism linking Prädikatrix and Dialektik." },
-            'aspektivsystem': { id: 'aspektivsystem', name: 'Aspektivsystem (P)', chapter: 1, position: new THREE.Vector3(10, 10, -18), type: 'structure', links: ['metropie', 'idee'], description: "Collection of related subjective aspects." },
-            'metropie': { id: 'metropie', name: 'Metropie (g)', chapter: 1, position: new THREE.Vector3(20, 15, -16), type: 'property', links: [], description: "Metric defining 'distance' between aspects." },
-            'idee': { id: 'idee', name: 'Idee (Apodiktic Core)', chapter: 1, position: new THREE.Vector3(15, 5, -16), type: 'core', links: [], description: "Invariant elements within an Aspektivsystem." },
-            'syntrometry': { id: 'syntrometry', name: 'Syntrometrie', chapter: 1, position: new THREE.Vector3(0, 0, -18), type: 'framework', links: ['syntrix'], description: "Heim's universal logic derived from Reflexive Abstraction." },
-            'syntrix': { id: 'syntrix', name: 'Syntrix (ã|=)', chapter: 2, position: new THREE.Vector3(0, 0, -10), type: 'structure', links: ['metrophor', 'synkolator', 'synkolation_stage', 'korporator'], description: "Formal, recursive structure embodying a Category." },
-            'metrophor': { id: 'metrophor', name: 'Metrophor (ã)', chapter: 2, position: new THREE.Vector3(-10, 5, -8), type: 'core', links: ['idee'], description: "Invariant core (Idee) of a Syntrix; base elements." },
-            'synkolator': { id: 'synkolator', name: 'Synkolator ({)', chapter: 2, position: new THREE.Vector3(0, 5, -8), type: 'operator', links: [], description: "Recursive correlation law generating complexity." },
-            'synkolation_stage': { id: 'synkolation_stage', name: 'Synkolation Stage (m)', chapter: 2, position: new THREE.Vector3(10, 5, -8), type: 'parameter', links: [], description: "Arity/depth of the Synkolator." },
-            'korporator': { id: 'korporator', name: 'Korporator ({})', chapter: 3, position: new THREE.Vector3(0, -5, -5), type: 'operator', links: ['syntrix'], description: "Operator combining multiple Syntrices." },
+            'reflexive_abstraction': { id: 'reflexive_abstraction', name: 'Reflexive Abstraction', chapter: 1, position: new THREE.Vector3(0, 20, -30), type: 'method', links: ['syntrometry'], description: "Method to overcome subjective limits by analyzing reflection itself." },
+            'subjective_aspect': { id: 'subjective_aspect', name: 'Subjective Aspect (S)', chapter: 1, position: new THREE.Vector3(-15, 15, -25), type: 'structure', links: ['pradikatrix', 'dialektik', 'koordination', 'aspektivsystem'], description: "Contextual framework for statements; a viewpoint." },
+            'pradikatrix': { id: 'pradikatrix', name: 'Prädikatrix (Pm)', chapter: 1, position: new THREE.Vector3(-25, 20, -20), type: 'component', links: [], description: "Schema of potential statements/predicates." },
+            'dialektik': { id: 'dialektik', name: 'Dialektik (Dn)', chapter: 1, position: new THREE.Vector3(-20, 20, -20), type: 'component', links: [], description: "Schema of subjective qualifiers/biases." },
+            'koordination': { id: 'koordination', name: 'Koordination (Kn)', chapter: 1, position: new THREE.Vector3(-15, 20, -20), type: 'component', links: [], description: "Mechanism linking Prädikatrix and Dialektik." },
+            'aspektivsystem': { id: 'aspektivsystem', name: 'Aspektivsystem (P)', chapter: 1, position: new THREE.Vector3(15, 15, -25), type: 'structure', links: ['metropie', 'idee'], description: "Collection of related subjective aspects." },
+            'metropie': { id: 'metropie', name: 'Metropie (g)', chapter: 1, position: new THREE.Vector3(25, 20, -20), type: 'property', links: [], description: "Metric defining 'distance' between aspects." },
+            'idee': { id: 'idee', name: 'Idee (Apodiktic Core)', chapter: 1, position: new THREE.Vector3(20, 10, -20), type: 'core', links: [], description: "Invariant elements within an Aspektivsystem." },
+            'syntrometry': { id: 'syntrometry', name: 'Syntrometrie', chapter: 1, position: new THREE.Vector3(0, 10, -25), type: 'framework', links: ['syntrix'], description: "Heim's universal logic derived from Reflexive Abstraction." },
+            'syntrix': { id: 'syntrix', name: 'Syntrix (ã|=)', chapter: 2, position: new THREE.Vector3(0, 5, -15), type: 'structure', links: ['metrophor', 'synkolator', 'synkolation_stage', 'korporator'], description: "Formal, recursive structure embodying a Category." },
+            'metrophor': { id: 'metrophor', name: 'Metrophor (ã)', chapter: 2, position: new THREE.Vector3(-10, 8, -12), type: 'core', links: ['idee'], description: "Invariant core (Idee) of a Syntrix; base elements." },
+            'synkolator': { id: 'synkolator', name: 'Synkolator ({)', chapter: 2, position: new THREE.Vector3(0, 8, -12), type: 'operator', links: [], description: "Recursive correlation law generating complexity." },
+            'synkolation_stage': { id: 'synkolation_stage', name: 'Synkolation Stage (m)', chapter: 2, position: new THREE.Vector3(10, 8, -12), type: 'parameter', links: [], description: "Arity/depth of the Synkolator." },
+            'korporator': { id: 'korporator', name: 'Korporator ({})', chapter: 3, position: new THREE.Vector3(0, -5, -8), type: 'operator', links: ['syntrix'], description: "Operator combining multiple Syntrices." },
+            ...Array.from({ length: Config.Agent.BASE_STATE_DIM }).reduce((acc, _, i) => {
+                const angle = (i / Config.Agent.BASE_STATE_DIM) * Math.PI * 2;
+                const radius = 8;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                acc[`dim_${i}`] = {
+                    id: `dim_${i}`, name: `Dimension ${i+1}`, chapter: 4, position: new THREE.Vector3(x, y, 0),
+                    type: 'dimension', links: [], description: `State value for dimension ${i+1}.`
+                };
+                return acc;
+            }, {})
         };
 
-        function initMain() {
-            container = document.querySelector('.threejs-container');
-            infoPanel = document.getElementById('info-panel');
-            if (!container) { console.error("[Main Mod] Container not found"); return; }
-            if (infoPanel) infoPanel.innerHTML = ''; else console.warn("[Main Mod] Info panel not found.");
-
-            clock = new THREE.Clock();
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111122);
-            scene.fog = new THREE.Fog(0x111122, 60, 160);
-            camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000);
-            camera.position.set(0, 15, 55);
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(width, height);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
-            labelRenderer = new CSS2DRenderer();
-            labelRenderer.setSize(width, height);
-            labelRenderer.domElement.style.position = 'absolute';
-            labelRenderer.domElement.style.top = '0px';
-            labelRenderer.domElement.style.left = '0px';
-            labelRenderer.domElement.style.pointerEvents = 'none';
-            container.appendChild(labelRenderer.domElement);
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.minDistance = 10;
-            controls.maxDistance = 150;
-            controls.target.set(0, 5, -10);
-            controls.update();
-            const ambientLight = new THREE.AmbientLight(0x8080a0);
-            scene.add(ambientLight);
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
-            dirLight1.position.set(5, 10, 7).normalize();
-            scene.add(dirLight1);
-            const dirLight2 = new THREE.DirectionalLight(0xaaaaff, 0.5);
-            dirLight2.position.set(-5, -5, -5).normalize();
-            scene.add(dirLight2);
-
-            const planeHeight = 10;
-            const planeWidth = planeHeight * (512/512);
-            const planeGeo = new THREE.PlaneGeometry(planeWidth, planeHeight);
-            const planeMat = new THREE.MeshBasicMaterial({
-                color: 0x555566,
-                transparent: true,
-                opacity: 0.7,
-                side: THREE.DoubleSide,
-                map: null
-            });
-            live2dPlane = new THREE.Mesh(planeGeo, planeMat);
-            live2dPlane.position.set(0, -10, 0);
-            live2dPlane.userData = { type: 'live2d_avatar', name: "Live2D Avatar (Loading...) Status: Waiting for init" };
-            scene.add(live2dPlane);
-            console.log("[Main Mod] Placeholder Three.js plane created for Live2D.");
-
-            createNodes();
-            createEdges();
-            createAgentSimulationPlaceholders();
-
-            interactableObjects = Object.values(nodes).map(n => n.object);
-            if (agentStateMesh) interactableObjects.push(agentStateMesh);
-            if (live2dPlane) interactableObjects.push(live2dPlane);
-            if (emergenceCoreMesh) interactableObjects.push(emergenceCoreMesh);
-
-            setupInteraction();
-            window.addEventListener('resize', onWindowResize, false);
-            animate();
-            console.log("[Main Mod] Three.js scene initialized.");
+        function getApproxBoundaryRadius(geometry, scale) {
+            if (!geometry || (!geometry.isGeometry && !geometry.isBufferGeometry)) {
+                return 1.0;
+            }
+            if (!geometry.boundingSphere) {
+                geometry.computeBoundingSphere();
+            }
+            const radius = geometry.boundingSphere ? geometry.boundingSphere.radius : 1.0;
+            return radius * (scale || 1.0);
         }
 
-        function createNodes() {
+        function initConceptVisualization() {
+            if (criticalError || typeof THREE === 'undefined' || typeof THREE.OrbitControls === 'undefined' || typeof THREE.CSS2DObject === 'undefined') {
+                displayError("Three.js, OrbitControls, or CSS2DRenderer not loaded.", true, 'concept-error-message');
+                return false;
+            }
+            try {
+                conceptContainer = document.getElementById('concept-panel');
+                conceptInfoPanel = document.getElementById('info-panel');
+                if (!conceptContainer || !conceptInfoPanel) {
+                    displayError("Concept panel or info panel not found.", true, 'concept-error-message');
+                    return false;
+                }
+                const width = conceptContainer.clientWidth;
+                const height = conceptContainer.clientHeight;
+                if (width <= 0 || height <= 0) {
+                    displayError("Concept panel has zero dimensions.", true, 'concept-error-message');
+                    return false;
+                }
+                conceptScene = new THREE.Scene();
+                conceptScene.background = new THREE.Color(0x111122);
+                conceptScene.fog = new THREE.Fog(0x111122, 60, 160);
+                conceptCamera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000);
+                conceptCamera.position.set(0, 15, 55);
+                conceptRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                conceptRenderer.setSize(width, height);
+                conceptRenderer.setPixelRatio(window.devicePixelRatio);
+                conceptContainer.appendChild(conceptRenderer.domElement);
+                conceptLabelRenderer = new THREE.CSS2DRenderer();
+                conceptLabelRenderer.setSize(width, height);
+                conceptLabelRenderer.domElement.style.position = 'absolute';
+                conceptLabelRenderer.domElement.style.top = '0px';
+                conceptLabelRenderer.domElement.style.left = '0px';
+                conceptLabelRenderer.domElement.style.pointerEvents = 'none';
+                conceptContainer.appendChild(conceptLabelRenderer.domElement);
+                conceptControls = new THREE.OrbitControls(conceptCamera, conceptRenderer.domElement);
+                conceptControls.enableDamping = true;
+                conceptControls.dampingFactor = 0.05;
+                conceptControls.minDistance = 10;
+                conceptControls.maxDistance = 150;
+                conceptControls.target.set(0, 5, -10);
+                conceptControls.update();
+                const ambientLight = new THREE.AmbientLight(0x8080a0);
+                conceptScene.add(ambientLight);
+                const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+                dirLight1.position.set(5, 10, 7).normalize();
+                conceptScene.add(dirLight1);
+                const dirLight2 = new THREE.DirectionalLight(0xaaaaff, 0.5);
+                dirLight2.position.set(-5, -5, -5).normalize();
+                conceptScene.add(dirLight2);
+                const planeGeo = new THREE.PlaneGeometry(10, 10);
+                const planeMat = new THREE.MeshBasicMaterial({ color: 0x555566, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
+                live2dPlane = new THREE.Mesh(planeGeo, planeMat);
+                live2dPlane.position.set(0, -10, 0);
+                const emotionArray = currentAgentEmotions && typeof currentAgentEmotions.arraySync === 'function' ? currentAgentEmotions.arraySync()[0] : zeros([Config.Agent.EMOTION_DIM]);
+                const dominantEmotionIndex = emotionArray.length > 0 ? emotionArray.indexOf(Math.max(...emotionArray)) : -1;
+                const dominantEmotionName = dominantEmotionIndex !== -1 ? emotionNames[dominantEmotionIndex] : 'Unknown';
+                live2dPlane.userData = {
+                    type: 'live2d_avatar',
+                    name: `Live2D Avatar (Status: ${live2dInitialized ? 'Active' : 'Inactive'})`,
+                    description: `Live2D avatar reflecting agent's emotional state.<br>` +
+                                `<span class="simulated-data">Dominant Feeling: ${dominantEmotionName}<br>` +
+                                `Current Action: ${actualHmLabel}<br>` +
+                                `Agent RIH: ${(actualRIHScore * 100).toFixed(1)}%</span>`
+                };
+                conceptScene.add(live2dPlane);
+                createConceptNodes();
+                createConceptEdges();
+                createAgentSimulationPlaceholders();
+                conceptInteractableObjects = Object.values(conceptNodes).map(n => n.object);
+                if (agentStateMesh) conceptInteractableObjects.push(agentStateMesh);
+                if (live2dPlane) conceptInteractableObjects.push(live2dPlane);
+                if (emergenceCoreMesh) conceptInteractableObjects.push(emergenceCoreMesh);
+                setupConceptInteraction();
+                conceptClock = new THREE.Clock();
+                window.addEventListener('resize', onConceptWindowResize, false);
+                console.log('Concept visualization initialized successfully.');
+                conceptInitialized = true;
+                return true;
+            } catch (e) {
+                displayError(`Error initializing concept visualization: ${e.message}`, false, 'concept-error-message');
+                return false;
+            }
+        }
+
+        function createConceptNodes() {
             const baseSize = 1.5;
-            const labelOffsetFactor = 0.6;
             for (const id in conceptData) {
                 const data = conceptData[id];
                 let geometry;
                 let material;
                 let currentScale = 1.0;
-                let detail = 16;
                 switch (data.type) {
-                    case 'framework': geometry = new THREE.BoxGeometry(baseSize*2.5, baseSize*2.5, baseSize*2.5); material = new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 60, transparent: true, opacity: 0.9 }); break;
-                    case 'structure': geometry = new THREE.SphereGeometry(baseSize*1.2, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 }); break;
-                    case 'core': geometry = new THREE.SphereGeometry(baseSize*0.9, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffff66, shininess: 100 }); break;
-                    case 'component': geometry = new THREE.SphereGeometry(baseSize, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0x66ffaa, shininess: 50 }); break;
-                    case 'property': geometry = new THREE.SphereGeometry(baseSize*0.8, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffaaff, shininess: 40 }); break;
-                    case 'parameter': geometry = new THREE.SphereGeometry(baseSize*0.7, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xaaffff, shininess: 30 }); break;
-                    case 'operator': geometry = new THREE.OctahedronGeometry(baseSize*1.1, 0); material = new THREE.MeshPhongMaterial({ color: 0xffaa66, shininess: 70 }); break;
-                    case 'method': geometry = new THREE.CylinderGeometry(baseSize*0.6, baseSize*0.6, baseSize*2.0, detail); material = new THREE.MeshPhongMaterial({ color: 0xff66ff, shininess: 60 }); break;
-                    default: geometry = new THREE.BoxGeometry(baseSize, baseSize, baseSize); material = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 20 });
+                    case 'framework':
+                        geometry = new THREE.BoxGeometry(baseSize * 2.5, baseSize * 2.5, baseSize * 2.5);
+                        material = new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 60, transparent: true, opacity: 0.9 });
+                        break;
+                    case 'structure':
+                        geometry = new THREE.SphereGeometry(baseSize * 1.2, 32, 16);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 });
+                        break;
+                    case 'core':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.9, 24, 12);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffff66, shininess: 100 });
+                        break;
+                    case 'component':
+                        geometry = new THREE.SphereGeometry(baseSize, 16, 12);
+                        material = new THREE.MeshPhongMaterial({ color: 0x66ffaa, shininess: 50 });
+                        break;
+                    case 'property':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.8, 12, 8);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffaaff, shininess: 40 });
+                        break;
+                    case 'parameter':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.7, 12, 8);
+                        material = new THREE.MeshPhongMaterial({ color: 0xaaffff, shininess: 30 });
+                        break;
+                    case 'operator':
+                        geometry = new THREE.OctahedronGeometry(baseSize * 1.1, 0);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffaa66, shininess: 70 });
+                        break;
+                    case 'method':
+                        geometry = new THREE.CylinderGeometry(baseSize * 0.6, baseSize * 0.6, baseSize * 2.0, 16);
+                        material = new THREE.MeshPhongMaterial({ color: 0xff66ff, shininess: 60 });
+                        break;
+                    case 'dimension':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.5, 12, 8);
+                        material = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 20 });
+                        currentScale = 1.0;
+                        break;
+                    default:
+                        geometry = new THREE.BoxGeometry(baseSize, baseSize, baseSize);
+                        material = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 20 });
+                        break;
                 }
-                const nodeMesh = new THREE.Mesh(geometry, material);
-                if (data.position instanceof THREE.Vector3) {
-                    nodeMesh.position.copy(data.position);
-                } else {
-                    nodeMesh.position.set(Math.random()*20-10, Math.random()*20-10, Math.random()*20-10);
-                }
-                nodeMesh.scale.set(currentScale, currentScale, currentScale);
-                nodeMesh.userData = { type: 'concept', data: data };
-                scene.add(nodeMesh);
+                const node = new THREE.Mesh(geometry, material);
+                node.position.copy(data.position);
+                node.scale.set(currentScale, currentScale, currentScale);
+                node.userData = { id: data.id, name: data.name, type: data.type, description: data.description, chapter: data.chapter, links: data.links };
+                conceptScene.add(node);
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'label';
                 labelDiv.textContent = data.name;
-                const labelObject = new CSS2DObject(labelDiv);
-                geometry.computeBoundingSphere();
-                const boundingSphere = geometry.boundingSphere;
-                let yOffset = boundingSphere.radius * currentScale + labelOffsetFactor;
-                if (geometry instanceof THREE.CylinderGeometry) yOffset = (geometry.parameters.height/2)*currentScale + labelOffsetFactor + 0.2;
-                else if (geometry instanceof THREE.BoxGeometry) yOffset = (geometry.parameters.height/2)*currentScale + labelOffsetFactor;
-                labelObject.position.set(0, yOffset, 0);
-                nodeMesh.add(labelObject);
-                nodes[id] = { object: nodeMesh, label: labelObject, data: data };
+                const label = new THREE.CSS2DObject(labelDiv);
+                const baseOffset = (data.type === 'method' ? 1.8 : (data.type === 'dimension' ? 0.8 : 1.5));
+                label.position.set(0, baseOffset * currentScale, 0);
+                node.add(label);
+                conceptNodes[id] = { object: node, label: label, data: data };
             }
-            console.log(`[Main Mod] Created ${Object.keys(nodes).length} concept nodes.`);
+            console.log(`Created ${Object.keys(conceptNodes).length} concept nodes.`);
         }
 
-        function createEdges() {
+        function createConceptEdges() {
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x888888,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+            });
             const visitedEdges = new Set();
-            const tubeRadius = 0.08;
-            const tubeDetail = 6;
-            const tubularSegments = 8;
-            const nodeRadiusFactor = 1.05;
-            const material = new THREE.MeshPhongMaterial({ color: 0x777799, transparent: true, opacity: 0.5, shininess: 10 });
-            function getApproxBoundaryRadius(geometry, scale) {
-                if (!geometry.boundingSphere) geometry.computeBoundingSphere();
-                return geometry.boundingSphere ? geometry.boundingSphere.radius * scale : 1.0 * scale;
-            }
-            for (const id in nodes) {
-                const sourceNode = nodes[id];
-                if (!sourceNode || !sourceNode.object) continue;
+            const tubularSegments = 20;
+            const tubeRadius = 0.1;
+            const tubeDetail = 8;
+            const nodeRadiusFactor = 1.2;
+            for (const id of Object.keys(conceptNodes)) {
+                const sourceNode = conceptNodes[id];
+                if (!sourceNode || !sourceNode.object) {
+                    console.warn(`Invalid sourceNode for id ${id}`);
+                    continue;
+                }
                 const sourceScale = sourceNode.object.scale.x;
-                const sourceBoundary = getApproxBoundaryRadius(sourceNode.object.geometry, sourceScale);
-                sourceNode.data.links.forEach(targetId => {
-                    const targetNode = nodes[targetId];
-                    if (targetNode && targetNode.object) {
-                        const edgeKey = `${id}-${targetId}`;
-                        const reverseEdgeKey = `${targetId}-${id}`;
-                        if (visitedEdges.has(edgeKey) || visitedEdges.has(reverseEdgeKey)) return;
-                        visitedEdges.add(edgeKey);
-                        const targetScale = targetNode.object.scale.x;
-                        const targetBoundary = getApproxBoundaryRadius(targetNode.object.geometry, targetScale);
-                        const startPoint = sourceNode.object.position;
-                        const endPoint = targetNode.object.position;
-                        const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
-                        const distance = direction.length();
-                        if (distance < 0.001) return;
-                        direction.normalize();
-                        const shortenStart = sourceBoundary * nodeRadiusFactor;
-                        const shortenEnd = targetBoundary * nodeRadiusFactor;
-                        const minRequiredDistance = shortenStart + shortenEnd + tubeRadius * 2;
-                        if (distance <= minRequiredDistance) return;
-                        const adjustedStart = startPoint.clone().add(direction.clone().multiplyScalar(shortenStart));
-                        const adjustedEnd = endPoint.clone().sub(direction.clone().multiplyScalar(shortenEnd));
-                        if (adjustedStart.distanceTo(adjustedEnd) < tubeRadius) return;
-                        try {
-                            const curve = new THREE.LineCurve3(adjustedStart, adjustedEnd);
-                            const tubeGeometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, tubeDetail, false);
-                            const edge = new THREE.Mesh(tubeGeometry, material.clone());
-                            scene.add(edge);
-                            edges.push(edge);
-                        } catch (e) {
-                            console.error(`[Main Mod] Tube geom error "${id}"<->"${targetId}":`, e);
-                        }
-                    } else {
-                        console.warn(`[Main Mod] Target node "${targetId}" not found for link from "${id}"`);
+                const sourceBoundary = getApproxBoundaryRadius(sourceNode.object.geometry, sourceScale) * nodeRadiusFactor;
+                const sourcePos = sourceNode.object.position;
+                const links = sourceNode.data.links || [];
+                for (const targetId of links) {
+                    const targetNode = conceptNodes[targetId];
+                    if (!targetNode || !targetNode.object) {
+                        console.warn(`Invalid targetNode for id ${targetId}`);
+                        continue;
                     }
-                });
+                    const edgeKey = [id, targetId].sort().join('-');
+                    if (visitedEdges.has(edgeKey)) {
+                        continue;
+                    }
+                    visitedEdges.add(edgeKey);
+                    const targetScale = targetNode.object.scale.x;
+                    const targetBoundary = getApproxBoundaryRadius(targetNode.object.geometry, targetScale) * nodeRadiusFactor;
+                    const targetPos = targetNode.object.position;
+                    const direction = new THREE.Vector3().subVectors(targetPos, sourcePos);
+                    const distance = direction.length();
+                    if (distance < 1e-6) {
+                        continue;
+                    }
+                    const sourceAdjust = direction.clone().normalize().multiplyScalar(sourceBoundary);
+                    const targetAdjust = direction.clone().normalize().multiplyScalar(-targetBoundary);
+                    const startPoint = new THREE.Vector3().addVectors(sourcePos, sourceAdjust);
+                    const endPoint = new THREE.Vector3().addVectors(targetPos, targetAdjust);
+                    const midPoint = new THREE.Vector3().lerpVectors(startPoint, endPoint, 0.5);
+                    const controlPoint1 = new THREE.Vector3(
+                        midPoint.x + (Math.random() - 0.5) * 5,
+                        midPoint.y + (Math.random() - 0.5) * 5,
+                        midPoint.z + (Math.random() - 0.5) * 5
+                    );
+                    const controlPoint2 = new THREE.Vector3(
+                        midPoint.x + (Math.random() - 0.5) * 5,
+                        midPoint.y + (Math.random() - 0.5) * 5,
+                        midPoint.z + (Math.random() - 0.5) * 5
+                    );
+                    const points = [startPoint, controlPoint1, controlPoint2, endPoint];
+                    const curve = new THREE.CubicBezierCurve3(...points);
+                    const tubeGeo = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, tubeDetail, false);
+                    const edgeMesh = new THREE.Mesh(tubeGeo, material);
+                    edgeMesh.userData = { source: id, target: targetId, type: 'edge' };
+                    conceptScene.add(edgeMesh);
+                    conceptEdges.push(edgeMesh);
+                }
             }
-            console.log(`[Main Mod] Created ${edges.length} edges.`);
+            console.log(`Created ${conceptEdges.length} concept edges.`);
         }
 
         function createAgentSimulationPlaceholders() {
-            const placeholderY = -15;
-            const agentStateGeo = new THREE.SphereGeometry(2.5, 32, 16);
-            const agentStateMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 60, transparent: true, opacity: 0.8 });
-            agentStateMesh = new THREE.Mesh(agentStateGeo, agentStateMat);
-            agentStateMesh.position.set(-15, placeholderY, -5);
-            agentStateMesh.userData = { type: 'agent_state', name: "Agent Internal State" };
-            scene.add(agentStateMesh);
-            agentStateLabel = createPlaceholderLabel("Agent State", agentStateMesh, 3.0);
-            const emergenceGeo = new THREE.IcosahedronGeometry(1.8, 1);
-            const emergenceMat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0x000000, shininess: 80, transparent: true, opacity: 0.6 });
-            emergenceCoreMesh = new THREE.Mesh(emergenceGeo, emergenceMat);
-            emergenceCoreMesh.position.set(15, placeholderY, -5);
-            emergenceCoreMesh.userData = { type: 'emergence_core', name: "Emergence Core (RIH)" };
-            scene.add(emergenceCoreMesh);
-            emergenceCoreLabel = createPlaceholderLabel("Emergence Core", emergenceCoreMesh, 2.5);
-            console.log("[Main Mod] Created simulation placeholder objects (Agent State, Emergence Core).");
-        }
-
-        function createPlaceholderLabel(text, parentMesh, yOffset) {
-            const labelDiv = document.createElement('div');
-            labelDiv.className = 'label';
-            labelDiv.textContent = text;
-            labelDiv.style.fontSize = '13px';
-            labelDiv.style.fontWeight = 'bold';
-            const labelObj = new CSS2DObject(labelDiv);
-            labelObj.position.set(0, yOffset, 0);
-            parentMesh.add(labelObj);
-            return labelObj;
-        }
-
-        function setupInteraction() {
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-            if (container) {
-                container.addEventListener('mousemove', onPointerMove, false);
-                container.addEventListener('touchmove', onPointerMove, { passive: false });
-                container.addEventListener('touchend', onPointerUp, false);
-                container.addEventListener('mouseleave', onPointerLeave, false);
-            }
-        }
-
-        let lastIntersected = null;
-
-        function onPointerMove(event) {
-            let clientX, clientY;
-            if (event.touches && event.touches.length > 0) {
-                clientX = event.touches[0].clientX;
-                clientY = event.touches[0].clientY;
-                event.preventDefault();
-            } else {
-                clientX = event.clientX;
-                clientY = event.clientY;
-            }
-            updatePointerPosition(clientX, clientY);
-            checkIntersections();
-        }
-
-        function onPointerUp(event) {
-            if (event.changedTouches) clearHover();
-        }
-
-        function onPointerLeave(event) {
-            clearHover();
-        }
-
-        function updatePointerPosition(clientX, clientY) {
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
-            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        }
-
-        function checkIntersections() {
-            if (!camera || !raycaster || interactableObjects.length === 0) return;
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(interactableObjects, false);
-            if (intersects.length > 0) {
-                const intersectedObject = intersects[0].object;
-                if (intersectedObject !== lastIntersected) {
-                    updateInfoPanel(intersectedObject);
-                    lastIntersected = intersectedObject;
-                }
-            } else {
-                clearHover();
-            }
-        }
-
-        function updateInfoPanel(nodeMesh) {
-            if (!infoPanel) {
-                console.warn("[Main Mod] Info panel element not found.");
-                return;
-            }
-
-            const userData = nodeMesh.userData;
-            if (!userData || !userData.type) {
-                infoPanel.innerHTML = '';
-                return;
-            }
-
-            const escapeHTML = (str) => {
-                if (!str) return '';
-                return str.toString()
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
+            const agentGeo = new THREE.SphereGeometry(1.5, 32, 16);
+            const agentMat = new THREE.MeshPhongMaterial({
+                color: 0x66ff66,
+                shininess: 80,
+                transparent: true,
+                opacity: 0.7
+            });
+            agentStateMesh = new THREE.Mesh(agentGeo, agentMat);
+            agentStateMesh.position.set(15, -5, 0);
+            agentStateMesh.userData = {
+                type: 'agent_state',
+                name: 'Agent Emotional State',
+                description: 'Represents the agent\'s emotional state (Joy, Fear, etc.). Updates dynamically.'
             };
-
-            let panelHtml = '';
-            const safeName = escapeHTML(userData.name || 'Unnamed Object');
-            panelHtml += `<h3>${safeName}</h3>`;
-
-            switch (userData.type) {
-                case 'concept':
-                    const data = userData.data;
-                    if (data.type) {
-                        panelHtml += `<p><b>Type:</b> ${escapeHTML(data.type)}</p>`;
-                    }
-                    if (data.chapter !== undefined) {
-                        panelHtml += `<p><b>Chapter:</b> ${data.chapter}</p>`;
-                    }
-                    if (data.description) {
-                        panelHtml += `<p><b>Desc:</b> ${escapeHTML(data.description)}</p>`;
-                    }
-                    if (data.links?.length > 0) {
-                        const linkedNames = data.links
-                            .map(id => conceptData[id]?.name)
-                            .filter(Boolean)
-                            .map(escapeHTML);
-                        if (linkedNames.length > 0) {
-                            panelHtml += `<div class="links-list"><b>Links To:</b> ${linkedNames.join(', ')}</div>`;
-                        }
-                    }
-                    break;
-                case 'agent_state':
-                    const emoStr = `[V: ${simulatedEmotions.x.toFixed(2)}, A: ${simulatedEmotions.y.toFixed(2)}, D: ${simulatedEmotions.z.toFixed(2)}]`;
-                    panelHtml += `
-                        <p class="simulated-data">Represents the AI's internal emotional state.</p>
-                        <p><b>Simulated Emotions:</b> ${escapeHTML(emoStr)}</p>
-                    `;
-                    break;
-                case 'live2d_avatar':
-                    const live2dState = window.sharedLive2DState;
-                    let avatarStatus = "Waiting for initialization...";
-                    if (live2dState) {
-                        if (live2dState.initialized) {
-                            avatarStatus = "Active";
-                        } else if (live2dState.error) {
-                            avatarStatus = `Error: ${escapeHTML(live2dState.error)}`;
-                        }
-                    }
-                    panelHtml += `<p><b>Status:</b> ${escapeHTML(avatarStatus)}</p>`;
-                    if (live2dState?.initialized) {
-                        panelHtml += `
-                            <p class="simulated-data">Live2D model driven by simulated agent state.</p>
-                            <p><b>(Parameters reflect agent's simulated emotion)</b></p>
-                        `;
-                    } else if (live2dState?.error) {
-                        panelHtml += `<p style="color: #ffaaaa;">Model could not load or initialize. Check console.</p>`;
-                    } else {
-                        panelHtml += `<p>Live2D system is starting...</p>`;
-                    }
-                    break;
-                case 'emergence_core':
-                    const rihState = escapeHTML(emergenceActive ? 'Met (Glowing)' : 'Not Met');
-                    panelHtml += `
-                        <p class="simulated-data">Represents RIH-based emergence.</p>
-                        <p><b>Simulated I:</b> ${simulatedIntegration.toFixed(3)}</p>
-                        <p><b>Simulated Rho:</b> ${simulatedReflexivity.toFixed(3)} (Threshold: ${RHO_THRESHOLD.toFixed(2)})</p>
-                        <p><b>Simulated Tau(t):</b> ${simulatedThreshold.toFixed(3)}</p>
-                        <p><b>Emergence State:</b> ${rihState}</p>
-                    `;
-                    break;
-                default:
-                    panelHtml += `<p>Unknown object type.</p>`;
-            }
-
-            infoPanel.innerHTML = panelHtml;
+            conceptScene.add(agentStateMesh);
+            const agentLabelDiv = document.createElement('div');
+            agentLabelDiv.className = 'label';
+            agentLabelDiv.textContent = 'Agent State';
+            agentStateLabel = new THREE.CSS2DObject(agentLabelDiv);
+            agentStateLabel.position.set(0, 2.0, 0);
+            agentStateMesh.add(agentStateLabel);
+            const coreGeo = new THREE.TetrahedronGeometry(2.0, 2);
+            const coreMat = new THREE.MeshPhongMaterial({
+                color: 0xff66ff,
+                shininess: 100,
+                transparent: true,
+                opacity: 0.8
+            });
+            emergenceCoreMesh = new THREE.Mesh(coreGeo, coreMat);
+            emergenceCoreMesh.position.set(-15, -5, 0);
+            emergenceCoreMesh.userData = {
+                type: 'emergence_core',
+                name: 'Emergence Core',
+                description: 'Represents Reflexive Integration (RIH) and Affinities from agent processing.'
+            };
+            conceptScene.add(emergenceCoreMesh);
+            const coreLabelDiv = document.createElement('div');
+            coreLabelDiv.className = 'label';
+            coreLabelDiv.textContent = 'Emergence Core';
+            emergenceCoreLabel = new THREE.CSS2DObject(coreLabelDiv);
+            emergenceCoreLabel.position.set(0, 2.5, 0);
+            emergenceCoreMesh.add(emergenceCoreLabel);
+            console.log("Agent simulation placeholders created.");
         }
 
-        function clearHover() {
-            if (lastIntersected) lastIntersected = null;
-            if (infoPanel) infoPanel.innerHTML = '';
+        function updateAgentSimulationVisuals(emotionsTensor, rihScore, avgAffinity, hmLabel) {
+            if (!agentStateMesh || !emergenceCoreMesh || !conceptInitialized) return;
+            const emotions = emotionsTensor && typeof emotionsTensor.arraySync === 'function' ? emotionsTensor.arraySync()[0] : zeros([Config.Agent.EMOTION_DIM]);
+            actualAgentEmotions = emotions;
+            actualRIHScore = rihScore;
+            actualAvgAffinity = avgAffinity;
+            actualHmLabel = hmLabel;
+            const joyVal = emotions[0] || 0;
+            const fearVal = emotions[1] || 0;
+            const curiosityVal = emotions[2] || 0;
+            const frustrationVal = emotions[3] || 0;
+            const calmVal = emotions[4] || 0;
+            const surpriseVal = emotions[5] || 0;
+            const dominantEmotionIdx = emotions.length > 0 ? emotions.indexOf(Math.max(...emotions)) : -1;
+            const dominantEmotion = dominantEmotionIdx !== -1 ? emotionNames[dominantEmotionIdx] : 'Unknown';
+            const emotionColor = {
+                'Joy': 0x66ff66, 'Fear': 0xff6666, 'Curiosity': 0x66ccff,
+                'Frustration': 0xff9966, 'Calm': 0x99ffcc, 'Surprise': 0xffff66,
+                'Unknown': 0xcccccc
+            }[dominantEmotion];
+            if (agentStateMesh.material.color) {
+                const targetColor = new THREE.Color(emotionColor);
+                agentStateMesh.material.color.lerp(targetColor                , 0.1);
+            }
+            const emotionIntensity = emotions.reduce((sum, val) => sum + val, 0) / emotions.length;
+            const agentScale = 1.0 + emotionIntensity * 0.5;
+            agentStateMesh.scale.set(agentScale, agentScale, agentScale);
+            agentStateMesh.rotation.y += 0.01;
+            agentStateMesh.material.opacity = clamp(0.5 + emotionIntensity * 0.3, 0.5, 0.9);
+            agentStateMesh.userData.description = `Represents the agent's emotional state.<br>` +
+                `<span class="simulated-data">Dominant Feeling: ${dominantEmotion}<br>` +
+                `Joy: ${(joyVal * 100).toFixed(1)}%, Fear: ${(fearVal * 100).toFixed(1)}%<br>` +
+                `Curiosity: ${(curiosityVal * 100).toFixed(1)}%, Frustration: ${(frustrationVal * 100).toFixed(1)}%<br>` +
+                `Calm: ${(calmVal * 100).toFixed(1)}%, Surprise: ${(surpriseVal * 100).toFixed(1)}%</span>`;
+            if (live2dPlane) {
+                live2dPlane.userData.description = `Live2D avatar reflecting agent's emotional state.<br>` +
+                    `<span class="simulated-data">Dominant Feeling: ${dominantEmotion}<br>` +
+                    `Current Action: ${hmLabel}<br>` +
+                    `Agent RIH: ${(rihScore * 100).toFixed(1)}%</span>`;
+            }
+            if (emergenceCoreMesh.material.color) {
+                const coreColor = new THREE.Color(0xff66ff).lerp(new THREE.Color(0xffffff), rihScore);
+                emergenceCoreMesh.material.color.lerp(coreColor, 0.1);
+            }
+            const coreScale = 1.0 + rihScore * 0.8 + avgAffinity * 0.3;
+            emergenceCoreMesh.scale.set(coreScale, coreScale, coreScale);
+            emergenceCoreMesh.rotation.x += 0.005;
+            emergenceCoreMesh.rotation.z += 0.005;
+            emergenceCoreMesh.material.opacity = clamp(0.6 + rihScore * 0.3, 0.6, 0.9);
+            emergenceCoreMesh.userData.description = `Represents Reflexive Integration and Affinities.<br>` +
+                `<span class="simulated-data">RIH Score: ${(rihScore * 100).toFixed(1)}%<br>` +
+                `Average Affinity: ${(avgAffinity * 100).toFixed(1)}%</span>`;
+            for (let i = 0; i < Config.Agent.BASE_STATE_DIM; i++) {
+                const dimId = `dim_${i}`;
+                if (conceptNodes[dimId]) {
+                    const node = conceptNodes[dimId].object;
+                    const stateValue = currentStateVector ? currentStateVector[i] : 0;
+                    const scale = 1.0 + Math.abs(stateValue) * 0.5;
+                    node.scale.set(scale, scale, scale);
+                    const hue = stateValue > 0 ? 0.33 : 0.66;
+                    node.material.color.setHSL(hue, 0.8, 0.5 + Math.abs(stateValue) * 0.2);
+                    node.material.opacity = clamp(0.5 + Math.abs(stateValue) * 0.3, 0.5, 0.9);
+                    conceptNodes[dimId].data.description = `State value for dimension ${i+1}.<br>` +
+                        `<span class="simulated-data">Value: ${(stateValue * 100).toFixed(1)}%</span>`;
+                }
+            }
+            conceptEdges.forEach(edge => {
+                if (edge.material) {
+                    edge.material.opacity = clamp(0.3 + rihScore * 0.3 + avgAffinity * 0.2, 0.3, 0.7);
+                }
+            });
         }
 
-        function updateSimulationStep(deltaTime) {
-            if (agentStateMesh) {
-                agentStateMesh.material.color.setRGB(simulatedEmotions.x, simulatedEmotions.y, simulatedEmotions.z);
-                agentStateMesh.material.opacity = 0.6 + simulatedIntegration * 0.4;
+        function setupConceptInteraction() {
+            conceptRaycaster = new THREE.Raycaster();
+            conceptMouse = new THREE.Vector2();
+            conceptContainer.addEventListener('mousemove', onConceptMouseMove, false);
+            conceptContainer.addEventListener('click', onConceptClick, false);
+        }
+
+        function onConceptMouseMove(event) {
+            if (!conceptInitialized) return;
+            const rect = conceptContainer.getBoundingClientRect();
+            conceptMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            conceptMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            conceptRaycaster.setFromCamera(conceptMouse, conceptCamera);
+            const intersects = conceptRaycaster.intersectObjects(conceptInteractableObjects, false);
+            conceptInfoPanel.innerHTML = '';
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                const data = obj.userData;
+                conceptInfoPanel.innerHTML = `<h3>${data.name}</h3>` +
+                    `<p><b>Type:</b> ${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</p>` +
+                    `<p><b>Description:</b> ${data.description || 'No description available.'}</p>` +
+                    (data.chapter ? `<p><b>Chapter:</b> ${data.chapter}</p>` : '') +
+                    (data.links && data.links.length > 0 ? `<p><b>Links:</b> ${data.links.map(lid => `<span title="${conceptData[lid]?.description || ''}">${conceptData[lid]?.name || lid}</span>`).join(', ')}</p>` : '');
             }
-            if (emergenceCoreMesh) {
-                if (emergenceActive) {
-                    emergenceCoreMesh.material.emissive.setHex(0xffcc00);
-                    emergenceCoreMesh.material.opacity = 0.9;
-                    emergenceCoreMesh.scale.setScalar(1.0 + Math.sin(clock.getElapsedTime() * 5.0) * 0.1);
-                } else {
-                    emergenceCoreMesh.material.emissive.setHex(0x000000);
-                    emergenceCoreMesh.material.opacity = 0.6;
-                    emergenceCoreMesh.scale.setScalar(1.0);
+        }
+
+        function onConceptClick(event) {
+            if (!conceptInitialized) return;
+            conceptRaycaster.setFromCamera(conceptMouse, conceptCamera);
+            const intersects = conceptRaycaster.intersectObjects(conceptInteractableObjects, false);
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                conceptControls.target.copy(obj.position);
+                conceptControls.update();
+            }
+        }
+
+        function onConceptWindowResize() {
+            if (!conceptInitialized || !conceptCamera || !conceptRenderer) return;
+            const width = conceptContainer.clientWidth;
+            const height = conceptContainer.clientHeight;
+            conceptCamera.aspect = width / height;
+            conceptCamera.updateProjectionMatrix();
+            conceptRenderer.setSize(width, height);
+            conceptLabelRenderer.setSize(width, height);
+        }
+
+        let pixiApp = null;
+        let live2dModel = null;
+        let live2dInitialized = false;
+        let currentStateVector = null;
+        let currentAgentEmotions = null;
+
+        async function initLive2D() {
+            if (typeof PIXI === 'undefined' || typeof PIXI.live2d === 'undefined') {
+                displayError("Pixi.js or pixi-live2d-display not loaded.", false);
+                return false;
+            }
+            try {
+                const container = document.getElementById('live2d-container');
+                if (!container) {
+                    displayError("Live2D container not found.", false);
+                    return false;
                 }
-            }
-
-            const live2dState = window.sharedLive2DState;
-            if (live2dState && live2dState.initialized && live2dState.live2dModel) {
-                const modelToUpdate = live2dState.live2dModel;
-                const coreModel = modelToUpdate.internalModel.coreModel;
-
-                const targetAngleX = (simulatedEmotions.x - 0.5) * 60;
-                const targetEyeOpen = simulatedEmotions.y;
-                const targetBreath = simulatedEmotions.z;
-
-                const smoothing = 1.0 - Math.exp(-deltaTime / 0.05);
-
-                const setParam = (id, targetValue) => {
-                    try {
-                        if (coreModel.hasParameter && coreModel.hasParameter(id)) {
-                            let currentVal = coreModel.getParameterValueById(id);
-                            let clampedTarget = id.includes('Eye') || id.includes('Breath') ? Math.max(0, Math.min(1, targetValue)) : targetValue;
-                            let smoothedVal = currentVal + (clampedTarget - currentVal) * smoothing;
-                            coreModel.setParameterValueById(id, smoothedVal);
-                        }
-                    } catch (e) {
-                        console.warn(`Parameter ${id} not found or error setting value:`, e);
+                pixiApp = new PIXI.Application({
+                    width: 300,
+                    height: 400,
+                    transparent: true,
+                    antialias: true
+                });
+                container.appendChild(pixiApp.view);
+                const modelUrl = 'https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Hiyori/Hiyori.model3.json';
+                live2dModel = await PIXI.live2d.Live2DModel.from(modelUrl);
+                live2dModel.scale.set(0.15, 0.15);
+                live2dModel.anchor.set(0.5, 0.5);
+                live2dModel.position.set(150, 200);
+                pixiApp.stage.addChild(live2dModel);
+                live2dModel.on('hit', (hitAreas) => {
+                    if (hitAreas.includes('body')) {
+                        live2dModel.expression('happy');
                     }
-                };
-
-                setParam('ParamAngleX', targetAngleX);
-                setParam('ParamBodyAngleX', targetAngleX * 0.5);
-                setParam('ParamEyeLOpen', targetEyeOpen);
-                setParam('ParamEyeROpen', targetEyeOpen);
-                setParam('ParamBreath', targetBreath);
-                setParam('ParamMouthOpenY', Math.abs(simulatedEmotions.x - 0.5) * 0.8);
-
-                if (typeof modelToUpdate.update === 'function') {
-                    modelToUpdate.update(deltaTime);
-                }
-            } else if (live2dState && live2dState.error && live2dPlane && live2dPlane.userData.status !== 'error') {
-                live2dPlane.material.color.set(0x442222);
-                live2dPlane.userData.name = "Live2D Avatar (Error)";
-                live2dPlane.userData.status = 'error';
-                if (lastIntersected === live2dPlane) updateInfoPanel(live2dPlane);
+                });
+                live2dInitialized = true;
+                console.log("Live2D initialized successfully.");
+                return true;
+            } catch (e) {
+                displayError(`Error initializing Live2D: ${e.message}`, false);
+                return false;
             }
+        }
 
-            simulatedPrevEmotions.copy(simulatedEmotions);
-            const decay = 0.995;
-            const noiseScale = 0.05;
-            simulatedEmotions.x = (simulatedEmotions.x - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
-            simulatedEmotions.y = (simulatedEmotions.y - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
-            simulatedEmotions.z = (simulatedEmotions.z - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
-            simulatedEmotions.clampScalar(0.0, 1.0);
+        function updateLive2D(emotionsTensor, hmLabel) {
+            if (!live2dInitialized || !live2dModel || !emotionsTensor) return;
+            const emotions = emotionsTensor.arraySync()[0];
+            const dominantEmotionIdx = emotions.indexOf(Math.max(...emotions));
+            const dominantEmotion = emotionNames[dominantEmotionIdx];
+            const expressionMap = {
+                'Joy': 'happy',
+                'Fear': 'scared',
+                'Curiosity': 'curious',
+                'Frustration': 'angry',
+                'Calm': 'neutral',
+                'Surprise': 'surprised'
+            };
+            const expression = expressionMap[dominantEmotion] || 'neutral';
+            try {
+                live2dModel.expression(expression);
+            } catch (e) {
+                console.warn(`Live2D expression error: ${e.message}`);
+            }
+            const motionMap = {
+                'nod': 'nod',
+                'shake': 'shake',
+                'tilt_left': 'tilt_left',
+                'tilt_right': 'tilt_right',
+                'idle': 'idle'
+            };
+            const motion = motionMap[hmLabel] || 'idle';
+            try {
+                live2dModel.motion(motion);
+            } catch (e) {
+                console.warn(`Live2D motion error: ${e.message}`);
+            }
+            const intensity = emotions[dominantEmotionIdx];
+            live2dModel.scale.set(0.15 + intensity * 0.05, 0.15 + intensity * 0.05);
+        }
 
-            simulatedIntegration = simulatedEmotions.toArray().reduce((sum, val) => sum + val, 0) / 3.0;
+        let agent, environment;
 
-            const dot = simulatedEmotions.dot(simulatedPrevEmotions);
-            const lenSq1 = simulatedEmotions.lengthSq();
-            const lenSq2 = simulatedPrevEmotions.lengthSq();
-            const safeLenSq1 = lenSq1 > 1e-6 ? lenSq1 : 1e-6;
-            const safeLenSq2 = lenSq2 > 1e-6 ? lenSq2 : 1e-6;
-            simulatedReflexivity = dot / Math.sqrt(safeLenSq1 * safeLenSq2);
-            simulatedReflexivity = Math.max(-1.0, Math.min(1.0, simulatedReflexivity));
+        function initAgentAndEnvironment() {
+            try {
+                agent = new SyntrometricAgent();
+                environment = new EmotionalSpace();
+                console.log("Agent and Environment initialized.");
+                return true;
+            } catch (e) {
+                displayError(`Error initializing Agent/Environment: ${e.message}`, false);
+                return false;
+            }
+        }
 
-            const emotionVariance = simulatedEmotions.clone().subScalar(simulatedIntegration).lengthSq() / 3.0;
-            const stabilityProxy = 1.0 - Math.min(1.0, emotionVariance * 5.0);
-            simulatedThreshold = 0.5 + stabilityProxy * 0.2 - simulatedIntegration * 0.1;
-            simulatedThreshold = Math.max(0.1, Math.min(0.9, simulatedThreshold));
+        function updateMetricsDisplay(rihScore, affinities, emotionsTensor, context) {
+            const metricsDiv = document.getElementById('metrics');
+            if (!metricsDiv || !emotionsTensor) return;
+            const emotions = emotionsTensor.arraySync()[0];
+            const dominantEmotionIdx = emotions.indexOf(Math.max(...emotions));
+            const avgAffinity = affinities.length > 0 ? affinities.reduce((a, b) => a + b, 0) / affinities.length : 0;
+            metricsDiv.innerHTML = `
+                <b>RIH Score:</b> ${(rihScore * 100).toFixed(1)}%<br>
+                <b>Avg Affinity:</b> ${(avgAffinity * 100).toFixed(1)}%<br>
+                <b>Dominant Emotion:</b> ${emotionNames[dominantEmotionIdx]} (${(emotions[dominantEmotionIdx] * 100).toFixed(1)}%)<br>
+                <b>Context:</b> ${context || 'Stable'}
+            `;
+        }
 
-            emergenceActive = (simulatedIntegration >= simulatedThreshold) && (simulatedReflexivity >= RHO_THRESHOLD);
+        function handleChatInput() {
+            const chatInput = document.getElementById('chat-input');
+            const chatOutput = document.getElementById('chat-output');
+            if (!chatInput || !chatOutput) return;
+            chatInput.addEventListener('keypress', async (e) => {
+                if (e.key === 'Enter' && chatInput.value.trim()) {
+                    const userMessage = chatInput.value.trim();
+                    const userDiv = document.createElement('div');
+                    userDiv.innerHTML = `<b>You:</b> ${userMessage}`;
+                    chatOutput.appendChild(userDiv);
+                    chatOutput.scrollTop = chatOutput.scrollHeight;
+                    const emotionalImpact = environment.getEmotionalImpactFromText(userMessage);
+                    const integration = parseFloat(document.getElementById('integration-slider').value);
+                    const reflexivity = parseFloat(document.getElementById('reflexivity-slider').value);
+                    const envState = await environment.step(emotionalImpact);
+                    currentStateVector = envState.state.arraySync()[0];
+                    const agentResponse = await agent.process(
+                        currentStateVector,
+                        integration,
+                        reflexivity,
+                        { eventType: envState.eventType, reward: envState.reward }
+                    );
+                    const responseDiv = document.createElement('div');
+                    responseDiv.innerHTML = `<b>Agent:</b> ${agentResponse.responseText}<br>${envState.context}`;
+                    chatOutput.appendChild(responseDiv);
+                    chatOutput.scrollTop = chatOutput.scrollHeight;
+                    updateThreeJS(currentStateVector, agentResponse.rihScore, agentResponse.affinities, integration, reflexivity);
+                    updateAgentSimulationVisuals(agentResponse.emotions, agentResponse.rihScore, agentResponse.affinities.reduce((a, b) => a + b, 0) / (agentResponse.affinities.length || 1), agentResponse.hmLabel);
+                    updateMetricsDisplay(agentResponse.rihScore, agentResponse.affinities, agentResponse.emotions, envState.context);
+                    updateLive2D(agentResponse.emotions, agentResponse.hmLabel);
+                    currentAgentEmotions = agentResponse.emotions;
+                    chatInput.value = '';
+                }
+            });
+        }
+
+        function setupControls() {
+            const integrationSlider = document.getElementById('integration-slider');
+            const reflexivitySlider = document.getElementById('reflexivity-slider');
+            const integrationValue = document.getElementById('integration-value');
+            const reflexivityValue = document.getElementById('reflexivity-value');
+            if (!integrationSlider || !reflexivitySlider || !integrationValue || !reflexivityValue) return;
+            integrationSlider.addEventListener('input', () => {
+                integrationValue.textContent = integrationSlider.value;
+            });
+            reflexivitySlider.addEventListener('input', () => {
+                reflexivityValue.textContent = reflexivitySlider.value;
+            });
         }
 
         function animate() {
-    requestAnimationFrame(animate);
-    const deltaTime = clock.getDelta();
-
-    updateSimulationStep(deltaTime);
-
-    const live2dState = window.sharedLive2DState;
-
-    if (live2dState && live2dState.initialized && live2dState.pixiApp && live2dState.live2dCanvas && typeof THREE !== 'undefined') {
-        if (!live2dTexture) {
-            live2dTexture = new THREE.CanvasTexture(live2dState.live2dCanvas);
-            live2dTexture.premultiplyAlpha = true;
-            if (live2dPlane && live2dPlane.material) {
-                live2dPlane.material.map = live2dTexture;
-                live2dPlane.material.color.set(0xffffff);
-                live2dPlane.material.opacity = 1.0;
-                live2dPlane.material.needsUpdate = true;
-                live2dPlane.userData.name = "Live2D Avatar";
-                live2dPlane.userData.status = 'active';
-                console.log("[Main Animate] Live2D texture assigned to plane material.");
-                if (lastIntersected === live2dPlane) updateInfoPanel(live2dPlane);
+            if (criticalError) return;
+            requestAnimationFrame(animate);
+            if (threeInitialized && scene && camera && renderer) {
+                renderer.render(scene, camera);
             }
-        }
-
-        try {
-            live2dState.pixiApp.renderer.render(live2dState.pixiApp.stage);
-            live2dTexture.needsUpdate = true;
-        } catch (error) {
-            console.error("[Main Animate] Error during Pixi/Live2D render:", error);
-            if (live2dPlane && live2dPlane.userData.status !== 'render_error') {
-                live2dPlane.material.color.set(0x664422);
-                live2dPlane.userData.name = "Live2D Avatar (Render Error)";
-                live2dPlane.userData.status = 'render_error';
-                if (lastIntersected === live2dPlane) updateInfoPanel(live2dPlane);
-            }
-        }
-    }
-
-    if (controls && controls.enabled) controls.update();
-    if (renderer && scene && camera) renderer.render(scene, camera);
-    if (labelRenderer && scene && camera) labelRenderer.render(scene, camera);
-}
-
-        function onWindowResize() {
-            if (!container || !camera || !renderer || !labelRenderer) return;
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-            labelRenderer.setSize(width, height);
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("[Main Mod] DOM ready. Initializing Three.js part...");
-            try {
-                initMain();
-            } catch (error) {
-                console.error("[Main Mod] Initialization failed:", error);
-                const errContainer = document.querySelector('.threejs-container');
-                if (errContainer) {
-                    errContainer.innerHTML = `<div class="error-message">Error initializing 3D visualization: ${error.message}<br>Check console (F12).</div>`;
-                } else {
-                    document.body.appendChild(document.createElement('div')).className = 'error-message';
-                    document.body.lastChild.innerHTML = `Error initializing 3D visualization: ${error.message}<br>Check console (F12).`;
+            if (conceptInitialized && conceptScene && conceptCamera && conceptRenderer && conceptLabelRenderer) {
+                const delta = conceptClock.getDelta();
+                Object.values(conceptNodes).forEach(node => {
+                    node.object.rotation.y += delta * 0.2;
+                });
+                if (agentStateMesh) {
+                    agentStateMesh.rotation.y += delta * 0.3;
                 }
-                if (infoPanel) infoPanel.style.display = 'none';
+                if (emergenceCoreMesh) {
+                    emergenceCoreMesh.rotation.x += delta * 0.2;
+                    emergenceCoreMesh.rotation.z += delta * 0.2;
+                }
+                conceptControls.update();
+                conceptRenderer.render(conceptScene, conceptCamera);
+                conceptLabelRenderer.render(conceptScene, conceptCamera);
             }
-        });
+            if (live2dInitialized && pixiApp && live2dModel) {
+                pixiApp.render();
+            }
+        }
+
+        function cleanup() {
+            if (threeInitialized && renderer) {
+                renderer.dispose();
+                document.getElementById('syntrometry-panel').removeChild(renderer.domElement);
+            }
+            if (conceptInitialized && conceptRenderer && conceptLabelRenderer) {
+                conceptRenderer.dispose();
+                conceptLabelRenderer.domElement.remove();
+                document.getElementById('concept-panel').removeChild(conceptRenderer.domElement);
+            }
+            if (pixiApp) {
+                pixiApp.destroy(true);
+            }
+            window.removeEventListener('resize', onWindowResize);
+            window.removeEventListener('resize', onConceptWindowResize);
+            if (conceptContainer) {
+                conceptContainer.removeEventListener('mousemove', onConceptMouseMove);
+                conceptContainer.removeEventListener('click', onConceptClick);
+            }
+        }
+
+        async function initialize() {
+            const threeSuccess = initThreeJS();
+            const conceptSuccess = initConceptVisualization();
+            const live2dSuccess = await initLive2D();
+            const agentSuccess = initAgentAndEnvironment();
+            if (!threeSuccess || !conceptSuccess || !agentSuccess) {
+                displayError("Initialization failed for one or more components.", true);
+                return;
+            }
+            handleChatInput();
+            setupControls();
+            const initialState = environment.reset();
+            currentStateVector = initialState.state.arraySync()[0];
+            currentAgentEmotions = environment.baseEmotions;
+            const initialAgentResponse = await agent.process(currentStateVector, 0.5, 0.5, { eventType: null, reward: 0 });
+            updateThreeJS(currentStateVector, initialAgentResponse.rihScore, initialAgentResponse.affinities, 0.5, 0.5);
+            updateAgentSimulationVisuals(initialAgentResponse.emotions, initialAgentResponse.rihScore, initialAgentResponse.affinities.reduce((a, b) => a + b, 0) / (initialAgentResponse.affinities.length || 1), initialAgentResponse.hmLabel);
+            updateMetricsDisplay(initialAgentResponse.rihScore, initialAgentResponse.affinities, initialAgentResponse.emotions, 'Initialized');
+            updateLive2D(initialAgentResponse.emotions, initialAgentResponse.hmLabel);
+            animate();
+        }
+
+        window.addEventListener('load', initialize);
+        window.addEventListener('beforeunload', cleanup);
     </script>
 </body>
 </html>
