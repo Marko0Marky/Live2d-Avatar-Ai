@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heim's Syntrometric Theory & Live2D Agent Demo (Refactored)</title>
+    <title>Heim's Syntrometric Theory & Live2D Agent Demo</title>
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,781 +11,2846 @@
 
     <style>
         :root {
-            --background-color: #111122; --text-color: #eeeeee; --container-background: #1e1e2a;
-            --container-border-color: #333355; --accent-color: #00aaff; --link-hover-color: #66ccff;
-            --viz-background: #111122; --info-panel-bg: rgba(40, 40, 60, 0.9); --info-panel-text: #eeeeee;
-            --shadow-color: rgba(0, 0, 0, 0.5); --text-muted: #aaaaaa;
+            --background-color: #111122;
+            --text-color: #eeeeee;
+            --container-background: #1e1e2a;
+            --container-border-color: #333355;
+            --accent-color: #00aaff;
+            --link-hover-color: #66ccff;
+            --viz-background: #1a1a1a;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --text-muted: #aaaaaa;
         }
         body {
-            font-family: 'Inter', sans-serif; line-height: 1.7; margin: 0; overflow-x: hidden;
-            background-color: var(--background-color); color: var(--text-color); font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            margin: 0;
+            overflow-x: hidden;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-size: 16px;
         }
         header {
-            background: linear-gradient(135deg, #1f1f2f 0%, #2c2c3f 100%); color: var(--text-color);
-            padding: 2rem 1rem; text-align: center; box-shadow: 0 2px 4px var(--shadow-color);
+            background: linear-gradient(135deg, #1f1f2f 0%, #2c2c3f 100%);
+            color: var(--text-color);
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px var(--shadow-color);
         }
-        header h1 { margin: 0 0 0.5rem 0; font-weight: 700; font-size: 2.2rem; }
-        header p { margin: 0; font-size: 1.1rem; color: var(--text-muted); }
+        header h1 {
+            margin: 0 0 0.5rem 0;
+            font-weight: 700;
+            font-size: 2.2rem;
+        }
+        header p {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
         .container {
-            max-width: 900px; margin: 2rem auto; padding: 2rem; background: var(--container-background);
-            border-radius: 8px; border: 1px solid var(--container-border-color); box-shadow: 0 4px 12px var(--shadow-color);
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--container-background);
+            border-radius: 8px;
+            border: 1px solid var(--container-border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
         }
         h2 {
-            color: var(--accent-color); margin-top: 0; margin-bottom: 1.5rem; font-weight: 600;
-            border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem;
+            color: var(--accent-color);
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 0.5rem;
         }
-        h3 { color: var(--accent-color); margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 600; }
-        p { margin: 0 0 1rem 0; }
-        a { color: var(--accent-color); text-decoration: none; font-weight: 600; transition: color 0.3s ease; }
-        a:hover, a:focus { color: var(--link-hover-color); text-decoration: underline; }
-        ul { list-style: none; padding-left: 0; }
-        li { margin-bottom: 0.75rem; position: relative; padding-left: 1.5rem; }
-        li::before { content: '→'; position: absolute; left: 0; color: var(--accent-color); font-weight: bold; }
-        .quick-links-list li::before { content: '🔗'; }
-        .threejs-container {
-            width: 100%; height: 650px; margin: 2rem 0; background-color: var(--viz-background);
-            position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--container-border-color);
+        h3 {
+            color: var(--accent-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        p {
+            margin: 0 0 1rem 0;
+        }
+        a {
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        a:hover, a:focus {
+            color: var(--link-hover-color);
+            text-decoration: underline;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        li {
+            margin-bottom: 0.75rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+        li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .quick-links-list li::before {
+            content: '🔗';
+        }
+        .threejs-container, .threejs-container-concept {
+            width: 100%;
+            height: 650px;
+            margin: 2rem 0;
+            background-color: var(--viz-background);
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--container-border-color);
             box-shadow: inset 0 0 10px var(--shadow-color);
         }
-        canvas { display: block; }
-        .label {
-            color: #fff; font-family: 'Inter', sans-serif; padding: 3px 6px; background: rgba(0, 0, 0, 0.7);
-            border-radius: 4px; font-size: 11px; font-weight: 600; pointer-events: none; user-select: none;
-            white-space: nowrap; position: absolute; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); transform: translate(-50%, 0);
-        }
-        #info-panel {
-            position: absolute; top: 15px; left: 15px; background-color: var(--info-panel-bg);
-            color: var(--info-panel-text); padding: 12px 18px; border-radius: 6px; max-width: 300px;
-            font-size: 13px; border: 1px solid var(--container-border-color); box-shadow: 0 2px 10px var(--shadow-color);
-            z-index: 10; pointer-events: none; backdrop-filter: blur(3px); transition: opacity 0.2s ease-in-out; opacity: 1;
-        }
-        #info-panel:empty { opacity: 0; }
-        #info-panel h3 {
-            margin: 0 0 8px 0; color: var(--accent-color); font-size: 15px; font-weight: 700;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 6px;
-        }
-        #info-panel p { margin: 4px 0; line-height: 1.5; }
-        #info-panel p b { color: #aaaaff; font-weight: 600; margin-right: 5px; }
-        #info-panel .simulated-data { color: #ffcc66; font-style: italic; font-size: 12px; }
-        #info-panel .links-list {
-            margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 12px; color: #cccccc;
-        }
-        #info-panel .links-list b { color: #aaccaa; }
-        #live2d-offscreen-canvas {
-            position: fixed; top: -9999px; left: -9999px; width: 512px; height: 512px;
-            opacity: 0; pointer-events: none; visibility: hidden;
+        canvas {
+            display: block;
         }
         .error-message {
-            color: #ff4444; background-color: #2a1e2a; border: 1px solid #553355;
-            padding: 1rem; border-radius: 6px; text-align: center; font-weight: bold;
+            color: #ff4444;
+            background-color: #2a1e2a;
+            border: 1px solid #553355;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
             margin-top: 1rem;
+            z-index: 10000;
+        }
+        .threejs-container .error-message, .threejs-container-concept .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 80%;
+        }
+        #live2d-container {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+            height: 400px;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            overflow: hidden; /* Ensure Live2D doesn't overflow */
+        }
+        #chat-container {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 350px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+        #chat-output {
+            height: 150px;
+            overflow-y: auto;
+            color: #ccc;
+            margin-bottom: 10px;
+            border: 1px solid #444;
+            padding: 8px;
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        #chat-output div {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        #chat-output div b {
+            color: #8bf;
+        }
+        #chat-input {
+            width: calc(100% - 16px);
+            padding: 8px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        #chat-input:hover, #chat-input:focus {
+            border-color: #8bf;
+            outline: none;
+        }
+        #controls {
+            position: absolute;
+            top: 180px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+            width: 250px;
+        }
+        #metrics {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+        #controls label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        #controls input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        #controls input[type="range"]:hover {
+            cursor: pointer;
+        }
+        #controls span {
+            color: #aaa;
+            font-size: 0.9em;
+            margin-left: 8px;
+        }
+        #chat-output::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-output::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+        #chat-output::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        #chat-output::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+        #live2d-offscreen-canvas {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 512px;
+            height: 512px;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-size: 0.9em;
+            color: var(--text-color);
+            border: 1px solid var(--container-border-color);
+        }
+        #info-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.2em;
+            color: var(--accent-color);
+        }
+        #info-panel p {
+            margin: 5px 0;
+        }
+        #info-panel .links-list {
+            margin-top: 10px;
+        }
+        .label {
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
+        }
+        .simulated-data {
+            color: #66ccff;
         }
     </style>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
-            }
-        }
-    </script>
 </head>
 <body>
     <header>
-        <h1>Heim's Syntrometric Theory Visualization & Live2D Agent Demo</h1>
-        <p>Explore Burkhard Heim's unified field theory and a conceptual demo of an integrated AI agent with Live2D.</p>
+        <h1>Heim's Syntrometric Theory & Live2D Agent Demo</h1>
+        <p>Interactive visualization of Syntrometric concepts with an AI-driven Live2D agent.</p>
     </header>
 
     <div class="container">
-        <h2>About Syntrometric Theory</h2>
-        <p>Burkhard Heim's Syntrometric Theory describes reality as a 12-dimensional quantized system, integrating physics and consciousness. Key concepts include the Syntrix, Metrons, Dimensions (R1-R12), Strukturkaskaden, and Telezentrik.</p>
-        <h3>Quick Links</h3>
-        <ul class="quick-links-list">
-            <li><a href="research/syntrometrie_framework.html" title="View 2D Diagram">Syntrometrie Framework Diagram</a></li>
-            <li><a href="research/conscious_agent_arch.html" title="View Agent Architecture">Conscious Agent Architecture Diagram</a></li>
-            <li><a href="../README.md" title="Go to Main Project Readme">Main Project README</a></li>
-            <li><a href="https://heim-theory.com/" target="_blank" title="External Resource (Opens New Tab)">Heim Theory Resources</a></li>
-        </ul>
-    </div>
-
-    <div class="container">
-        <h2>Interactive 3D Model & Live2D Agent Demo</h2>
-        <p>The visualization shows Syntrometric concepts and integrates a Live2D avatar placeholder. The agent's simulated internal state influences the avatar's parameters and an "Emergence Core". Hover for details. Use mouse/touch to explore.</p>
-        <div class="threejs-container">
-            <div id="info-panel"></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 2rem;">
+            <div style="flex: 1; min-width: 300px;">
+                <h2>Syntrometric Theory</h2>
+                <p>
+                    Heim's Syntrometric Theory proposes a framework for understanding complex systems through higher-dimensional interactions of Syntrix and Metrons, governed by Reflexive Integration and Structural Condensation. This demo visualizes these concepts interactively, with an AI agent reflecting emotional states via a Live2D avatar.
+                </p>
+                <h3>Quick Links</h3>
+                <ul class="quick-links-list">
+                    <li><a href="/metron-analysis">Metron Analysis</a>: Explore the fundamental units of Syntrometric systems.</li>
+                    <li><a href="/syntrix-explorer">Syntrix Explorer</a>: Interact with dynamic Syntrix formations.</li>
+                    <li><a href="/rih-calculator">RIH Calculator</a>: Compute Reflexive Integration scores.</li>
+                    <li><a href="/cascade-simulator">Cascade Simulator</a>: Simulate Structural Condensation cascades.</li>
+                </ul>
+            </div>
+            <div style="flex: 1; min-width: 300px;">
+                <h2>Interactive Visualization</h2>
+                <p>Control the simulation parameters and observe the agent's emotional responses in real-time.</p>
+                <div class="threejs-container" id="syntrometry-panel">
+                    <div id="error-message" class="error-message"></div>
+                    <div id="live2d-container"></div>
+                    <div id="chat-container">
+                        <div id="chat-output"><div><b>System:</b> Welcome to the Syntrometric Simulation.</div></div>
+                        <input id="chat-input" type="text" placeholder="Interact with the simulation...">
+                    </div>
+                    <div id="metrics">Loading metrics...</div>
+                    <div id="controls">
+                        <label for="integration-slider">Integration (I(S)): <span id="integration-value">0.50</span></label>
+                        <input type="range" id="integration-slider" min="0" max="1" step="0.01" value="0.5">
+                        <label for="reflexivity-slider">Reflexivity (Ψ): <span id="reflexivity-value">0.50</span></label>
+                        <input type="range" id="reflexivity-slider" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                </div>
+                <h2>Concept Graph Visualization</h2>
+                <p>Explore the relationships between Syntrometric concepts with interactive tooltips.</p>
+                <div class="threejs-container-concept" id="concept-panel">
+                    <div id="concept-error-message" class="error-message"></div>
+                    <div id="info-panel"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <canvas id="live2d-offscreen-canvas"></canvas>
 
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.3/dist/pixi.min.js"></script>
-    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
-
     <script>
-        window.sharedLive2DState = {
-            pixiApp: null,
-            live2dModel: null,
-            live2dCanvas: null,
-            initialized: false,
-            error: null
+        function handleScriptError(library, fallback, message) {
+            console.error(`[Error] Failed to load ${library}. ${message || ''}`);
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                 errorDiv.innerHTML += `[Error] Failed to load ${library}. ${message || ''}<br>`;
+                 errorDiv.style.display = 'block';
+            } else {
+                 console.error("Error message container not found.");
+            }
+
+            if (fallback) {
+                console.log(`[Error] Attempting to load fallback: ${fallback}`);
+                const script = document.createElement('script');
+                script.src = fallback;
+                script.onerror = () => console.error(`[Error] Fallback script ${fallback} also failed.`);
+                document.head.appendChild(script);
+            }
+        }
+
+        // Suppress X3557 shader warnings (present in Three.js examples sometimes)
+        const originalConsoleWarn = console.warn;
+        console.warn = function (...args) {
+            if (typeof args[0] === 'string' && args[0].includes('gl.getProgramInfoLog') && args[0].includes('X3557')) {
+                return; // Suppress X3557 warnings
+            }
+            originalConsoleWarn.apply(console, args);
         };
-    
-        console.log("[Live2D Init] Initializing sharedLive2DState.");
-    
-        async function initLive2D() {
-            const requiredLibs = {
-                PIXI: window.PIXI,
-                CubismCore: window.Live2DCubismCore,
-                Live2DPlugin: window.PIXI?.live2d
-            };
-    
-            for (const [name, lib] of Object.entries(requiredLibs)) {
-                if (!lib) {
-                    throw new Error(`Missing dependency: ${name}`);
-                }
-            }
-    
-            const canvas = document.getElementById('live2d-offscreen-canvas');
-            if (!canvas) {
-                throw new Error("Live2D canvas element not found.");
-            }
-    
-            const app = new PIXI.Application({
-                view: canvas,
-                width: 512,
-                height: 512,
-                backgroundAlpha: 0,
-                antialias: true,
-                powerPreference: "high-performance"
-            });
-    
-            try {
-                const modelPath = 'https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Hiyori/Hiyori.model3.json'; // Option 2: CDN
-                const model = await PIXI.live2d.Live2DModel.from(modelPath, {
-                    autoInteract: false,
-                    motionPreload: 'NONE'
-                });
-    
-                model.anchor.set(0.5, 0.5);
-                model.position.set(app.screen.width / 2, app.screen.height * 0.8);
-                model.scale.set(0.2, 0.2);
-                app.stage.addChild(model);
-    
-                window.sharedLive2DState = {
-                    pixiApp: app,
-                    live2dModel: model,
-                    live2dCanvas: app.view,
-                    initialized: true
-                };
-    
-                console.log("[Live2D Init] Model loaded successfully:", modelPath);
-            } catch (error) {
-                console.error("[Live2D Init] Model loading failed:", error);
-                throw new Error(`Model loading failed: ${error.message}`);
-            }
-        }
-    
-        function showErrorToUser(message) {
-            const existing = document.getElementById('live2d-error-message');
-            if (existing) existing.remove();
-    
-            const errorDiv = document.createElement('div');
-            errorDiv.id = 'live2d-error-message';
-            errorDiv.className = 'error-message';
-            errorDiv.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                padding: 15px;
-                background: #ff4444;
-                color: white;
-                border-radius: 5px;
-                z-index: 10000;
-                max-width: 80%;
-                text-align: center;
-                font-family: 'Inter', sans-serif;
-            `;
-            errorDiv.textContent = message;
-            document.body.appendChild(errorDiv);
-            console.log("[Live2D Init] Displayed error message to user.");
-        }
-    
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("[Live2D Init] DOM ready. Starting Live2D init...");
-            const timeout = setTimeout(() => {
-                if (!window.sharedLive2DState.initialized && !window.sharedLive2DState.error) {
-                    window.sharedLive2DState.error = "Live2D initialization timed out.";
-                    showErrorToUser("Live2D initialization timed out. Check model path or network.");
-                }
-            }, 10000);
-            initLive2D().then(() => clearTimeout(timeout)).catch((error) => {
-                clearTimeout(timeout);
-                window.sharedLive2DState.error = error.message;
-                showErrorToUser(error.message);
-            });
-        });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"
+        onerror="handleScriptError('TensorFlow.js', null, 'Could not load TensorFlow.js.')"></script>
+    <script src="https://unpkg.com/three@0.132.2/build/three.min.js"
+        onerror="handleScriptError('Three.js', 'https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js', 'Could not load Three.js.')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"
+        onerror="handleScriptError('OrbitControls', null, 'Could not load OrbitControls.')"></script>
+     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/renderers/CSS2DRenderer.js"
+        onerror="handleScriptError('CSS2DRenderer', null, 'Could not load CSS2DRenderer.')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.3/dist/pixi.min.js"
+        onerror="handleScriptError('Pixi.js', 'https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.3/pixi.min.js', 'Could not load Pixi.js.')"></script>
+    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"
+        onerror="handleScriptError('Cubism 4 Core', null, 'Could not load Cubism 4 Core.')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"
+        onerror="handleScriptError('pixi-live2d-display', 'https://unpkg.com/pixi-live2d-display@0.4.0/dist/cubism4.min.js', 'Could not load pixi-live2d-display.')"></script>
+    <script>
+        console.log("[Debug] PIXI:", window.PIXI);
+        console.log("[Debug] Live2DCubismCore:", window.Live2DCubismCore);
+        console.log("[Debug] PIXI.live2d:", window.PIXI?.live2d);
+        console.log("[Debug] PIXI.live2d.Live2DModel:", window.PIXI?.live2d?.Live2DModel);
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+        let criticalError = false;
+        function displayError(message, isCritical = false, target = 'error-message') {
+            console.error(message);
+            const errorDiv = document.getElementById(target);
+             if (errorDiv) {
+                errorDiv.innerHTML += message + '<br>';
+                errorDiv.style.display = 'block';
+             } else {
+                console.error("Target error message container not found:", target);
+             }
 
-        console.log("[Main Mod] Main Three.js module loading...");
-
-        let scene, camera, renderer, labelRenderer, controls;
-        let raycaster, mouse;
-        let infoPanel;
-        const nodes = {};
-        const edges = [];
-        let container;
-        let clock;
-        let agentStateMesh, emergenceCoreMesh;
-        let agentStateLabel, emergenceCoreLabel;
-        const simulatedEmotions = new THREE.Vector3(0.5, 0.5, 0.5);
-        let simulatedPrevEmotions = simulatedEmotions.clone();
-        let simulatedIntegration = 0.5;
-        let simulatedReflexivity = 0.5;
-        const RHO_THRESHOLD = 0.8;
-        let simulatedThreshold = 0.6;
-        let emergenceActive = false;
-        let live2dPlane;
-        let live2dTexture = null;
-        let interactableObjects = [];
-
-        const conceptData = {
-            'reflexive_abstraction': { id: 'reflexive_abstraction', name: 'Reflexive Abstraktion', chapter: 1, position: new THREE.Vector3(0, 15, -20), type: 'method', links: ['syntrometry'], description: "Method to overcome subjective limits by analyzing reflection itself." },
-            'subjective_aspect': { id: 'subjective_aspect', name: 'Subjective Aspect (S)', chapter: 1, position: new THREE.Vector3(-10, 10, -18), type: 'structure', links: ['pradikatrix', 'dialektik', 'koordination', 'aspektivsystem'], description: "Contextual framework for statements; a viewpoint." },
-            'pradikatrix': { id: 'pradikatrix', name: 'Prädikatrix (Pm)', chapter: 1, position: new THREE.Vector3(-20, 15, -16), type: 'component', links: [], description: "Schema of potential statements/predicates." },
-            'dialektik': { id: 'dialektik', name: 'Dialektik (Dn)', chapter: 1, position: new THREE.Vector3(-15, 15, -16), type: 'component', links: [], description: "Schema of subjective qualifiers/biases." },
-            'koordination': { id: 'koordination', name: 'Koordination (Kn)', chapter: 1, position: new THREE.Vector3(-10, 15, -16), type: 'component', links: [], description: "Mechanism linking Prädikatrix and Dialektik." },
-            'aspektivsystem': { id: 'aspektivsystem', name: 'Aspektivsystem (P)', chapter: 1, position: new THREE.Vector3(10, 10, -18), type: 'structure', links: ['metropie', 'idee'], description: "Collection of related subjective aspects." },
-            'metropie': { id: 'metropie', name: 'Metropie (g)', chapter: 1, position: new THREE.Vector3(20, 15, -16), type: 'property', links: [], description: "Metric defining 'distance' between aspects." },
-            'idee': { id: 'idee', name: 'Idee (Apodiktic Core)', chapter: 1, position: new THREE.Vector3(15, 5, -16), type: 'core', links: [], description: "Invariant elements within an Aspektivsystem." },
-            'syntrometry': { id: 'syntrometry', name: 'Syntrometrie', chapter: 1, position: new THREE.Vector3(0, 0, -18), type: 'framework', links: ['syntrix'], description: "Heim's universal logic derived from Reflexive Abstraction." },
-            'syntrix': { id: 'syntrix', name: 'Syntrix (ã|=)', chapter: 2, position: new THREE.Vector3(0, 0, -10), type: 'structure', links: ['metrophor', 'synkolator', 'synkolation_stage', 'korporator'], description: "Formal, recursive structure embodying a Category." },
-            'metrophor': { id: 'metrophor', name: 'Metrophor (ã)', chapter: 2, position: new THREE.Vector3(-10, 5, -8), type: 'core', links: ['idee'], description: "Invariant core (Idee) of a Syntrix; base elements." },
-            'synkolator': { id: 'synkolator', name: 'Synkolator ({)', chapter: 2, position: new THREE.Vector3(0, 5, -8), type: 'operator', links: [], description: "Recursive correlation law generating complexity." },
-            'synkolation_stage': { id: 'synkolation_stage', name: 'Synkolation Stage (m)', chapter: 2, position: new THREE.Vector3(10, 5, -8), type: 'parameter', links: [], description: "Arity/depth of the Synkolator." },
-            'korporator': { id: 'korporator', name: 'Korporator ({})', chapter: 3, position: new THREE.Vector3(0, -5, -5), type: 'operator', links: ['syntrix'], description: "Operator combining multiple Syntrices." },
-        };
-
-        function initMain() {
-            container = document.querySelector('.threejs-container');
-            infoPanel = document.getElementById('info-panel');
-            if (!container) { console.error("[Main Mod] Container not found"); return; }
-            if (infoPanel) infoPanel.innerHTML = ''; else console.warn("[Main Mod] Info panel not found.");
-
-            clock = new THREE.Clock();
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111122);
-            scene.fog = new THREE.Fog(0x111122, 60, 160);
-            camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000);
-            camera.position.set(0, 15, 55);
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(width, height);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
-            labelRenderer = new CSS2DRenderer();
-            labelRenderer.setSize(width, height);
-            labelRenderer.domElement.style.position = 'absolute';
-            labelRenderer.domElement.style.top = '0px';
-            labelRenderer.domElement.style.left = '0px';
-            labelRenderer.domElement.style.pointerEvents = 'none';
-            container.appendChild(labelRenderer.domElement);
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.minDistance = 10;
-            controls.maxDistance = 150;
-            controls.target.set(0, 5, -10);
-            controls.update();
-            const ambientLight = new THREE.AmbientLight(0x8080a0);
-            scene.add(ambientLight);
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
-            dirLight1.position.set(5, 10, 7).normalize();
-            scene.add(dirLight1);
-            const dirLight2 = new THREE.DirectionalLight(0xaaaaff, 0.5);
-            dirLight2.position.set(-5, -5, -5).normalize();
-            scene.add(dirLight2);
-
-            const planeHeight = 10;
-            const planeWidth = planeHeight * (512/512);
-            const planeGeo = new THREE.PlaneGeometry(planeWidth, planeHeight);
-            const planeMat = new THREE.MeshBasicMaterial({
-                color: 0x555566,
-                transparent: true,
-                opacity: 0.7,
-                side: THREE.DoubleSide,
-                map: null
-            });
-            live2dPlane = new THREE.Mesh(planeGeo, planeMat);
-            live2dPlane.position.set(0, -10, 0);
-            live2dPlane.userData = { type: 'live2d_avatar', name: "Live2D Avatar (Loading...) Status: Waiting for init" };
-            scene.add(live2dPlane);
-            console.log("[Main Mod] Placeholder Three.js plane created for Live2D.");
-
-            createNodes();
-            createEdges();
-            createAgentSimulationPlaceholders();
-
-            interactableObjects = Object.values(nodes).map(n => n.object);
-            if (agentStateMesh) interactableObjects.push(agentStateMesh);
-            if (live2dPlane) interactableObjects.push(live2dPlane);
-            if (emergenceCoreMesh) interactableObjects.push(emergenceCoreMesh);
-
-            setupInteraction();
-            window.addEventListener('resize', onWindowResize, false);
-            animate();
-            console.log("[Main Mod] Three.js scene initialized.");
+            if (isCritical) criticalError = true;
         }
 
-        function createNodes() {
-            const baseSize = 1.5;
-            const labelOffsetFactor = 0.6;
+        const Config = {
+            METRON_TAU: 0.1,
+            DIMENSIONS: 12, // Number of dimensions in the visible Syntrometry state vector
+            CASCADE_LEVELS: 4,
+            TELE_THRESHOLD: 0.85, // Not used in this version
+            DYSVARIANT_PROB: 0.02,
+            RIH_SCALE: 0.5,
+            Agent: {
+                // STATE_DIM: 524, // Complex theoretical state dimension (not used directly in this simplified demo)
+                BASE_STATE_DIM: 18, // Config.DIMENSIONS (12) + Config.Agent.EMOTION_DIM (6)
+                EMOTION_DIM: 6,
+                HIDDEN_DIM: 64, // For potential future TF models
+                HISTORY_SIZE: 10,
+                TAU: 0.01, // Not used in this version
+                ATTENTION_THRESHOLD: 0.7 // Not used in this version
+            },
+            Env: {
+                EVENT_FREQ: 0.01, // Reduced frequency for continuous sim
+                EVENT_DURATION: 120, // Longer duration for continuous sim (frames)
+                EVENT_GAP: 180 // Longer gap for continuous sim (frames)
+            }
+        };
+
+        // Ensure BASE_STATE_DIM matches the intended state vector size
+        Config.Agent.BASE_STATE_DIM = Config.DIMENSIONS + Config.Agent.EMOTION_DIM;
+
+
+        const emotionKeywords = {
+            0: { name: "Joy", keywords: ["happy", "joy", "great", "wonderful", "love", "good", "nice", "yay", "fun"], strength: 0.9, baseChange: 0.05 },
+            1: { name: "Fear", keywords: ["scary", "fear", "afraid", "nervous", "danger", "anxious", "worried"], strength: 0.9, baseChange: -0.05 },
+            2: { name: "Curiosity", keywords: ["interesting", "curious", "what", "how", "why", "explain", "learn", "question"], strength: 0.8, baseChange: 0.03 },
+            3: { name: "Frustration", keywords: ["ugh", "annoying", "frustrating", "bad", "hate", "stupid", "wrong", "error", "glitch"], strength: 0.8, baseChange: -0.05 },
+            4: { name: "Calm", keywords: ["calm", "peaceful", "relax", "quiet", "gentle", "serene", "okay", "fine"], strength: 0.7, baseChange: 0.04 },
+            5: { name: "Surprise", keywords: ["wow", "whoa", "surprise", "really", "omg", "sudden", "unexpected"], strength: 0.85, baseChange: 0.02 }
+        };
+        const emotionNames = Object.values(emotionKeywords).map(e => e.name);
+
+        const HEAD_MOVEMENT_LABELS = ["nod", "shake", "tilt_left", "tilt_right", "idle"];
+        const NUM_HEAD_MOVEMENTS = HEAD_MOVEMENT_LABELS.length;
+
+        function zeros(shape) {
+            if (!Array.isArray(shape) || shape.length === 0) return 0;
+            if (shape.length === 1) return new Array(shape[0]).fill(0);
+            return Array(shape[0]).fill(null).map(() => zeros(shape.slice(1)));
+        }
+
+        function tensor(data, shape) {
+            if (typeof tf === 'undefined') { displayError("TensorFlow.js not loaded, cannot create tensor.", false); return null; }
+            try {
+                return tf.tensor(data, shape);
+            } catch (e) {
+                displayError(`TensorFlow Error creating tensor: ${e.message}`, false);
+                return null;
+            }
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function clampArray(arr, min, max) {
+            return arr.map(x => clamp(x, min, max));
+        }
+
+        function norm(arr) {
+            return Math.sqrt(arr.reduce((sum, x) => sum + x * x, 0));
+        }
+
+        function softmax(arr) {
+            const maxVal = Math.max(...arr);
+            const exps = arr.map(x => Math.exp(x - maxVal));
+            const sumExps = exps.reduce((a, b) => a + b, 0);
+            return exps.map(e => e / sumExps);
+        }
+
+        function lerp(start, end, t) {
+            return start + (end - start) * t;
+        }
+
+        function appendChatMessage(sender, message) {
+            const chatOutput = document.getElementById('chat-output');
+            if (!chatOutput) return;
+            const messageDiv = document.createElement('div');
+            messageDiv.innerHTML = `<b>${sender}:</b> ${message}`;
+            chatOutput.appendChild(messageDiv);
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+        }
+
+        class Enyphansyntrix {
+            constructor(type = 'discrete') {
+                this.type = type;
+            }
+
+            apply(state) {
+                if (this.type === 'discrete') {
+                    return state.map(x => Math.round(x / Config.METRON_TAU) * Config.METRON_TAU);
+                } else {
+                    // Continuous adds noise/perturbation
+                    return state.map(x => x + (Math.random() - 0.5) * Config.METRON_TAU * 0.5);
+                }
+            }
+        }
+
+        class Affinitaetssyndrom {
+            // Computes similarity between two syndromes/tensors
+            compute(syndromeA, syndromeB) {
+                if (!syndromeA || !syndromeB || typeof tf === 'undefined') {
+                    //console.warn("[Affinitaetssyndrom] Invalid inputs or TensorFlow.js not loaded.");
+                    return tf.scalar(0);
+                }
+
+                try {
+                    return tf.tidy(() => {
+                        let tensorA = (syndromeA instanceof tf.Tensor) ? syndromeA : tf.tensor1d(Array.isArray(syndromeA) ? syndromeA : [syndromeA]);
+                        let tensorB = (syndromeB instanceof tf.Tensor) ? syndromeB : tf.tensor1d(Array.isArray(syndromeB) ? syndromeB : [syndromeB]);
+
+                        if (tensorA.rank === 0) tensorA = tf.tensor1d([tensorA.arraySync()]);
+                        if (tensorB.rank === 0) tensorB = tf.tensor1d([tensorB.arraySync()]);
+
+                        if (tensorA.rank < 1 || tensorB.rank < 1) {
+                            //console.warn("[Affinitaetssyndrom] Invalid tensor ranks:", tensorA.rank, tensorB.rank);
+                            return tf.scalar(0);
+                        }
+
+                        tensorA = tensorA.rank === 1 ? tensorA : tensorA.flatten();
+                        tensorB = tensorB.rank === 1 ? tensorB : tensorB.flatten();
+
+                        // Pad shorter tensor with zeros to match lengths
+                        const maxLength = Math.max(tensorA.shape[0], tensorB.shape[0]);
+                        if (tensorA.shape[0] < maxLength) {
+                            const padLength = maxLength - tensorA.shape[0];
+                            tensorA = tf.pad(tensorA, [[0, padLength]]);
+                        } else if (tensorB.shape[0] < maxLength) {
+                            const padLength = maxLength - tensorB.shape[0];
+                            tensorB = tf.pad(tensorB, [[0, padLength]]);
+                        }
+
+                        const normA = tf.norm(tensorA);
+                        const normB = tf.norm(tensorB);
+
+                        const normAValue = normA.arraySync();
+                        const normBValue = normB.arraySync();
+
+                        if (normAValue === 0 || normBValue === 0) {
+                            //console.warn("[Affinitaetssyndrom] Zero norm detected.");
+                            return tf.scalar(0);
+                        }
+
+                        const dotProduct = tf.dot(tensorA, tensorB);
+                        const similarity = dotProduct.div(tf.mul(normA, normB)).clipByValue(-1, 1); // Cosine similarity
+
+                        tf.dispose([dotProduct, normA, normB]); // Dispose intermediate tensors
+                         return similarity; // Return the result tensor
+                    });
+                } catch (e) {
+                    displayError(`TF Error in Affinitaetssyndrom compute: ${e.message}`, false);
+                    console.error("[Affinitaetssyndrom] Full error:", e);
+                    return tf.scalar(0);
+                }
+            }
+        }
+        class Synkolator {
+            constructor(type = 'pyramidal', stage = 2) {
+                this.type = type; // 'pyramidal' or 'average'
+                this.stage = stage; // Number of elements to combine per step (for pyramidal)
+            }
+
+            // Applies the synkolation rule to a level of elements
+            apply(elements) {
+                if (!elements || elements.length === 0) return []; // Return empty for no elements
+
+                if (this.type === 'pyramidal') {
+                    // Combine elements in groups of 'stage'
+                    const syndromes = [];
+                    // Check if enough elements exist to form at least one group
+                    if (elements.length < this.stage) {
+                         // Cannot form a full group, return a minimal representation or empty
+                        // For simplicity, let's return an average if less than stage elements but more than 0
+                        if (elements.length > 0) {
+                             const avg = elements.reduce((a, b) => a + b, 0) / elements.length;
+                            return [avg]; // Return just the average
+                        }
+                         return []; // No elements, return empty
+                    }
+
+                    for (let i = 0; i < elements.length - (this.stage - 1); i++) {
+                        let sum = 0;
+                        for(let j = 0; j < this.stage; j++) {
+                            sum += elements[i + j];
+                        }
+                        syndromes.push(sum / this.stage); // Average of the group
+                    }
+
+                    return syndromes;
+
+                } else if (this.type === 'average') {
+                    // Simple average of all elements
+                    const avg = elements.reduce((a, b) => a + b, 0) / elements.length;
+                    return [avg]; // Return just the average
+                }
+                 // Default case: return original elements if type is unknown or not handled
+                 console.warn(`Unknown Synkolator type: ${this.type}. Returning empty.`);
+                 return []; // Return empty array for unhandled type
+            }
+        }
+
+        class ReflexiveIntegration {
+            // Computes the Reflexive Integration Hierarchy (RIH) score
+            compute(syndromesTensor) {
+                if (!syndromesTensor || typeof tf === 'undefined') return tf.scalar(0); // Return scalar 0 if no tensor/TF
+
+                try {
+                    return tf.tidy(() => {
+                        // Need at least 2 elements to compute variance
+                        if (syndromesTensor.size < 2) return tf.scalar(0);
+
+                        const mean = tf.mean(syndromesTensor);
+                        const variance = tf.moments(syndromesTensor).variance;
+                        const varianceVal = variance.arraySync();
+
+                        // Avoid division by zero or very small variance
+                        if (varianceVal < 1e-9) { // Use a small tolerance
+                             tf.dispose([mean, variance]); // Clean up tensors
+                             return tf.scalar(0);
+                        }
+
+                        // RIH formula approximation: |mean / sqrt(variance)| * scale
+                        // Clip the result between 0 and 1
+                        const rihScore = tf.abs(mean.div(tf.sqrt(variance))).mul(Config.RIH_SCALE).clipByValue(0, 1);
+
+                         tf.dispose([mean, variance]); // Clean up tensors
+                        return rihScore;
+                    });
+                } catch (e) {
+                    displayError(`TF Error in ReflexiveIntegration: ${e.message}`, false);
+                    return tf.scalar(0);
+                }
+            }
+        }
+
+        class Strukturkondensation {
+            constructor(levels, synkolatorStage = 2) {
+                this.levels = levels;
+                this.synkolators = [];
+                // Create a synkolator for each level
+                for (let i = 0; i < levels; i++) {
+                    this.synkolators.push(new Synkolator('pyramidal', synkolatorStage));
+                }
+            }
+
+            // Processes initial elements through the cascade levels
+            process(initialElements) {
+                // Ensure initial elements are an array
+                if (!Array.isArray(initialElements) || initialElements.length === 0) {
+                     // Return initial state as the only history level
+                    return [initialElements || []];
+                }
+
+                let currentLevelElements = [...initialElements];
+                const history = [currentLevelElements]; // Keep track of elements at each level
+
+                for (let i = 0; i < this.levels; i++) {
+                    const synkolator = this.synkolators[i];
+
+                    // Apply the synkolator rule to get elements for the next level
+                    const nextLevelElements = synkolator.apply(currentLevelElements);
+
+                    // If the next level is empty, stop the cascade
+                    if (!nextLevelElements || nextLevelElements.length === 0) {
+                         // Optionally push an empty array to history to mark the end level
+                        history.push([]);
+                        break;
+                    }
+
+                    history.push(nextLevelElements); // Add the new level to history
+                    currentLevelElements = nextLevelElements; // Set current elements to the new level
+                }
+
+                // Ensure the history has at least one level (the initial state)
+                if (history.length === 0 && initialElements.length > 0) {
+                    history.push([...initialElements]);
+                } else if (history.length === 0) {
+                     history.push([]); // Push an empty initial state if input was empty
+                }
+
+
+                return history;
+            }
+        }
+
+
+        class SyntrometricAgent {
+            constructor() {
+                // Enyphansyntrix for state transformation (continuous for this demo)
+                this.enyphansyntrix = new Enyphansyntrix('continuous');
+
+                // Operators for processing Syntrix structures
+                this.affinitaetssyndrom = new Affinitaetssyndrom(); // Computes affinity between syndromes
+                this.strukturkondensation = new Strukturkondensation(Config.CASCADE_LEVELS, 2); // Processes cascades (stage 2 means pairwise)
+                this.reflexiveIntegration = new ReflexiveIntegration(); // Computes RIH
+
+                // Simple TF.js models for emotional response and head movement
+                this.emotionalModule = null;
+                this.headMovementHead = null;
+
+                if (typeof tf !== 'undefined') {
+                    try {
+                        this.emotionalModule = this._buildEmotionalModel();
+                        this.headMovementHead = this._buildHeadMovementModel();
+                    } catch(e) {
+                        displayError(`Failed to build TF models: ${e.message}`, false);
+                        console.error("TF Model Build Error:", e);
+                    }
+                } else {
+                     displayError("TensorFlow.js not available, using fallback agent logic.", false);
+                }
+
+
+                this.emotionNames = emotionNames;
+
+                // Agent's internal state history and previous emotions
+                this.history = [];
+                // Initialize prevEmotions with a default state if TF is not available
+                 this.prevEmotions = (typeof tf !== 'undefined') ?
+                    tf.tensor([[0.6, 0.1, 0.3, 0.1, 0.5, 0.2]], [1, Config.Agent.EMOTION_DIM]) :
+                    tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]);
+            }
+
+             // Builds a simple TF sequential model for predicting emotions
+            _buildEmotionalModel() {
+                if (typeof tf === 'undefined') return null;
+                const model = tf.sequential();
+                // Input features: state vector + previous emotions + reward + event context (binary)
+                const inputDim = Config.Agent.BASE_STATE_DIM + Config.Agent.EMOTION_DIM + 1 + 1;
+                model.add(tf.layers.dense({ units: 32, inputShape: [inputDim], activation: 'relu' }));
+                model.add(tf.layers.dense({ units: 16, activation: 'relu' }));
+                // Output: EMOTION_DIM values representing emotion intensities (0-1)
+                model.add(tf.layers.dense({ units: Config.Agent.EMOTION_DIM, activation: 'sigmoid' }));
+                console.log("Emotional model built.");
+                return model;
+            }
+
+             // Builds a simple TF sequential model for predicting head movements
+            _buildHeadMovementModel() {
+                if (typeof tf === 'undefined') return null;
+                const model = tf.sequential();
+                 // Input features: RIH score + Avg Affinity + Dominant Emotion Index (as value) + Current Emotions
+                 const inputDim = 1 + 1 + 1 + Config.Agent.EMOTION_DIM;
+                model.add(tf.layers.dense({ units: 16, inputShape: [inputDim], activation: 'relu' }));
+                // Output: Logits for each head movement label
+                model.add(tf.layers.dense({ units: NUM_HEAD_MOVEMENTS }));
+                console.log("Head movement model built.");
+                return model;
+            }
+
+            // Processes the current state and generates agent responses
+            async process(rawState, integrationParam, reflexivityParam, environmentContext = { eventType: null, reward: 0 }) {
+                // Return fallback response if critical errors occurred during initialization
+                if (criticalError) {
+                     if (this.prevEmotions && typeof this.prevEmotions.dispose === 'function') {
+                         tf.dispose(this.prevEmotions);
+                     }
+                     this.prevEmotions = tensor(zeros([1,Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]); // Re-initialize placeholder
+                    return this._getFallbackResponse();
+                }
+
+                // Apply Enyphansyntrix to get the processed state
+                // Ensure rawState is an array before processing
+                const stateArray = Array.isArray(rawState) ? rawState : (rawState && typeof rawState.arraySync === 'function' ? rawState.arraySync()[0] : zeros([Config.Agent.BASE_STATE_DIM]));
+                const processedState = this.enyphansyntrix.apply(stateArray);
+
+                // Add to history (optional)
+                this.history.push(processedState);
+                if (this.history.length > Config.Agent.HISTORY_SIZE) this.history.shift();
+
+                // Perform Structural Condensation using only the first Config.DIMENSIONS from the state
+                const cascadeHistory = this.strukturkondensation.process(processedState.slice(0, Config.DIMENSIONS));
+
+                // Calculate Reflexive Integration Hierarchy (RIH)
+                // V1 RIH calculation: based on the *last* level of the cascade
+                const lastCascadeLevel = cascadeHistory.length > 0 ? cascadeHistory[cascadeHistory.length - 1] : [];
+                 // Ensure last level has at least 2 elements for variance calculation, pad if needed
+                 while(lastCascadeLevel.length < 2) {
+                     lastCascadeLevel.push(0); // Pad with zeros
+                 }
+                 const syndromesTensor = tensor(lastCascadeLevel, [lastCascadeLevel.length]); // Ensure tensor has correct shape
+
+                let rihScore = 0;
+                let rihScoreTensor = null;
+                 if(syndromesTensor && syndromesTensor.size >= 2) { // Need at least 2 elements for variance
+                     rihScoreTensor = this.reflexiveIntegration.compute(syndromesTensor);
+                     rihScore = rihScoreTensor ? rihScoreTensor.arraySync() : 0;
+                 } else {
+                     tf.dispose(syndromesTensor); // Dispose if not used for RIH
+                 }
+
+
+                // Calculate Affinities between consecutive cascade levels (V1 logic)
+                const affinities = []; // Store affinity scores for each level pair
+                if (cascadeHistory.length > 1 && typeof tf !== 'undefined') {
+                    for (let i = 0; i < cascadeHistory.length - 1; i++) {
+                         // Ensure levels have elements before creating tensors
+                         if (cascadeHistory[i] && cascadeHistory[i].length > 0 && cascadeHistory[i+1] && cascadeHistory[i+1].length > 0) {
+                            const level1 = tensor(cascadeHistory[i], [cascadeHistory[i].length]);
+                            const level2 = tensor(cascadeHistory[i+1], [cascadeHistory[i+1].length]);
+
+                             if (level1 && level2) { // Check tensor creation success
+                                const affinityTensor = this.affinitaetssyndrom.compute(level1, level2);
+                                affinities.push(affinityTensor ? affinityTensor.arraySync() : 0); // Store scalar affinity
+                                tf.dispose([level1, level2, affinityTensor]); // Dispose tensors
+                             } else {
+                                 affinities.push(0); // Add 0 if tensor creation failed
+                                 tf.dispose([level1, level2]); // Still try to dispose potential partial tensors
+                             }
+
+                         } else {
+                             affinities.push(0); // Add 0 if levels are empty
+                         }
+                    }
+                }
+                 // Calculate the average affinity across all level pairs
+                const avgAffinity = affinities.length > 0 ? affinities.reduce((a, b) => a + b, 0) / affinities.length : 0;
+
+
+                // --- Emotional Module (Predict agent emotions) ---
+                let currentEmotions;
+                 // Check if TF model is available and previous emotions tensor exists
+                 if (this.emotionalModule && this.prevEmotions && typeof tf !== 'undefined' && stateArray.length === Config.Agent.BASE_STATE_DIM) {
+                    try {
+                        currentEmotions = await tf.tidy(() => {
+                             // Use the full state array including emotion values added by the environment
+                            const stateTensor = tensor(stateArray, [1, Config.Agent.BASE_STATE_DIM]);
+                            const rewardTensor = tensor([[environmentContext.reward || 0]], [1, 1]);
+                             // Context signal: 1 if there's an event type, 0 otherwise
+                            const contextSignal = tensor([[environmentContext.eventType ? 1 : 0]], [1, 1]);
+
+                            // Combine inputs: state, previous emotions, reward, context
+                            const input = tf.concat([stateTensor, this.prevEmotions, rewardTensor, contextSignal], 1);
+
+                            // Predict new emotions
+                            const predictedEmotions = this.emotionalModule.predict(input);
+
+                            // Blend previous emotions with prediction (simple smoothing)
+                            const blendedEmotions = this.prevEmotions.mul(0.8).add(predictedEmotions.mul(0.2)).clipByValue(0, 1); // Keep emotions between 0 and 1
+
+                             tf.dispose([stateTensor, rewardTensor, contextSignal, input, predictedEmotions]); // Dispose tensors
+                             return blendedEmotions; // Return the new emotion tensor
+                        });
+                    } catch (e) {
+                        displayError(`TF Error during emotion prediction: ${e.message}`, false);
+                        // Fallback: Keep previous emotions if prediction fails
+                         currentEmotions = this.prevEmotions ? this.prevEmotions.clone() : tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]); // Clone if available
+                    }
+                 } else {
+                    // Fallback if TF model not available or input state is invalid
+                     if(this.prevEmotions && typeof this.prevEmotions.arraySync === 'function') {
+                         const prevEmoArray = this.prevEmotions.arraySync()[0];
+                        // Simple random walk with decay
+                         const newEmoArray = prevEmoArray.map(e => clamp(e * 0.98 + (Math.random() - 0.48) * 0.02, 0, 1));
+                         currentEmotions = tensor([newEmoArray], [1, Config.Agent.EMOTION_DIM]);
+                     } else {
+                        // Basic default if all else fails
+                         currentEmotions = tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]);
+                     }
+                }
+
+                // Dispose of the previous emotions tensor and store the current ones for the next step
+                 if (this.prevEmotions && typeof this.prevEmotions.dispose === 'function') {
+                    tf.dispose(this.prevEmotions);
+                 }
+                this.prevEmotions = currentEmotions.clone(); // Store clone for next step
+
+                // --- Head Movement Head (Predict head movement based on state) ---
+                let hmLabel = "idle"; // Default label
+                 // Get emotion values as array from the *newly computed* emotions
+                 const emotionArray = currentEmotions ? currentEmotions.arraySync()[0] : zeros([Config.Agent.EMOTION_DIM]);
+                 // Find the index of the dominant emotion
+                 const dominantEmotionIndex = emotionArray.length > 0 ? emotionArray.indexOf(Math.max(...emotionArray)) : -1;
+
+                 // Check if TF head movement model is available and required inputs exist
+                 if (this.headMovementHead && typeof tf !== 'undefined' && currentEmotions && dominantEmotionIndex !== -1) {
+                    try {
+                        const hmLogits = await tf.tidy(() => {
+                             // Input features: RIH, Avg Affinity, Dominant Emotion Index (as a single value), Current Emotions
+                            const rihTensor = tensor([[rihScore]], [1, 1]);
+                            const avgAffinityTensor = tensor([[avgAffinity]], [1, 1]);
+                             // Use the dominant emotion index as a numerical feature (simplified)
+                            const dominantEmotionTensor = tensor([[dominantEmotionIndex]], [1, 1]);
+                             // Reshape emotions tensor to match expected input shape
+                            const emotionTensorInput = currentEmotions.reshape([1, Config.Agent.EMOTION_DIM]);
+
+                            // Concatenate all inputs
+                            const input = tf.concat([rihTensor, avgAffinityTensor, dominantEmotionTensor, emotionTensorInput], 1);
+
+                            // Predict head movement logits
+                            const predictedLogits = this.headMovementHead.predict(input);
+
+                             tf.dispose([rihTensor, avgAffinityTensor, dominantEmotionTensor, emotionTensorInput, input]); // Dispose tensors
+                            return predictedLogits; // Return the logits tensor
+                        });
+
+                        // Get the index of the highest logit (most likely head movement)
+                        const hmIdx = tf.argMax(hmLogits, 1).arraySync()[0];
+                        hmLabel = HEAD_MOVEMENT_LABELS[hmIdx]; // Map index to label
+
+                        tf.dispose(hmLogits); // Dispose logits tensor
+
+                    } catch (e) {
+                        displayError(`TF Error during head movement prediction: ${e.message}`, false);
+                        console.error("TF Head Movement Error:", e);
+                        hmLabel = "idle"; // Fallback to idle on error
+                    }
+                 } else {
+                     // Fallback logic for head movement if TF model not available or inputs are invalid
+                     // Simple rules based on RIH, Affinity, and dominant emotion
+                     if (rihScore > 0.7) hmLabel = "nod";
+                     else if (avgAffinity < 0.2 && dominantEmotionIndex === emotionNames.indexOf("Frustration")) hmLabel = "shake";
+                     else if (dominantEmotionIndex === emotionNames.indexOf("Curiosity") && Math.random() > 0.5) hmLabel = Math.random() > 0.5 ? "tilt_left" : "tilt_right";
+                     else hmLabel = "idle";
+                 }
+
+
+                // Generate a simple text response summarization
+                 const dominantEmotionName = dominantEmotionIndex !== -1 ? emotionNames[dominantEmotionIndex] : 'Unknown';
+                 const responseText = `Processed state. RIH: ${rihScore.toFixed(2)}, Avg Affinity: ${avgAffinity.toFixed(2)}. Feeling: ${dominantEmotionName}.`;
+
+                 // Dispose of tensors that were created in this function and aren't returned (except currentEmotions)
+                tf.dispose([syndromesTensor, rihScoreTensor]);
+
+
+                return {
+                    cascadeHistory, // History of element values at each cascade level
+                    rihScore,      // Computed RIH score
+                    affinities,    // Affinities between cascade levels
+                    emotions: currentEmotions, // Tensor of current emotion intensities (needs to be cloned/managed externally if used after this function)
+                    hmLabel,       // Predicted head movement label
+                    responseText   // Agent's text response
+                };
+            }
+
+             // Fallback response structure in case of critical errors or agent initialization failure
+            _getFallbackResponse() {
+                const emptyCascade = [...Array(Config.DIMENSIONS)].map(() => 0);
+                // Ensure a minimal cascade history with at least 2 elements in the last level for potential RIH computation in fallback logic
+                const fallbackHistory = [emptyCascade];
+                 while(fallbackHistory[fallbackHistory.length - 1].length < 2) {
+                     fallbackHistory[fallbackHistory.length - 1].push(0);
+                 }
+                 if(fallbackHistory.length < 2) fallbackHistory.push([0,0]);
+
+
+                return {
+                    cascadeHistory: fallbackHistory,
+                    rihScore: 0,
+                    affinities: [0],
+                    emotions: tensor(zeros([1,Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]),
+                    hmLabel: "idle",
+                    responseText: "Simulation paused due to critical errors or missing components."
+                };
+            }
+        }
+
+        class EmotionalSpace {
+            constructor() {
+                // Define potential environment events, their context, and reward
+                this.events = [
+                    ["Joy", "A pleasant resonance occurs.", 1.5],
+                    ["Fear", "A dissonant pattern is detected.", -1.8],
+                    ["Curiosity", "An unexpected structural variation appears.", 1.2],
+                    ["Frustration", "System encounters processing resistance.", -1.0],
+                    ["Calm", "Patterns stabilize into harmony.", 0.8],
+                    ["Surprise", "A sudden cascade shift happens.", 1.6]
+                ];
+                this.emotionNames = this.events.map(e => e[0]); // Extract emotion names from events
+
+                // Base emotional tendency of the environment (starts neutral/calm)
+                // This influences the state vector over time, independent of agent emotions
+                this.baseEmotions = tensor([[0.6, 0.1, 0.3, 0.1, 0.5, 0.2]], [1, Config.Agent.EMOTION_DIM]);
+
+                // Timers for managing event occurrences
+                this.stepCount = 0; // Total simulation steps
+                this.eventTimer = 0; // Timer for active event duration (in animation frames)
+                this.gapTimer = Config.Env.EVENT_GAP; // Timer for gap between events (in animation frames)
+                this.currentEvent = null; // Currently active event details
+
+                // The main state vector representing the environment's condition
+                // Combines abstract dimensions with raw emotional "readings"
+                this.currentStateVector = new Array(Config.Agent.BASE_STATE_DIM).fill(0.0);
+
+                // Initialize the state vector based on the initial base emotions
+                this._updateStateVector(this.baseEmotions);
+            }
+
+            // Resets the environment to its initial state
+            reset() {
+                this.stepCount = 0;
+                this.eventTimer = 0;
+                this.gapTimer = Config.Env.EVENT_GAP;
+                this.currentEvent = null;
+                // Re-initialize base emotions and state vector
+                 if (this.baseEmotions && typeof this.baseEmotions.dispose === 'function') {
+                     tf.dispose(this.baseEmotions);
+                 }
+                this.baseEmotions = tensor([[0.6, 0.1, 0.3, 0.1, 0.5, 0.2]], [1, Config.Agent.EMOTION_DIM]);
+                this.currentStateVector.fill(0.0); // Reset state vector values
+                this._updateStateVector(this.baseEmotions); // Update state vector based on reset emotions
+                console.log("Environment Reset.");
+                return {
+                    state: this._getState() // Return the initial state tensor
+                };
+            }
+
+            // Advances the environment simulation by one step
+            // Takes agent's emotions, RIH, and Affinity to influence dynamics
+            async step(agentEmotionsTensor, currentRIHScore = 0, currentAvgAffinity = 0) {
+                this.stepCount++;
+                let reward = 0; // Reward for the agent in this step
+                let context = "Ambient fluctuations."; // Textual context of the environment state
+                let triggeredEventType = null; // Type of event triggered in this step (if any)
+
+                // Get agent's current emotion values as an array
+                const agentEmotions = agentEmotionsTensor && typeof agentEmotionsTensor.arraySync === 'function'
+                    ? agentEmotionsTensor.arraySync()[0]
+                    : zeros([Config.Agent.EMOTION_DIM]);
+
+                // Update the environment's base emotions, influenced by agent emotions and a tendency towards 0.5
+                const currentBaseEmotions = this.baseEmotions.arraySync()[0];
+                const newBaseEmotionsArray = currentBaseEmotions.map((baseVal, i) => {
+                     // Drift base emotions towards agent's emotion and a central tendency (0.5)
+                    const drift = (agentEmotions[i] - baseVal) * 0.005 + (0.5 - baseVal) * 0.001;
+                    return clamp(baseVal + drift, 0, 1); // Keep values within [0, 1]
+                });
+                 if (this.baseEmotions && typeof this.baseEmotions.dispose === 'function') {
+                     tf.dispose(this.baseEmotions);
+                 }
+                this.baseEmotions = tensor([newBaseEmotionsArray], [1, Config.Agent.EMOTION_DIM]); // Update base emotions tensor
+
+                // --- Event Management ---
+                if (this.eventTimer > 0) {
+                    // Event is currently active
+                    this.eventTimer--;
+                    context = this.currentEvent.context; // Use active event's context
+                    // Reward scales down as the event duration decreases
+                    reward = this.currentEvent.reward * (this.eventTimer / Config.Env.EVENT_DURATION);
+                    triggeredEventType = this.currentEvent.type; // Indicate event type is active
+
+                    if (this.eventTimer === 0) {
+                        // Event just ended
+                        this.currentEvent = null;
+                        this.gapTimer = Config.Env.EVENT_GAP; // Start the gap timer
+                        context = "Event concluded. System stabilizing.";
+                         // console.log("Event concluded.");
+                    }
+                } else if (this.gapTimer > 0) {
+                    // Gap between events is active
+                    this.gapTimer--;
+                    context = "System stable."; // Indicate stable state
+
+                } else {
+                    // Gap timer is zero, check if a new event should be triggered
+                    // Event frequency can be influenced by overall emotion intensity
+                    const emotionIntensity = agentEmotions.reduce((sum, val) => sum + val, 0) / Config.Agent.EMOTION_DIM; // Avg intensity
+                    // Probability increases slightly with higher emotion intensity (V1 influence)
+                    const triggerProb = Config.Env.EVENT_FREQ * (1 + emotionIntensity * 0.5);
+
+                    if (Math.random() < triggerProb) {
+                        // Trigger a new event
+                        // Select event biased by agent's dominant emotion (V1 influence)
+                         const dominantEmotionIdx = agentEmotions.indexOf(Math.max(...agentEmotions));
+                         const eventProbs = agentEmotions.map(e => e * 0.5 + 0.5); // Bias towards higher emotions, minimum 0.5 base
+                         const totalProb = eventProbs.reduce((a, b) => a + b, 0);
+                         const normalizedProbs = totalProb > 0 ? eventProbs.map(p => p / totalProb) : eventProbs.map(() => 1 / Config.Agent.EMOTION_DIM); // Handle zero total prob case
+
+                         let rand = Math.random();
+                         let eventIdx = 0;
+                         for (let i = 0; i < normalizedProbs.length; i++) {
+                             rand -= normalizedProbs[i];
+                             if (rand <= 0) {
+                                 eventIdx = i;
+                                 break;
+                             }
+                         }
+
+                        const eventData = this.events[eventIdx]; // Select event
+                        this.currentEvent = { type: eventData[0], context: eventData[1], reward: eventData[2] }; // Store event details
+                        context = this.currentEvent.context; // Set context
+                        triggeredEventType = this.currentEvent.type; // Set event type
+                        // Reward scales based on event's type and how much the agent feels that emotion (V1 influence)
+                        const emotionIndex = this.emotionNames.indexOf(this.currentEvent.type);
+                        reward = this.currentEvent.reward * (agentEmotions[emotionIndex] * 0.7 + 0.3); // Stronger reward if agent feels the corresponding emotion
+
+                        this.eventTimer = Config.Env.EVENT_DURATION; // Start event timer
+                         // console.log(`Event Triggered: ${this.currentEvent.type} - ${this.currentEvent.context}`);
+                    }
+                }
+
+                // --- Update State Vector ---
+                // Update the environment's state vector based on current base emotions and event
+                this._updateStateVector(this.baseEmotions, triggeredEventType);
+
+
+                // --- Dysvariant Fluctuations ---
+                // Introduce small, random fluctuations (dysvariants)
+                // Probability and amplitude tied to RIH and Affinity (V1 influence)
+                 const dysvariantProb = Config.DYSVARIANT_PROB * (1 - currentRIHScore); // More likely with low RIH
+
+                if (Math.random() < dysvariantProb) {
+                    const randomIndex = Math.floor(Math.random() * Config.DIMENSIONS); // Affect a random abstract dimension
+                     // Amplitude related to lack of affinity
+                    const amplitude = (Math.random() - 0.5) * 0.3 * (1 - currentAvgAffinity); // Larger fluctuations with low affinity
+                    this.currentStateVector[randomIndex] = clamp(this.currentStateVector[randomIndex] + amplitude, -1, 1); // Apply fluctuation
+                    context += " (Dysvariant fluctuation detected)"; // Add context note
+                }
+
+
+                // Get the final state tensor for the agent
+                const stateTensor = this._getState();
+
+                // Determine if the simulation is done (not used for termination in this demo)
+                const done = false;
+
+                return {
+                    state: stateTensor, // The environment's state vector (tensor)
+                    reward,            // Reward for the agent
+                    done,              // Simulation done flag
+                    context,           // Textual context of this step
+                    eventType: triggeredEventType // Type of event (if any)
+                };
+            }
+
+            // Updates the numerical state vector based on emotions and events
+            _updateStateVector(emotionTensor, eventType = null) {
+                 // Ensure emotionTensor is valid and get emotion values as array
+                 const emotions = emotionTensor && typeof emotionTensor.arraySync === 'function' ? emotionTensor.arraySync()[0] : zeros([Config.Agent.EMOTION_DIM]);
+
+                // Update the first Config.DIMENSIONS elements based on emotion combinations and dynamics (V1 logic)
+                this.currentStateVector[0] = clamp((emotions[0] - emotions[1]) * 0.8, -1, 1); // Joy vs. Fear
+                this.currentStateVector[1] = clamp((emotions[4] - emotions[3]) * 0.7, -1, 1); // Calm vs. Frustration
+                this.currentStateVector[2] = clamp(emotions[2] * 1.5 - 0.5, -1, 1); // Curiosity emphasis
+                this.currentStateVector[3] = clamp(emotions[5] * 1.2 - 0.3, -1, 1); // Surprise emphasis
+
+                // Other dimensions update based on a decay + influence from other emotions + noise
+                for (let i = 4; i < Config.DIMENSIONS; i++) {
+                    const emoIdx = i % Config.Agent.EMOTION_DIM; // Map dimension to an emotion index
+                    const prevVal = this.currentStateVector[i] || 0; // Get previous value, default to 0
+                    const emoInfluence = (emotions[emoIdx] - 0.5) * 0.15; // Influence from a specific emotion
+                    const randomPerturbation = (Math.random() - 0.5) * 0.03; // Small random noise
+                    this.currentStateVector[i] = clamp(prevVal * 0.95 + emoInfluence + randomPerturbation, -1, 1); // Decay + influence + noise
+                }
+
+                // --- Event-Specific Perturbations ---
+                // Apply specific changes to the state vector if an event was triggered
+                if (eventType) {
+                    const emotionIndex = this.emotionNames.indexOf(eventType); // Get index of triggered emotion
+                    if (emotionIndex !== -1) {
+                         // Apply a pulse to relevant dimensions (V1 logic)
+                        this.currentStateVector[emotionIndex % Config.DIMENSIONS] = clamp(
+                            (this.currentStateVector[emotionIndex % Config.DIMENSIONS] || 0) + 0.4, -1, 1
+                        );
+                        // Apply a smaller pulse to a related dimension
+                        this.currentStateVector[(emotionIndex + 1) % Config.DIMENSIONS] = clamp(
+                            (this.currentStateVector[(emotionIndex + 1) % Config.DIMENSIONS] || 0) + 0.15, -1, 1
+                        );
+                         // Slightly perturb other random dimensions (V1 logic)
+                         for(let k = 0; k < 3; k++) {
+                             const randDim = Math.floor(Math.random() * Config.DIMENSIONS);
+                             this.currentStateVector[randDim] = clamp((this.currentStateVector[randDim] || 0) + (Math.random() - 0.5) * 0.1, -1, 1);
+                         }
+                    }
+                }
+
+                // Append raw emotion values to the end of the state vector (for agent to consume)
+                for (let i = 0; i < Config.Agent.EMOTION_DIM; i++) {
+                    this.currentStateVector[Config.DIMENSIONS + i] = clamp(emotions[i], 0, 1); // Append emotion values (0-1)
+                }
+
+                 // Ensure the state vector has the correct final size
+                 while (this.currentStateVector.length < Config.Agent.BASE_STATE_DIM) {
+                     this.currentStateVector.push(0.0); // Pad with zeros if undersized
+                 }
+                 this.currentStateVector = this.currentStateVector.slice(0, Config.Agent.BASE_STATE_DIM); // Truncate if oversized
+            }
+
+            // Returns the current state vector as a TensorFlow tensor
+            _getState() {
+                 // Ensure the state vector has the correct size before creating the tensor
+                 while (this.currentStateVector.length < Config.Agent.BASE_STATE_DIM) {
+                     this.currentStateVector.push(0.0); // Pad with zeros if somehow undersized
+                 }
+                 // Make sure it doesn't exceed the expected size
+                 const finalStateArray = this.currentStateVector.slice(0, Config.Agent.BASE_STATE_DIM);
+
+                return tensor([finalStateArray], [1, Config.Agent.BASE_STATE_DIM]);
+            }
+
+            // Processes text input and updates environment's base emotions
+            getEmotionalImpactFromText(text) {
+                const impact = zeros([Config.Agent.EMOTION_DIM]); // Initialize impact vector
+                let foundKeyword = false;
+                const lowerText = text.toLowerCase();
+
+                // Check for keywords associated with each emotion
+                for (let idx in emotionKeywords) {
+                    const info = emotionKeywords[idx];
+                    for (let keyword of info.keywords) {
+                        if (lowerText.includes(keyword)) {
+                             // Apply impact for this emotion, taking the max if multiple keywords match
+                            impact[idx] = Math.max(impact[idx], info.strength);
+                            foundKeyword = true;
+
+                            // Directly influence the environment's base emotions
+                            const currentBase = this.baseEmotions.arraySync()[0];
+                            currentBase[idx] = clamp(currentBase[idx] + info.baseChange, 0, 1); // Apply base change
+                             if (this.baseEmotions && typeof this.baseEmotions.dispose === 'function') {
+                                 tf.dispose(this.baseEmotions);
+                             }
+                            this.baseEmotions = tensor([currentBase], [1, Config.Agent.EMOTION_DIM]); // Update base emotions tensor
+                        }
+                    }
+                }
+
+                // If no specific emotion keywords found, add a small curiosity/calm impact
+                if (!foundKeyword) {
+                    impact[2] = 0.4; // Curiosity
+                    impact[4] = 0.3; // Calm
+                }
+
+                 // Return impact as a tensor (optional, mainly for debugging or if agent used it directly)
+                 // For this setup, updating baseEmotions is the primary effect.
+                return tensor([impact], [1, Config.Agent.EMOTION_DIM]);
+            }
+        }
+
+
+        // --- Three.js Visualization (Syntrometry Panel) ---
+        let scene, camera, renderer, nodes = [], edgesGroup, rihNode;
+        const nodeBaseScale = 0.08; // Base size of the nodes
+        let threeInitialized = false; // Flag to check if Three.js is initialized
+
+        function initThreeJS() {
+            // Check if Three.js is loaded and no critical errors
+            if (criticalError || typeof THREE === 'undefined') {
+                displayError("Three.js not loaded or critical error occurred.", true, 'error-message');
+                return false;
+            }
+            try {
+                // Get the container element
+                const container = document.getElementById('syntrometry-panel');
+                if (!container) {
+                    displayError("Syntrometry panel container not found.", true, 'error-message');
+                    return false;
+                }
+
+                // Create scene, camera, and renderer
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x1a1a1a); // Dark background
+                camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.z = 3.5; // Position camera
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(renderer.domElement); // Add renderer to container
+
+                // Create nodes (representing dimensions)
+                const nodeGeometry = new THREE.SphereGeometry(nodeBaseScale, 16, 12); // Sphere geometry
+                const angleStep = (2 * Math.PI) / Config.DIMENSIONS; // Angle between nodes on a circle
+                const radius = 1.5; // Radius of the circle layout
+
+                nodes = []; // Clear nodes array just in case
+                for (let i = 0; i < Config.DIMENSIONS; i++) {
+                    // Material for nodes
+                    const material = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x113311, specular: 0x555555, shininess: 30 });
+                    const node = new THREE.Mesh(nodeGeometry, material);
+
+                    // Position nodes in a circle
+                    node.position.set(
+                        Math.cos(i * angleStep) * radius,
+                        Math.sin(i * angleStep) * radius,
+                        0 // Start at z=0
+                    );
+
+                    scene.add(node); // Add node to scene
+                    nodes.push(node); // Store node reference
+                }
+
+                // Create the RIH node (central node)
+                const rihGeometry = new THREE.SphereGeometry(nodeBaseScale * 1.5, 20, 16);
+                const rihMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0x331111, specular: 0x888888, shininess: 50 });
+                rihNode = new THREE.Mesh(rihGeometry, rihMaterial);
+                rihNode.position.set(0, 0, 0); // Center position
+                scene.add(rihNode); // Add RIH node to scene
+
+                // Group for edges to easily remove and re-add them
+                edgesGroup = new THREE.Group();
+                scene.add(edgesGroup);
+
+                // Add lights
+                const ambientLight = new THREE.AmbientLight(0x404040); // Soft ambient light
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // Directional light
+                directionalLight.position.set(1, 1, 1).normalize();
+                scene.add(directionalLight);
+
+                // Add window resize listener
+                window.addEventListener('resize', onWindowResize, false);
+
+                console.log('Three.js initialized successfully.');
+                threeInitialized = true;
+                return true;
+            } catch (e) {
+                displayError(`Error initializing Three.js: ${e.message}`, false, 'error-message');
+                console.error("Three.js Init Error:", e);
+                return false;
+            }
+        }
+
+        // Updates the Three.js visualization based on simulation state
+        function updateThreeJS(stateVector, rihScore, affinities, integrationParam, reflexivityParam) {
+            // Only update if initialized and necessary objects exist
+            if (!threeInitialized || criticalError || !nodes || nodes.length === 0 || !rihNode || !edgesGroup) return;
+             // Ensure stateVector has enough data
+            if (!stateVector || stateVector.length < Config.DIMENSIONS) {
+                 console.warn("State vector too small for Syntrometry visualization.");
+                 stateVector = zeros([Config.DIMENSIONS]); // Use zeros if state is invalid
+            }
+
+            // Create a base material for edges - moved outside the loop for efficiency
+            const edgeMaterialBase = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true });
+
+             // Dispose and remove old edges group children BEFORE creating new ones
+            edgesGroup.children.forEach(child => {
+                 if (child.geometry) child.geometry.dispose();
+                 if (child.material) child.material.dispose();
+            });
+            edgesGroup.children.length = 0; // Remove all edge meshes
+
+
+            // Loop through each dimension (node)
+            for (let i = 0; i < Config.DIMENSIONS; i++) {
+                const node = nodes[i]; // *** Define 'node' here ***
+                if (!node || !node.material || !node.material.color) continue; // Basic safety check
+
+                const value = stateVector[i] !== undefined && stateVector[i] !== null ? stateVector[i] : 0; // State value, default to 0
+
+
+                // Animate node position along Z axis based on state value
+                node.position.z = value * 0.5;
+
+                // Change node color based on state value (e.g., green for positive, blue for negative)
+                const hue = value > 0 ? 0.33 : (value < 0 ? 0.66 : 0.5); // Green, Blue, or Cyan/Mid
+                const saturation = 0.8;
+                const lightness = 0.4 + Math.abs(value) * 0.3; // Intensity based on absolute value
+                node.material.color.setHSL(hue, saturation, lightness);
+                node.material.emissive.setHSL(hue, saturation, lightness * 0.3); // Emissive matches color
+
+                // Scale node based on integration parameter and affinity
+                // Check if affinities[i] exists before using it
+                const affinityValueForNode = (affinities && affinities[i] !== undefined && affinities[i] !== null) ? affinities[i] : 0;
+                const affinityScale = Math.abs(affinityValueForNode) * 0.5; // Scale based on affinity magnitude
+                const scale = 1.0 + integrationParam * 0.5 + affinityScale; // Scale factors: base, integration param, affinity
+                node.scale.set(scale, scale, scale); // Apply scale
+
+                // Remove old reflexivity loops (children of this node)
+                 // Dispose of geometries and materials
+                while (node.children.length > 0) {
+                   const child = node.children[0];
+                   node.remove(child);
+                   if (child.geometry) child.geometry.dispose();
+                   if (child.material) child.material.dispose();
+                }
+
+
+                // --- Reflexivity Visualization (Loops around nodes) ---
+                 // Add a loop around the node if reflexivity is high
+                if (reflexivityParam > 0.1) { // Only show loops if reflexivity parameter is above a threshold
+                   const loopRadius = nodeBaseScale * node.scale.x * (0.5 + reflexivityParam * 0.5); // Loop size scales with node size and reflexivity
+                   // Create an ellipse curve slightly offset in Z
+                   const curve = new THREE.EllipseCurve(
+                        0, 0, // Center of the ellipse relative to the node
+                       loopRadius, loopRadius * 0.8, // Radii (slightly flattened)
+                       0, 2 * Math.PI, // Start and end angles
+                       false, // Clockwise
+                       node.position.z > 0 ? Math.PI / 4 : -Math.PI/4 // Rotation based on Z position
+                   );
+
+                   const points = curve.getPoints(20); // Get points along the curve
+                   const geometry = new THREE.BufferGeometry().setFromPoints(points); // Create geometry from points
+
+                   const material = new THREE.LineBasicMaterial({
+                       color: node.material.color, // Loop color matches node color
+                       opacity: clamp(reflexivityParam * 0.6, 0.1, 0.5), // Opacity increases with reflexivity
+                       transparent: true
+                   });
+
+                   const loop = new THREE.LineLoop(geometry, material); // Create a LineLoop (closed loop)
+                   // The loop's position is relative to its parent (the node) if added as a child.
+                   // We set its position to (0,0,0) relative to the node, and the curve handles the offset.
+                    loop.position.set(0,0,0); // Relative position
+                    // We need to orient the loop correctly based on the node's position/orientation if needed,
+                    // but for a simple z-offset rotation, the curve's startAngle might be enough.
+                    // If the loop needs to be in a plane perpendicular to the node's Z axis, rotation is needed.
+                    // For now, let's keep it simple based on the curve definition.
+
+                   node.add(loop); // Add the loop as a child of the node
+               }
+
+
+               // --- Create Edges from this node ---
+
+               // Edges between this node (i) and subsequent nodes (j)
+               for (let j = i + 1; j < Config.DIMENSIONS; j++) {
+                   const nodeJ = nodes[j]; // Get the target node
+                   if (!nodeJ) continue;
+
+                   const distSq = node.position.distanceToSquared(nodeJ.position);
+                   // Use a reasonable distance threshold for drawing edges
+                   if (distSq < 4.0) {
+                       // Calculate opacity based on correlation/affinity between nodes' state values or calculated affinities
+                        // Using calculated affinities from agent's process results
+                        const affinity_i = (affinities && affinities[i] !== undefined && affinities[i] !== null) ? affinities[i] : 0;
+                        const affinity_j = (affinities && affinities[j] !== undefined && affinities[j] !== null) ? affinities[j] : 0;
+                        const edgeAffinity = (affinity_i + affinity_j) / 2; // Average affinity
+                        const opacity = clamp(0.3 + Math.abs(edgeAffinity) * 0.5, 0.05, 0.7); // Opacity increases with affinity magnitude
+
+                       const edgeMaterial = edgeMaterialBase.clone();
+                       edgeMaterial.opacity = opacity;
+
+                       const geometry = new THREE.BufferGeometry();
+                       const positions = new Float32Array(6); // 2 points * 3 coordinates (x, y, z)
+                       node.position.toArray(positions, 0); // Start point is node i position
+                       nodeJ.position.toArray(positions, 3); // End point is node j position
+                       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+                       const colors = new Float32Array(6); // 2 points * 3 color components (r, g, b)
+                       node.material.color.toArray(colors, 0); // Color starts as node i color
+                       nodeJ.material.color.toArray(colors, 3); // Color ends as node j color
+                       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+                       const edge = new THREE.Line(geometry, edgeMaterial); // Create the line segment
+                       edgesGroup.add(edge); // Add to the edges group
+                   }
+               }
+
+                // Edge between this node (i) and the RIH node
+               const rihEdgeMaterial = edgeMaterialBase.clone();
+                // Opacity based on node's state value magnitude and overall RIH score
+               rihEdgeMaterial.opacity = clamp(Math.abs(value) * 0.5 + rihScore * 0.3, 0.05, 0.7);
+
+               const geometry = new THREE.BufferGeometry();
+               const positions = new Float32Array(6);
+               node.position.toArray(positions, 0); // Start point is node i position
+               rihNode.position.toArray(positions, 3); // End point is RIH node position
+               geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+               const colors = new Float32Array(6);
+               node.material.color.toArray(colors, 0); // Color starts as node i color
+               rihNode.material.color.toArray(colors, 3); // Color ends as RIH node color
+               geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+               const rihEdge = new THREE.Line(geometry, rihEdgeMaterial);
+               edgesGroup.add(rihEdge);
+           } // End of main for loop
+
+
+            // Update RIH node color towards white with high reflexivity (outside the loop)
+           if (rihNode && rihNode.material && rihNode.material.color) {
+                rihNode.material.color.lerp(new THREE.Color(1,1,1), reflexivityParam * 0.3);
+            }
+
+
+           // Render the scene
+           renderer.render(scene, camera);
+       }
+
+        // Handle window resize for the Syntrometry Panel
+        function onWindowResize() {
+            if (!threeInitialized || !camera || !renderer) return;
+            const container = document.getElementById('syntrometry-panel');
+             if(!container) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // --- Concept Graph Visualization ---
+        let conceptScene, conceptCamera, conceptRenderer, conceptLabelRenderer, conceptControls;
+        let conceptRaycaster, conceptMouse;
+        let conceptNodes = {}, conceptEdges = []; // conceptEdges holds the TubeGeometry meshes
+        let conceptContainer, conceptInfoPanel;
+        let conceptClock;
+        let agentStateMesh, emergenceCoreMesh, agentStateLabel, emergenceCoreLabel, live2dPlaneConcept; // Renamed Live2D plane var for clarity
+        let conceptInteractableObjects = []; // Objects that can be hovered/clicked
+
+        // Variables to hold the latest simulation data for concept graph info panel updates
+        let latestAgentEmotions = null;
+        let latestRIHScore = 0;
+        let latestAvgAffinity = 0;
+        let latestHmLabel = "idle";
+
+
+        // Concept data (Structure from V1/V2 - kept V1 structure without dimension nodes)
+        const conceptData = {
+            'reflexive_abstraction': { id: 'reflexive_abstraction', name: 'Reflexive Abstraction', chapter: 1, position: new THREE.Vector3(0, 20, -30), type: 'method', links: ['syntrometry'], description: "Method to overcome subjective limits by analyzing reflection itself." },
+            'subjective_aspect': { id: 'subjective_aspect', name: 'Subjective Aspect (S)', chapter: 1, position: new THREE.Vector3(-15, 15, -25), type: 'structure', links: ['pradikatrix', 'dialektik', 'koordination', 'aspektivsystem'], description: "Contextual framework for statements; a viewpoint." },
+            'pradikatrix': { id: 'pradikatrix', name: 'Prädikatrix (Pm)', chapter: 1, position: new THREE.Vector3(-25, 20, -20), type: 'component', links: [], description: "Schema of potential statements/predicates." },
+            'dialektik': { id: 'dialektik', name: 'Dialektik (Dn)', chapter: 1, position: new THREE.Vector3(-20, 20, -20), type: 'component', links: [], description: "Schema of subjective qualifiers/biases." },
+            'koordination': { id: 'koordination', name: 'Koordination (Kn)', chapter: 1, position: new THREE.Vector3(-15, 20, -20), type: 'component', links: [], description: "Mechanism linking Prädikatrix and Dialektik." },
+            'aspektivsystem': { id: 'aspektivsystem', name: 'Aspektivsystem (P)', chapter: 1, position: new THREE.Vector3(15, 15, -25), type: 'structure', links: ['metropie', 'idee'], description: "Collection of related subjective aspects." },
+            'metropie': { id: 'metropie', name: 'Metropie (g)', chapter: 1, position: new THREE.Vector3(25, 20, -20), type: 'property', links: [], description: "Metric defining 'distance' between aspects." },
+            'idee': { id: 'idee', name: 'Idee (Apodiktic Core)', chapter: 1, position: new THREE.Vector3(20, 10, -20), type: 'core', links: [], description: "Invariant elements within an Aspektivsystem." },
+            'syntrometry': { id: 'syntrometry', name: 'Syntrometrie', chapter: 1, position: new THREE.Vector3(0, 10, -25), type: 'framework', links: ['syntrix'], description: "Heim's universal logic derived from Reflexive Abstraction." },
+            'syntrix': { id: 'syntrix', name: 'Syntrix (ã|=)', chapter: 2, position: new THREE.Vector3(0, 5, -15), type: 'structure', links: ['metrophor', 'synkolator', 'synkolation_stage', 'korporator'], description: "Formal, recursive structure embodying a Category." },
+            'metrophor': { id: 'metrophor', name: 'Metrophor (ã)', chapter: 2, position: new THREE.Vector3(-10, 8, -12), type: 'core', links: ['idee'], description: "Invariant core (Idee) of a Syntrix; base elements." },
+            'synkolator': { id: 'synkolator', name: 'Synkolator ({)', chapter: 2, position: new THREE.Vector3(0, 8, -12), type: 'operator', links: [], description: "Recursive correlation law generating complexity." },
+            'synkolation_stage': { id: 'synkolation_stage', name: 'Synkolation Stage (m)', chapter: 2, position: new THREE.Vector3(10, 8, -12), type: 'parameter', links: [], description: "Arity/depth of the Synkolator." },
+            'korporator': { id: 'korporator', name: 'Korporator ({})', chapter: 3, position: new THREE.Vector3(0, -5, -8), type: 'operator', links: ['syntrix'], description: "Operator combining multiple Syntrices." }
+        };
+
+
+        // Helper to get approx boundary radius for edge connection points
+        function getApproxBoundaryRadius(geometry, scale) {
+            if (!geometry || (!geometry.isGeometry && !geometry.isBufferGeometry)) {
+                return 1.0;
+            }
+            // Ensure bounding sphere is computed
+            if (!geometry.boundingSphere) {
+                geometry.computeBoundingSphere();
+            }
+            const radius = geometry.boundingSphere ? geometry.boundingSphere.radius : 1.0;
+            // Scale the radius by the object's scale
+            const effectiveScale = scale || 1.0;
+            return radius * effectiveScale;
+        }
+
+
+        function initConceptVisualization() {
+            // Check if required libraries are loaded and no critical errors
+            if (criticalError || typeof THREE === 'undefined' || typeof THREE.OrbitControls === 'undefined' || typeof THREE.CSS2DObject === 'undefined') {
+                displayError("Three.js, OrbitControls, or CSS2DRenderer not loaded.", true, 'concept-error-message');
+                return false;
+            }
+            try {
+                // Get containers
+                conceptContainer = document.getElementById('concept-panel');
+                conceptInfoPanel = document.getElementById('info-panel');
+                if (!conceptContainer || !conceptInfoPanel) {
+                    displayError("Concept panel or info panel not found.", true, 'concept-error-message');
+                    return false;
+                }
+
+                // Get container dimensions
+                const width = conceptContainer.clientWidth;
+                const height = conceptContainer.clientHeight;
+                if (width <= 0 || height <= 0) {
+                    displayError("Concept panel has zero dimensions.", true, 'concept-error-message');
+                    return false;
+                }
+
+                // Create scene, camera, and renderers
+                conceptScene = new THREE.Scene();
+                conceptScene.background = new THREE.Color(0x111122); // Dark background
+                conceptScene.fog = new THREE.Fog(0x111122, 60, 160); // Add fog for depth
+
+                conceptCamera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000);
+                conceptCamera.position.set(0, 15, 55); // Initial camera position
+
+                conceptRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // Allow transparency
+                conceptRenderer.setSize(width, height);
+                conceptRenderer.setPixelRatio(window.devicePixelRatio);
+                conceptContainer.appendChild(conceptRenderer.domElement); // Add WebGL renderer
+
+                // CSS2D Renderer for labels
+                conceptLabelRenderer = new THREE.CSS2DRenderer();
+                conceptLabelRenderer.setSize(width, height);
+                conceptLabelRenderer.domElement.style.position = 'absolute';
+                conceptLabelRenderer.domElement.style.top = '0px';
+                conceptLabelRenderer.domElement.style.left = '0px';
+                conceptLabelRenderer.domElement.style.pointerEvents = 'none'; // Allow clicks to pass through labels
+                conceptContainer.appendChild(conceptLabelRenderer.domElement); // Add label renderer
+
+                // Orbit Controls for camera interaction
+                conceptControls = new THREE.OrbitControls(conceptCamera, conceptRenderer.domElement);
+                conceptControls.enableDamping = true; // Smooth movement
+                conceptControls.dampingFactor = 0.05;
+                conceptControls.minDistance = 10; // Limit zoom in
+                conceptControls.maxDistance = 150; // Limit zoom out
+                conceptControls.target.set(0, 5, -10); // Point camera towards the center of the graph area
+                conceptControls.update(); // Apply initial target
+
+                // Add lights
+                const ambientLight = new THREE.AmbientLight(0x8080a0); // Soft ambient light
+                conceptScene.add(ambientLight);
+                const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0); // Main directional light
+                dirLight1.position.set(5, 10, 7).normalize();
+                conceptScene.add(dirLight1);
+                const dirLight2 = new THREE.DirectionalLight(0xaaaaff, 0.5); // Secondary light
+                dirLight2.position.set(-5, -5, -5).normalize();
+                conceptScene.add(dirLight2);
+
+                // Create placeholder plane for Live2D position reference (not visible, for info panel hover)
+                 const planeGeo = new THREE.PlaneGeometry(10, 10);
+                 const planeMat = new THREE.MeshBasicMaterial({ color: 0x555566, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
+                 live2dPlaneConcept = new THREE.Mesh(planeGeo, planeMat);
+                 live2dPlaneConcept.position.set(0, -10, 0); // Position it somewhere relevant to the scene bounds
+                 // Add placeholder to interactable objects for info panel hover
+                 live2dPlaneConcept.userData = {
+                    type: 'live2d_avatar_ref',
+                    name: `Live2D Avatar (Status: ${live2dInitialized ? 'Active' : 'Inactive'})`,
+                     description: `Reference point for the Live2D avatar reflecting agent's emotional state.<br><i>Actual avatar is rendered separately in the other panel.</i>`
+                 };
+                 conceptScene.add(live2dPlaneConcept);
+
+
+                // Create concept nodes and edges
+                createConceptNodes();
+                createConceptEdges();
+
+                // Create placeholder objects for Agent State and Emergence Core
+                createAgentSimulationPlaceholders();
+
+                // Populate interactable objects list
+                conceptInteractableObjects = Object.values(conceptNodes).map(n => n.object);
+                if (agentStateMesh) conceptInteractableObjects.push(agentStateMesh);
+                 if (live2dPlaneConcept) conceptInteractableObjects.push(live2dPlaneConcept); // Add the Live2D placeholder
+                if (emergenceCoreMesh) conceptInteractableObjects.push(emergenceCoreMesh);
+
+
+                // Setup interaction handlers (mousemove, click)
+                setupConceptInteraction();
+
+                // Create a clock for animations
+                conceptClock = new THREE.Clock();
+
+                // Add window resize listener for the concept panel
+                window.addEventListener('resize', onConceptWindowResize, false);
+
+                console.log('Concept visualization initialized successfully.');
+                conceptInitialized = true;
+                return true;
+            } catch (e) {
+                displayError(`Error initializing concept visualization: ${e.message}`, false, 'concept-error-message');
+                console.error("Concept Viz Init Error:", e);
+                return false;
+            }
+        }
+
+        // Creates the 3D meshes and labels for the concept nodes
+        function createConceptNodes() {
+            const baseSize = 1.5; // Base size for nodes
+            conceptNodes = {}; // Clear existing nodes
+
             for (const id in conceptData) {
                 const data = conceptData[id];
+
+                // Determine geometry and material based on node type
                 let geometry;
                 let material;
-                let currentScale = 1.0;
-                let detail = 16;
+                let currentScale = 1.0; // Initial scale
+
                 switch (data.type) {
-                    case 'framework': geometry = new THREE.BoxGeometry(baseSize*2.5, baseSize*2.5, baseSize*2.5); material = new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 60, transparent: true, opacity: 0.9 }); break;
-                    case 'structure': geometry = new THREE.SphereGeometry(baseSize*1.2, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 }); break;
-                    case 'core': geometry = new THREE.SphereGeometry(baseSize*0.9, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffff66, shininess: 100 }); break;
-                    case 'component': geometry = new THREE.SphereGeometry(baseSize, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0x66ffaa, shininess: 50 }); break;
-                    case 'property': geometry = new THREE.SphereGeometry(baseSize*0.8, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xffaaff, shininess: 40 }); break;
-                    case 'parameter': geometry = new THREE.SphereGeometry(baseSize*0.7, detail, Math.floor(detail/2)); material = new THREE.MeshPhongMaterial({ color: 0xaaffff, shininess: 30 }); break;
-                    case 'operator': geometry = new THREE.OctahedronGeometry(baseSize*1.1, 0); material = new THREE.MeshPhongMaterial({ color: 0xffaa66, shininess: 70 }); break;
-                    case 'method': geometry = new THREE.CylinderGeometry(baseSize*0.6, baseSize*0.6, baseSize*2.0, detail); material = new THREE.MeshPhongMaterial({ color: 0xff66ff, shininess: 60 }); break;
-                    default: geometry = new THREE.BoxGeometry(baseSize, baseSize, baseSize); material = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 20 });
+                    case 'framework':
+                        geometry = new THREE.BoxGeometry(baseSize * 2.5, baseSize * 2.5, baseSize * 2.5);
+                        material = new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 60, transparent: true, opacity: 0.9 });
+                        break;
+                    case 'structure':
+                        geometry = new THREE.SphereGeometry(baseSize * 1.2, 32, 16);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 });
+                        break;
+                    case 'core':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.9, 24, 12);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffff66, shininess: 100 });
+                        break;
+                    case 'component':
+                        geometry = new THREE.SphereGeometry(baseSize, 16, 12);
+                        material = new THREE.MeshPhongMaterial({ color: 0x66ffaa, shininess: 50 });
+                        break;
+                    case 'property':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.8, 12, 8);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffaaff, shininess: 40 });
+                        break;
+                    case 'parameter':
+                        geometry = new THREE.SphereGeometry(baseSize * 0.7, 12, 8);
+                        material = new THREE.MeshPhongMaterial({ color: 0xaaffff, shininess: 30 });
+                        break;
+                    case 'operator':
+                        geometry = new THREE.OctahedronGeometry(baseSize * 1.1, 0);
+                        material = new THREE.MeshPhongMaterial({ color: 0xffaa66, shininess: 70 });
+                        break;
+                    case 'method':
+                        geometry = new THREE.CylinderGeometry(baseSize * 0.6, baseSize * 0.6, baseSize * 2.0, 16);
+                        material = new THREE.MeshPhongMaterial({ color: 0xff66ff, shininess: 60 });
+                        break;
+                     // Exclude 'dimension' type nodes as requested
+                    default:
+                         console.warn(`Unknown concept node type: ${data.type} for ${id}. Skipping.`);
+                         continue; // Skip creating node for unknown or excluded type
                 }
-                const nodeMesh = new THREE.Mesh(geometry, material);
-                if (data.position instanceof THREE.Vector3) {
-                    nodeMesh.position.copy(data.position);
-                } else {
-                    nodeMesh.position.set(Math.random()*20-10, Math.random()*20-10, Math.random()*20-10);
-                }
-                nodeMesh.scale.set(currentScale, currentScale, currentScale);
-                nodeMesh.userData = { type: 'concept', data: data };
-                scene.add(nodeMesh);
+
+                // Create the mesh object
+                const node = new THREE.Mesh(geometry, material);
+                node.position.copy(data.position); // Set position
+                node.scale.set(currentScale, currentScale, currentScale); // Apply initial scale
+                // Store data in userData for interaction
+                node.userData = { id: data.id, name: data.name, type: data.type, description: data.description, chapter: data.chapter, links: data.links };
+                conceptScene.add(node); // Add node to scene
+
+                // Create CSS2D label
                 const labelDiv = document.createElement('div');
-                labelDiv.className = 'label';
+                labelDiv.className = 'label'; // Use defined CSS class
                 labelDiv.textContent = data.name;
-                const labelObject = new CSS2DObject(labelDiv);
-                geometry.computeBoundingSphere();
-                const boundingSphere = geometry.boundingSphere;
-                let yOffset = boundingSphere.radius * currentScale + labelOffsetFactor;
-                if (geometry instanceof THREE.CylinderGeometry) yOffset = (geometry.parameters.height/2)*currentScale + labelOffsetFactor + 0.2;
-                else if (geometry instanceof THREE.BoxGeometry) yOffset = (geometry.parameters.height/2)*currentScale + labelOffsetFactor;
-                labelObject.position.set(0, yOffset, 0);
-                nodeMesh.add(labelObject);
-                nodes[id] = { object: nodeMesh, label: labelObject, data: data };
+                const label = new THREE.CSS2DObject(labelDiv);
+
+                // Position label above the node, adjusting based on node type/size
+                 const baseOffset = {
+                     'framework': 1.8,
+                     'structure': 1.5,
+                     'core': 1.3,
+                     'component': 1.5,
+                     'property': 1.2,
+                     'parameter': 1.1,
+                     'operator': 1.6,
+                     'method': 1.8
+                 }[data.type] || 1.5; // Default offset
+
+                label.position.set(0, baseOffset * currentScale, 0);
+                node.add(label); // Add label as a child of the node
+
+                conceptNodes[id] = { object: node, label: label, data: data }; // Store node object and data
             }
-            console.log(`[Main Mod] Created ${Object.keys(nodes).length} concept nodes.`);
+            console.log(`Created ${Object.keys(conceptNodes).length} concept nodes.`);
         }
 
-        function createEdges() {
-            const visitedEdges = new Set();
-            const tubeRadius = 0.08;
-            const tubeDetail = 6;
-            const tubularSegments = 8;
-            const nodeRadiusFactor = 1.05;
-            const material = new THREE.MeshPhongMaterial({ color: 0x777799, transparent: true, opacity: 0.5, shininess: 10 });
-            function getApproxBoundaryRadius(geometry, scale) {
-                if (!geometry.boundingSphere) geometry.computeBoundingSphere();
-                return geometry.boundingSphere ? geometry.boundingSphere.radius * scale : 1.0 * scale;
-            }
-            for (const id in nodes) {
-                const sourceNode = nodes[id];
-                if (!sourceNode || !sourceNode.object) continue;
+        // Creates the curved tube edges between concept nodes
+        function createConceptEdges() {
+            // Material for edges
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x888888, // Greyish color
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide // Render on both sides
+            });
+
+            const visitedEdges = new Set(); // Set to prevent duplicate edges (e.g., if A links to B and B links to A)
+            conceptEdges = []; // Clear existing edges
+
+            const tubularSegments = 20; // Number of segments along the tube
+            const tubeRadius = 0.1; // Radius of the tube
+            const tubeDetail = 8; // Number of segments around the tube
+
+            const nodeRadiusFactor = 1.2; // Factor to extend edge endpoint slightly beyond node sphere
+
+            for (const id of Object.keys(conceptNodes)) {
+                const sourceNode = conceptNodes[id];
+                if (!sourceNode || !sourceNode.object) {
+                    console.warn(`Invalid sourceNode for id ${id}, cannot create edges.`);
+                    continue;
+                }
                 const sourceScale = sourceNode.object.scale.x;
-                const sourceBoundary = getApproxBoundaryRadius(sourceNode.object.geometry, sourceScale);
-                sourceNode.data.links.forEach(targetId => {
-                    const targetNode = nodes[targetId];
-                    if (targetNode && targetNode.object) {
-                        const edgeKey = `${id}-${targetId}`;
-                        const reverseEdgeKey = `${targetId}-${id}`;
-                        if (visitedEdges.has(edgeKey) || visitedEdges.has(reverseEdgeKey)) return;
-                        visitedEdges.add(edgeKey);
-                        const targetScale = targetNode.object.scale.x;
-                        const targetBoundary = getApproxBoundaryRadius(targetNode.object.geometry, targetScale);
-                        const startPoint = sourceNode.object.position;
-                        const endPoint = targetNode.object.position;
-                        const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
-                        const distance = direction.length();
-                        if (distance < 0.001) return;
-                        direction.normalize();
-                        const shortenStart = sourceBoundary * nodeRadiusFactor;
-                        const shortenEnd = targetBoundary * nodeRadiusFactor;
-                        const minRequiredDistance = shortenStart + shortenEnd + tubeRadius * 2;
-                        if (distance <= minRequiredDistance) return;
-                        const adjustedStart = startPoint.clone().add(direction.clone().multiplyScalar(shortenStart));
-                        const adjustedEnd = endPoint.clone().sub(direction.clone().multiplyScalar(shortenEnd));
-                        if (adjustedStart.distanceTo(adjustedEnd) < tubeRadius) return;
-                        try {
-                            const curve = new THREE.LineCurve3(adjustedStart, adjustedEnd);
-                            const tubeGeometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, tubeDetail, false);
-                            const edge = new THREE.Mesh(tubeGeometry, material.clone());
-                            scene.add(edge);
-                            edges.push(edge);
-                        } catch (e) {
-                            console.error(`[Main Mod] Tube geom error "${id}"<->"${targetId}":`, e);
-                        }
+                 // Calculate the adjusted start point of the edge (slightly outside the node)
+                const sourceBoundary = getApproxBoundaryRadius(sourceNode.object.geometry, sourceScale) * nodeRadiusFactor;
+                const sourcePos = sourceNode.object.position;
+
+                const links = sourceNode.data.links || []; // Get links from source node data
+
+                for (const targetId of links) {
+                    const targetNode = conceptNodes[targetId];
+
+                    // Skip if target node doesn't exist (e.g., linking to a filtered-out node like dimensions)
+                    if (!targetNode || !targetNode.object) {
+                         // console.warn(`Target node ${targetId} not found for link from ${id}. Skipping edge creation.`);
+                        continue;
+                    }
+
+                    // Create a unique key for the edge regardless of direction (e.g., 'idA-idB')
+                    const edgeKey = [id, targetId].sort().join('-');
+                    if (visitedEdges.has(edgeKey)) {
+                        continue; // Skip if edge already created
+                    }
+                    visitedEdges.add(edgeKey); // Mark edge as visited
+
+                    const targetScale = targetNode.object.scale.x;
+                     // Calculate the adjusted end point of the edge (slightly outside the node)
+                    const targetBoundary = getApproxBoundaryRadius(targetNode.object.geometry, targetScale) * nodeRadiusFactor;
+                    const targetPos = targetNode.object.position;
+
+                    const direction = new THREE.Vector3().subVectors(targetPos, sourcePos);
+                    const distance = direction.length();
+
+                    if (distance < 1e-6) {
+                        continue; // Skip if nodes are at the same position
+                    }
+
+                     // Calculate actual start and end points adjusted for node size
+                    const sourceAdjust = direction.clone().normalize().multiplyScalar(sourceBoundary);
+                    const targetAdjust = direction.clone().normalize().multiplyScalar(-targetBoundary);
+
+                    const startPoint = new THREE.Vector3().addVectors(sourcePos, sourceAdjust);
+                    const endPoint = new THREE.Vector3().addVectors(targetPos, targetAdjust);
+
+                    // Create a curved path using CubicBezierCurve3
+                    const midPoint = new THREE.Vector3().lerpVectors(startPoint, endPoint, 0.5);
+                    // Add some randomness to control points for varied curves
+                    const controlPoint1 = new THREE.Vector3(
+                        midPoint.x + (Math.random() - 0.5) * 5,
+                        midPoint.y + (Math.random() - 0.5) * 5,
+                        midPoint.z + (Math.random() - 0.5) * 5
+                    );
+                    const controlPoint2 = new THREE.Vector3(
+                        midPoint.x + (Math.random() - 0.5) * 5,
+                        midPoint.y + (Math.random() - 0.5) * 5,
+                        midPoint.z + (Math.random() - 0.5) * 5
+                    );
+
+                    const points = [startPoint, controlPoint1, controlPoint2, endPoint];
+                    const curve = new THREE.CubicBezierCurve3(...points);
+
+                    // Create a tube geometry along the curve
+                    const tubeGeo = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, tubeDetail, false);
+                    const edgeMesh = new THREE.Mesh(tubeGeo, material); // Create the mesh
+
+                    // Store source/target IDs in userData for potential interaction
+                    edgeMesh.userData = { source: id, target: targetId, type: 'edge' };
+
+                    conceptScene.add(edgeMesh); // Add edge to scene
+                    conceptEdges.push(edgeMesh); // Store edge reference
+                }
+            }
+            console.log(`Created ${conceptEdges.length} concept edges.`);
+        }
+
+
+        // Creates placeholder objects for agent state and emergence core in the concept graph
+        function createAgentSimulationPlaceholders() {
+            // Agent State Placeholder (Sphere)
+            const agentGeo = new THREE.SphereGeometry(1.5, 32, 16);
+            const agentMat = new THREE.MeshPhongMaterial({
+                color: 0x66ff66, // Greenish
+                shininess: 80,
+                transparent: true,
+                opacity: 0.7
+            });
+            agentStateMesh = new THREE.Mesh(agentGeo, agentMat);
+            agentStateMesh.position.set(15, -5, 0); // Position relative to other concepts
+            agentStateMesh.userData = { // Store data for info panel
+                type: 'simulation_state',
+                name: 'Agent Emotional State',
+                description: 'Represents the agent\'s emotional state (Joy, Fear, etc.). Updates dynamically.'
+            };
+            conceptScene.add(agentStateMesh); // Add to scene
+
+            // Label for Agent State
+            const agentLabelDiv = document.createElement('div');
+            agentLabelDiv.className = 'label';
+            agentLabelDiv.textContent = 'Agent State';
+            agentStateLabel = new THREE.CSS2DObject(agentLabelDiv);
+            agentStateLabel.position.set(0, 2.0, 0); // Position above the sphere
+            agentStateMesh.add(agentStateLabel); // Add label as child
+
+            // Emergence Core Placeholder (Tetrahedron)
+            const coreGeo = new THREE.TetrahedronGeometry(2.0, 2); // Tetrahedron geometry
+            const coreMat = new THREE.MeshPhongMaterial({
+                color: 0xff66ff, // Purplish
+                shininess: 100,
+                transparent: true,
+                opacity: 0.8
+            });
+            emergenceCoreMesh = new THREE.Mesh(coreGeo, coreMat);
+            emergenceCoreMesh.position.set(-15, -5, 0); // Position relative to other concepts
+            emergenceCoreMesh.userData = { // Store data for info panel
+                type: 'simulation_state',
+                name: 'Emergence Core',
+                description: 'Represents Reflexive Integration (RIH) and Affinities from agent processing.'
+            };
+            conceptScene.add(emergenceCoreMesh); // Add to scene
+
+            // Label for Emergence Core
+            const coreLabelDiv = document.createElement('div');
+            coreLabelDiv.className = 'label';
+            coreLabelDiv.textContent = 'Emergence Core';
+            emergenceCoreLabel = new THREE.CSS2DObject(coreLabelDiv);
+            emergenceCoreLabel.position.set(0, 2.5, 0); // Position above the tetrahedron
+            emergenceCoreMesh.add(emergenceCoreLabel); // Add label as child
+
+             // Link these placeholders to relevant concepts if desired (optional)
+             // E.g., agentStateMesh.userData.links = ['syntrometry', 'subjective_aspect'];
+             // emergenceCoreMesh.userData.links = ['reflexive_integration', 'affinitaetssyndrom'];
+
+
+            console.log("Agent simulation placeholders created.");
+        }
+
+        // Updates the visuals of the agent state and emergence core placeholders
+        function updateAgentSimulationVisuals(emotionsTensor, rihScore, avgAffinity, hmLabel) {
+            // Only update if initialized and meshes exist
+            if (!conceptInitialized || !agentStateMesh || !emergenceCoreMesh || !live2dPlaneConcept) return;
+
+            // Store latest data for the info panel
+            latestAgentEmotions = emotionsTensor && typeof emotionsTensor.arraySync === 'function' ? emotionsTensor.arraySync()[0] : zeros([Config.Agent.EMOTION_DIM]);
+            latestRIHScore = rihScore;
+            latestAvgAffinity = avgAffinity;
+            latestHmLabel = hmLabel;
+
+
+            // --- Update Agent State Mesh (Sphere) ---
+            const emotions = latestAgentEmotions; // Use stored latest emotions
+
+            // Get individual emotion values (handle potential undefined)
+            const joyVal = emotions && emotions.length > 0 ? emotions[0] || 0 : 0;
+            const fearVal = emotions && emotions.length > 1 ? emotions[1] || 0 : 0;
+            const curiosityVal = emotions && emotions.length > 2 ? emotions[2] || 0 : 0;
+            const frustrationVal = emotions && emotions.length > 3 ? emotions[3] || 0 : 0;
+            const calmVal = emotions && emotions.length > 4 ? emotions[4] || 0 : 0;
+            const surpriseVal = emotions && emotions.length > 5 ? emotions[5] || 0 : 0;
+
+
+            // Find dominant emotion and map to a color
+            const dominantEmotionIdx = emotions && emotions.length > 0 ? emotions.indexOf(Math.max(...emotions)) : -1;
+            const dominantEmotion = dominantEmotionIdx !== -1 ? emotionNames[dominantEmotionIdx] : 'Unknown';
+
+            const emotionColor = {
+                'Joy': 0x66ff66,       // Green
+                'Fear': 0xff6666,      // Red
+                'Curiosity': 0x66ccff, // Light Blue
+                'Frustration': 0xff9966, // Orange
+                'Calm': 0x99ffcc,      // Teal
+                'Surprise': 0xffff66,  // Yellow
+                'Unknown': 0xcccccc    // Grey
+            }[dominantEmotion]; // Get color for the dominant emotion
+
+            // Lerp (smoothly transition) the sphere's color towards the dominant emotion color
+            if (agentStateMesh.material.color) {
+                const targetColor = new THREE.Color(emotionColor);
+                agentStateMesh.material.color.lerp(targetColor, 0.1); // Smooth transition factor (0.1)
+            }
+
+            // Scale the sphere based on overall emotional intensity
+            const emotionIntensity = emotions && emotions.length === Config.Agent.EMOTION_DIM ? emotions.reduce((sum, val) => sum + val, 0) / Config.Agent.EMOTION_DIM : 0; // Average intensity
+            const agentScale = 1.0 + emotionIntensity * 0.5; // Scale based on intensity
+            agentStateMesh.scale.set(agentScale, agentScale, agentScale); // Apply scale
+
+
+            // Update the description in userData for the info panel
+            agentStateMesh.userData.description = `Represents the agent's emotional state.<br>` +
+                `<span class="simulated-data">Dominant Feeling: ${dominantEmotion}<br>` +
+                `Joy: ${(joyVal * 100).toFixed(1)}%, Fear: ${(fearVal * 100).toFixed(1)}%<br>` +
+                `Curiosity: ${(curiosityVal * 100).toFixed(1)}%, Frustration: ${(frustrationVal * 100).toFixed(1)}%<br>` +
+                `Calm: ${(calmVal * 100).toFixed(1)}%, Surprise: ${(surpriseVal* 100).toFixed(1)}%</span>`;
+
+
+            // --- Update Emergence Core Mesh (Tetrahedron) ---
+
+            // Lerp color based on RIH score (e.g., towards white for higher RIH)
+            if (emergenceCoreMesh.material.color) {
+                 const targetColor = new THREE.Color(0xff66ff).lerp(new THREE.Color(0xffffff), rihScore * 0.5); // Lerp towards white
+                emergenceCoreMesh.material.color.lerp(targetColor, 0.1); // Smooth transition
+            }
+
+            // Scale based on RIH score and average affinity
+            const coreScale = 1.0 + rihScore * 0.8 + avgAffinity * 0.3; // Scale factors
+            emergenceCoreMesh.scale.set(coreScale, coreScale, coreScale); // Apply scale
+
+            // Update opacity based on RIH score
+            emergenceCoreMesh.material.opacity = clamp(0.6 + rihScore * 0.3, 0.6, 0.9);
+
+            // Update description in userData for the info panel
+            emergenceCoreMesh.userData.description = `Represents Reflexive Integration and Affinities.<br>` +
+                `<span class="simulated-data">RIH Score: ${(rihScore * 100).toFixed(1)}%<br>` +
+                `Average Affinity: ${(avgAffinity * 100).toFixed(1)}%</span>`;
+
+
+            // --- Update Live2D Placeholder Info ---
+             // This placeholder doesn't have visuals in this scene, just updates its userData for the info panel
+             if (live2dPlaneConcept) {
+                 live2dPlaneConcept.userData.description = `Live2D avatar reflecting agent's emotional state.<br>` +
+                    `<span class="simulated-data">Dominant Feeling: ${dominantEmotion}<br>` +
+                    `Current Action: ${hmLabel}<br>` +
+                    `Agent RIH: ${(rihScore * 100).toFixed(1)}%</span>`;
+                 // Also update its name to reflect activity status
+                 live2dPlaneConcept.userData.name = `Live2D Avatar (Status: ${live2dInitialized ? 'Active' : 'Inactive'})`;
+             }
+
+
+            // --- Update Edge Opacity in Concept Graph ---
+            // Make edges slightly more visible when RIH or Avg Affinity is high
+            conceptEdges.forEach(edge => {
+                if (edge.material) {
+                     // Opacity increases with RIH and Avg Affinity
+                    edge.material.opacity = clamp(0.3 + rihScore * 0.3 + avgAffinity * 0.2, 0.3, 0.7);
+                }
+            });
+        }
+
+
+        // Sets up raycasting and event listeners for interacting with concept nodes
+        function setupConceptInteraction() {
+            conceptRaycaster = new THREE.Raycaster(); // Raycaster for picking objects
+            conceptMouse = new THREE.Vector2(); // 2D vector for mouse coordinates
+
+            // Add event listeners for mouse movements and clicks
+            conceptContainer.addEventListener('mousemove', onConceptMouseMove, false);
+            conceptContainer.addEventListener('click', onConceptClick, false);
+
+             // Initialize info panel content
+             updateInfoPanel(null);
+        }
+
+        // Handles mouse movement over the concept graph container
+        function onConceptMouseMove(event) {
+            if (!conceptInitialized) return;
+
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            const rect = conceptContainer.getBoundingClientRect();
+            conceptMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            conceptMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Update the picking ray with the camera and mouse position
+            conceptRaycaster.setFromCamera(conceptMouse, conceptCamera);
+
+            // Find objects intersecting the ray. Intersect objects in `conceptInteractableObjects`.
+            // `true` would check children, but our interactable objects are typically the main meshes.
+            const intersects = conceptRaycaster.intersectObjects(conceptInteractableObjects, false);
+
+            let hoveredObject = null;
+            if (intersects.length > 0) {
+                 // Get the first intersected object (closest to camera)
+                hoveredObject = intersects[0].object;
+
+                // Change cursor to pointer
+                conceptContainer.style.cursor = 'pointer';
+            } else {
+                // Restore default cursor if no object is hovered
+                conceptContainer.style.cursor = 'default';
+            }
+
+            // Update the info panel based on the hovered object
+            updateInfoPanel(hoveredObject);
+        }
+
+        // Handles mouse clicks on the concept graph container
+        function onConceptClick(event) {
+            if (!conceptInitialized) return;
+
+             // Recalculate mouse position and ray (in case mousemove was skipped)
+             const rect = conceptContainer.getBoundingClientRect();
+             conceptMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+             conceptMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+             conceptRaycaster.setFromCamera(conceptMouse, conceptCamera);
+
+
+            // Find objects intersected by the click ray
+            const intersects = conceptRaycaster.intersectObjects(conceptInteractableObjects, false);
+
+            if (intersects.length > 0) {
+                 // Get the first intersected object
+                const clickedObject = intersects[0].object;
+
+                // console.log(`Clicked: ${clickedObject.userData.name || clickedObject.userData.id || 'Unknown Object'}`);
+
+                // If the clicked object is a concept node or placeholder with position data
+                if (clickedObject.userData && clickedObject.position) {
+                     // Move the camera target to the clicked object's position
+                    conceptControls.target.copy(clickedObject.position);
+                     // Optionally, smoothly move the camera position slightly towards a view of the target
+                     // conceptCamera.position.lerp(clickedObject.position.clone().add(new THREE.Vector3(0, 5, 20)), 0.1); // Example smooth move
+                    conceptControls.update(); // Update controls to apply the new target
+                }
+            }
+        }
+
+        // Updates the content of the info panel based on the hovered object (V2 info panel structure)
+        function updateInfoPanel(hoveredObject) {
+            if (!conceptInfoPanel) return; // Ensure the info panel element exists
+
+            // Clear the panel if nothing is hovered or object has no data
+            if (!hoveredObject || !hoveredObject.userData) {
+                conceptInfoPanel.innerHTML = `
+                    <h3>Concept Information</h3>
+                    <p>Hover over a node or object to see details.</p>
+                    <p>Click to focus the camera on a concept.</p>
+                     <p><i>Simulated data updates based on agent processing.</i></p>
+                `;
+                return; // Stop here
+            }
+
+            const data = hoveredObject.userData; // Get the stored user data
+
+            // Build HTML for linked concepts with tooltips (V2 style)
+            let linksHtml = '';
+            if (data.links && data.links.length > 0) {
+                linksHtml = '<p><b>Connected Concepts:</b></p><ul class="links-list">';
+                data.links.forEach(linkId => {
+                    const linkData = conceptData[linkId]; // Look up linked concept data
+                    if (linkData) {
+                         // Add linked concept name with its description as a title for tooltip
+                        linksHtml += `<li><span title="${linkData.description || ''}">${linkData.name}</span></li>`;
                     } else {
-                        console.warn(`[Main Mod] Target node "${targetId}" not found for link from "${id}"`);
+                         // Fallback if linked concept data is missing
+                         linksHtml += `<li>Unknown Concept (${linkId})</li>`;
                     }
                 });
+                linksHtml += '</ul>';
             }
-            console.log(`[Main Mod] Created ${edges.length} edges.`);
+
+            // Build the info panel content (V2 structure)
+            conceptInfoPanel.innerHTML = `
+                <h3>${data.name || 'Unknown'}</h3>
+                 <p><b>Type:</b> ${data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'N/A'}</p>
+                ${data.chapter ? `<p><b>Chapter:</b> ${data.chapter}</p>` : ''}
+                <p>${data.description || 'No description available.'}</p>
+                ${linksHtml}
+            `;
         }
 
-        function createAgentSimulationPlaceholders() {
-            const placeholderY = -15;
-            const agentStateGeo = new THREE.SphereGeometry(2.5, 32, 16);
-            const agentStateMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 60, transparent: true, opacity: 0.8 });
-            agentStateMesh = new THREE.Mesh(agentStateGeo, agentStateMat);
-            agentStateMesh.position.set(-15, placeholderY, -5);
-            agentStateMesh.userData = { type: 'agent_state', name: "Agent Internal State" };
-            scene.add(agentStateMesh);
-            agentStateLabel = createPlaceholderLabel("Agent State", agentStateMesh, 3.0);
-            const emergenceGeo = new THREE.IcosahedronGeometry(1.8, 1);
-            const emergenceMat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0x000000, shininess: 80, transparent: true, opacity: 0.6 });
-            emergenceCoreMesh = new THREE.Mesh(emergenceGeo, emergenceMat);
-            emergenceCoreMesh.position.set(15, placeholderY, -5);
-            emergenceCoreMesh.userData = { type: 'emergence_core', name: "Emergence Core (RIH)" };
-            scene.add(emergenceCoreMesh);
-            emergenceCoreLabel = createPlaceholderLabel("Emergence Core", emergenceCoreMesh, 2.5);
-            console.log("[Main Mod] Created simulation placeholder objects (Agent State, Emergence Core).");
-        }
 
-        function createPlaceholderLabel(text, parentMesh, yOffset) {
-            const labelDiv = document.createElement('div');
-            labelDiv.className = 'label';
-            labelDiv.textContent = text;
-            labelDiv.style.fontSize = '13px';
-            labelDiv.style.fontWeight = 'bold';
-            const labelObj = new CSS2DObject(labelDiv);
-            labelObj.position.set(0, yOffset, 0);
-            parentMesh.add(labelObj);
-            return labelObj;
-        }
+        // Animates concept nodes (rotation, oscillation)
+        function animateConceptNodes(deltaTime) {
+             // Only animate if concept visualization is initialized
+            if (!conceptInitialized) return;
 
-        function setupInteraction() {
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-            if (container) {
-                container.addEventListener('mousemove', onPointerMove, false);
-                container.addEventListener('touchmove', onPointerMove, { passive: false });
-                container.addEventListener('touchend', onPointerUp, false);
-                container.addEventListener('mouseleave', onPointerLeave, false);
-            }
-        }
+            const time = conceptClock.getElapsedTime(); // Get elapsed time from the clock
 
-        let lastIntersected = null;
+            // Animate concept nodes
+            Object.values(conceptNodes).forEach(node => {
+                const data = node.data; // Get node data
 
-        function onPointerMove(event) {
-            let clientX, clientY;
-            if (event.touches && event.touches.length > 0) {
-                clientX = event.touches[0].clientX;
-                clientY = event.touches[0].clientY;
-                event.preventDefault();
-            } else {
-                clientX = event.clientX;
-                clientY = event.clientY;
-            }
-            updatePointerPosition(clientX, clientY);
-            checkIntersections();
-        }
-
-        function onPointerUp(event) {
-            if (event.changedTouches) clearHover();
-        }
-
-        function onPointerLeave(event) {
-            clearHover();
-        }
-
-        function updatePointerPosition(clientX, clientY) {
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
-            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        }
-
-        function checkIntersections() {
-            if (!camera || !raycaster || interactableObjects.length === 0) return;
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(interactableObjects, false);
-            if (intersects.length > 0) {
-                const intersectedObject = intersects[0].object;
-                if (intersectedObject !== lastIntersected) {
-                    updateInfoPanel(intersectedObject);
-                    lastIntersected = intersectedObject;
+                // Basic rotation for visual interest
+                if (node.object && node.object.rotation) {
+                    node.object.rotation.y += deltaTime * 0.2;
                 }
-            } else {
-                clearHover();
-            }
-        }
 
-        function updateInfoPanel(nodeMesh) {
-            if (!infoPanel) {
-                console.warn("[Main Mod] Info panel element not found.");
-                return;
-            }
-
-            const userData = nodeMesh.userData;
-            if (!userData || !userData.type) {
-                infoPanel.innerHTML = '';
-                return;
-            }
-
-            const escapeHTML = (str) => {
-                if (!str) return '';
-                return str.toString()
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
-            };
-
-            let panelHtml = '';
-            const safeName = escapeHTML(userData.name || 'Unnamed Object');
-            panelHtml += `<h3>${safeName}</h3>`;
-
-            switch (userData.type) {
-                case 'concept':
-                    const data = userData.data;
-                    if (data.type) {
-                        panelHtml += `<p><b>Type:</b> ${escapeHTML(data.type)}</p>`;
-                    }
-                    if (data.chapter !== undefined) {
-                        panelHtml += `<p><b>Chapter:</b> ${data.chapter}</p>`;
-                    }
-                    if (data.description) {
-                        panelHtml += `<p><b>Desc:</b> ${escapeHTML(data.description)}</p>`;
-                    }
-                    if (data.links?.length > 0) {
-                        const linkedNames = data.links
-                            .map(id => conceptData[id]?.name)
-                            .filter(Boolean)
-                            .map(escapeHTML);
-                        if (linkedNames.length > 0) {
-                            panelHtml += `<div class="links-list"><b>Links To:</b> ${linkedNames.join(', ')}</div>`;
-                        }
-                    }
-                    break;
-                case 'agent_state':
-                    const emoStr = `[V: ${simulatedEmotions.x.toFixed(2)}, A: ${simulatedEmotions.y.toFixed(2)}, D: ${simulatedEmotions.z.toFixed(2)}]`;
-                    panelHtml += `
-                        <p class="simulated-data">Represents the AI's internal emotional state.</p>
-                        <p><b>Simulated Emotions:</b> ${escapeHTML(emoStr)}</p>
-                    `;
-                    break;
-                case 'live2d_avatar':
-                    const live2dState = window.sharedLive2DState;
-                    let avatarStatus = "Waiting for initialization...";
-                    if (live2dState) {
-                        if (live2dState.initialized) {
-                            avatarStatus = "Active";
-                        } else if (live2dState.error) {
-                            avatarStatus = `Error: ${escapeHTML(live2dState.error)}`;
-                        }
-                    }
-                    panelHtml += `<p><b>Status:</b> ${escapeHTML(avatarStatus)}</p>`;
-                    if (live2dState?.initialized) {
-                        panelHtml += `
-                            <p class="simulated-data">Live2D model driven by simulated agent state.</p>
-                            <p><b>(Parameters reflect agent's simulated emotion)</b></p>
-                        `;
-                    } else if (live2dState?.error) {
-                        panelHtml += `<p style="color: #ffaaaa;">Model could not load or initialize. Check console.</p>`;
-                    } else {
-                        panelHtml += `<p>Live2D system is starting...</p>`;
-                    }
-                    break;
-                case 'emergence_core':
-                    const rihState = escapeHTML(emergenceActive ? 'Met (Glowing)' : 'Not Met');
-                    panelHtml += `
-                        <p class="simulated-data">Represents RIH-based emergence.</p>
-                        <p><b>Simulated I:</b> ${simulatedIntegration.toFixed(3)}</p>
-                        <p><b>Simulated Rho:</b> ${simulatedReflexivity.toFixed(3)} (Threshold: ${RHO_THRESHOLD.toFixed(2)})</p>
-                        <p><b>Simulated Tau(t):</b> ${simulatedThreshold.toFixed(3)}</p>
-                        <p><b>Emergence State:</b> ${rihState}</p>
-                    `;
-                    break;
-                default:
-                    panelHtml += `<p>Unknown object type.</p>`;
-            }
-
-            infoPanel.innerHTML = panelHtml;
-        }
-
-        function clearHover() {
-            if (lastIntersected) lastIntersected = null;
-            if (infoPanel) infoPanel.innerHTML = '';
-        }
-
-        function updateSimulationStep(deltaTime) {
-            if (agentStateMesh) {
-                agentStateMesh.material.color.setRGB(simulatedEmotions.x, simulatedEmotions.y, simulatedEmotions.z);
-                agentStateMesh.material.opacity = 0.6 + simulatedIntegration * 0.4;
-            }
-            if (emergenceCoreMesh) {
-                if (emergenceActive) {
-                    emergenceCoreMesh.material.emissive.setHex(0xffcc00);
-                    emergenceCoreMesh.material.opacity = 0.9;
-                    emergenceCoreMesh.scale.setScalar(1.0 + Math.sin(clock.getElapsedTime() * 5.0) * 0.1);
-                } else {
-                    emergenceCoreMesh.material.emissive.setHex(0x000000);
-                    emergenceCoreMesh.material.opacity = 0.6;
-                    emergenceCoreMesh.scale.setScalar(1.0);
+                // Specific animations per type (example: operator rotation)
+                if (data.type === 'operator' && node.object && node.object.rotation) {
+                    node.object.rotation.x += deltaTime * 0.3;
+                    node.object.rotation.z += deltaTime * 0.4;
                 }
+
+                 // Optional: Add oscillation effect to position/scale
+                 // const baseScale = 1.0; // Assumed base scale from creation
+                 // const scaleOscillation = Math.sin(time * 2 + node.object.position.x) * 0.05;
+                 // const currentScale = node.object.scale.x; // Use current scale before oscillation
+                 // const newScale = baseScale * (1 + scaleOscillation); // Apply oscillation factor to base scale
+                 // node.object.scale.set(newScale, newScale, newScale); // Apply scale oscillation
+
+
+                 // const offsetY = Math.sin(time * 0.5 + node.object.position.z) * 0.5;
+                 // node.object.position.y = data.position.y + offsetY; // Oscillate position along Y relative to original data position
+            });
+
+            // Animate Agent State and Emergence Core meshes (rotation)
+            if (agentStateMesh && agentStateMesh.rotation) {
+                agentStateMesh.rotation.y += deltaTime * 0.3;
             }
-
-            const live2dState = window.sharedLive2DState;
-            if (live2dState && live2dState.initialized && live2dState.live2dModel) {
-                const modelToUpdate = live2dState.live2dModel;
-                const coreModel = modelToUpdate.internalModel.coreModel;
-
-                const targetAngleX = (simulatedEmotions.x - 0.5) * 60;
-                const targetEyeOpen = simulatedEmotions.y;
-                const targetBreath = simulatedEmotions.z;
-
-                const smoothing = 1.0 - Math.exp(-deltaTime / 0.05);
-
-                const setParam = (id, targetValue) => {
-                    try {
-                        if (coreModel.hasParameter && coreModel.hasParameter(id)) {
-                            let currentVal = coreModel.getParameterValueById(id);
-                            let clampedTarget = id.includes('Eye') || id.includes('Breath') ? Math.max(0, Math.min(1, targetValue)) : targetValue;
-                            let smoothedVal = currentVal + (clampedTarget - currentVal) * smoothing;
-                            coreModel.setParameterValueById(id, smoothedVal);
-                        }
-                    } catch (e) {
-                        console.warn(`Parameter ${id} not found or error setting value:`, e);
-                    }
-                };
-
-                setParam('ParamAngleX', targetAngleX);
-                setParam('ParamBodyAngleX', targetAngleX * 0.5);
-                setParam('ParamEyeLOpen', targetEyeOpen);
-                setParam('ParamEyeROpen', targetEyeOpen);
-                setParam('ParamBreath', targetBreath);
-                setParam('ParamMouthOpenY', Math.abs(simulatedEmotions.x - 0.5) * 0.8);
-
-                if (typeof modelToUpdate.update === 'function') {
-                    modelToUpdate.update(deltaTime);
-                }
-            } else if (live2dState && live2dState.error && live2dPlane && live2dPlane.userData.status !== 'error') {
-                live2dPlane.material.color.set(0x442222);
-                live2dPlane.userData.name = "Live2D Avatar (Error)";
-                live2dPlane.userData.status = 'error';
-                if (lastIntersected === live2dPlane) updateInfoPanel(live2dPlane);
-            }
-
-            simulatedPrevEmotions.copy(simulatedEmotions);
-            const decay = 0.995;
-            const noiseScale = 0.05;
-            simulatedEmotions.x = (simulatedEmotions.x - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
-            simulatedEmotions.y = (simulatedEmotions.y - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
-            simulatedEmotions.z = (simulatedEmotions.z - 0.5) * decay + 0.5 + (Math.random() - 0.5) * noiseScale;
-            simulatedEmotions.clampScalar(0.0, 1.0);
-
-            simulatedIntegration = simulatedEmotions.toArray().reduce((sum, val) => sum + val, 0) / 3.0;
-
-            const dot = simulatedEmotions.dot(simulatedPrevEmotions);
-            const lenSq1 = simulatedEmotions.lengthSq();
-            const lenSq2 = simulatedPrevEmotions.lengthSq();
-            const safeLenSq1 = lenSq1 > 1e-6 ? lenSq1 : 1e-6;
-            const safeLenSq2 = lenSq2 > 1e-6 ? lenSq2 : 1e-6;
-            simulatedReflexivity = dot / Math.sqrt(safeLenSq1 * safeLenSq2);
-            simulatedReflexivity = Math.max(-1.0, Math.min(1.0, simulatedReflexivity));
-
-            const emotionVariance = simulatedEmotions.clone().subScalar(simulatedIntegration).lengthSq() / 3.0;
-            const stabilityProxy = 1.0 - Math.min(1.0, emotionVariance * 5.0);
-            simulatedThreshold = 0.5 + stabilityProxy * 0.2 - simulatedIntegration * 0.1;
-            simulatedThreshold = Math.max(0.1, Math.min(0.9, simulatedThreshold));
-
-            emergenceActive = (simulatedIntegration >= simulatedThreshold) && (simulatedReflexivity >= RHO_THRESHOLD);
-        }
-
-        function animate() {
-    requestAnimationFrame(animate);
-    const deltaTime = clock.getDelta();
-
-    updateSimulationStep(deltaTime);
-
-    const live2dState = window.sharedLive2DState;
-
-    if (live2dState && live2dState.initialized && live2dState.pixiApp && live2dState.live2dCanvas && typeof THREE !== 'undefined') {
-        if (!live2dTexture) {
-            live2dTexture = new THREE.CanvasTexture(live2dState.live2dCanvas);
-            live2dTexture.premultiplyAlpha = true;
-            if (live2dPlane && live2dPlane.material) {
-                live2dPlane.material.map = live2dTexture;
-                live2dPlane.material.color.set(0xffffff);
-                live2dPlane.material.opacity = 1.0;
-                live2dPlane.material.needsUpdate = true;
-                live2dPlane.userData.name = "Live2D Avatar";
-                live2dPlane.userData.status = 'active';
-                console.log("[Main Animate] Live2D texture assigned to plane material.");
-                if (lastIntersected === live2dPlane) updateInfoPanel(live2dPlane);
+            if (emergenceCoreMesh && emergenceCoreMesh.rotation) {
+                emergenceCoreMesh.rotation.y += deltaTime * 0.4;
+                emergenceCoreMesh.rotation.x += deltaTime * 0.2;
             }
         }
 
-        try {
-            live2dState.pixiApp.renderer.render(live2dState.pixiApp.stage);
-            live2dTexture.needsUpdate = true;
-        } catch (error) {
-            console.error("[Main Animate] Error during Pixi/Live2D render:", error);
-            if (live2dPlane && live2dPlane.userData.status !== 'render_error') {
-                live2dPlane.material.color.set(0x664422);
-                live2dPlane.userData.name = "Live2D Avatar (Render Error)";
-                live2dPlane.userData.status = 'render_error';
-                if (lastIntersected === live2dPlane) updateInfoPanel(live2dPlane);
-            }
-        }
-    }
 
-    if (controls && controls.enabled) controls.update();
-    if (renderer && scene && camera) renderer.render(scene, camera);
-    if (labelRenderer && scene && camera) labelRenderer.render(scene, camera);
-}
-
-        function onWindowResize() {
-            if (!container || !camera || !renderer || !labelRenderer) return;
+        // Handle window resize for the Concept Graph Panel
+        function onConceptWindowResize() {
+            if (!conceptInitialized || !conceptCamera || !conceptRenderer || !conceptLabelRenderer) return;
+            const container = document.getElementById('concept-panel');
+             if(!container) return;
             const width = container.clientWidth;
             const height = container.clientHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-            labelRenderer.setSize(width, height);
+
+            // Update camera aspect ratio and projection matrix
+            conceptCamera.aspect = width / height;
+            conceptCamera.updateProjectionMatrix();
+
+            // Update renderer sizes
+            conceptRenderer.setSize(width, height);
+            conceptLabelRenderer.setSize(width, height);
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("[Main Mod] DOM ready. Initializing Three.js part...");
-            try {
-                initMain();
-            } catch (error) {
-                console.error("[Main Mod] Initialization failed:", error);
-                const errContainer = document.querySelector('.threejs-container');
-                if (errContainer) {
-                    errContainer.innerHTML = `<div class="error-message">Error initializing 3D visualization: ${error.message}<br>Check console (F12).</div>`;
-                } else {
-                    document.body.appendChild(document.createElement('div')).className = 'error-message';
-                    document.body.lastChild.innerHTML = `Error initializing 3D visualization: ${error.message}<br>Check console (F12).`;
-                }
-                if (infoPanel) infoPanel.style.display = 'none';
+
+        // --- Live2D Integration (using Pixi.js) ---
+        let pixiApp = null; // Pixi Application instance
+        let live2dModel = null; // Live2D Model instance
+        let live2dInitialized = false; // Flag to check if Live2D is initialized
+
+        // Variables for smoother head movement (parameter control)
+        let targetHeadRotation = { x: 0, y: 0, z: 0 }; // Target rotation angles
+        let currentHeadRotation = { x: 0, y: 0, z: 0 }; // Current interpolated rotation angles
+        let headMovementTransition = 0; // Transition progress (0 to 1)
+        let headMovementDuration = 1.0; // Duration for the current transition
+
+        // Initializes the Pixi.js application and loads the Live2D model
+        async function initLive2D() {
+            // Check if required libraries are loaded and no critical errors
+            if (criticalError || typeof PIXI === 'undefined' || typeof PIXI.live2d === 'undefined' || typeof Live2DCubismCore === 'undefined') {
+                displayError("Pixi.js, pixi-live2d-display, or Cubism Core not loaded. Live2D avatar will not be displayed.", false);
+                // Do not mark as critical error, other parts of the demo can still run
+                return false;
             }
-        });
+            try {
+                // Get the container element
+                const container = document.getElementById('live2d-container');
+                if (!container) {
+                    displayError("Live2D container not found.", false);
+                    return false;
+                }
+
+                // Create Pixi.js application
+                pixiApp = new PIXI.Application({
+                    width: 300, // Set initial width based on container CSS
+                    height: 400, // Set initial height based on container CSS
+                    transparent: true, // Allow transparent background
+                    antialias: true, // Enable antialiasing
+                    view: container.querySelector('canvas') // Use existing canvas if present
+                });
+
+                 // If canvas was not found and created by Pixi, append it
+                 if (!container.contains(pixiApp.view)) {
+                     container.appendChild(pixiApp.view);
+                 }
+
+
+                // Define the Live2D model URL
+                // Using the Hiyori sample model from Live2D's official samples
+                const modelUrl = 'https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Hiyori/Hiyori.model3.json';
+                console.log(`[Live2D] Loading model from ${modelUrl}`);
+
+                // Load the Live2D model using pixi-live2d-display
+                live2dModel = await PIXI.live2d.Live2DModel.from(modelUrl);
+
+                // Add the model to the Pixi stage
+                pixiApp.stage.addChild(live2dModel);
+
+                // --- Positioning and Scaling (like in Version 2 for centering) ---
+                live2dModel.scale.set(0.15, 0.15); // Adjust scale to fit container
+                live2dModel.anchor.set(0.5, 0.5); // Set anchor point to the center of the model
+                // Position the model at the center of the container's canvas
+                live2dModel.position.set(pixiApp.view.width / 2, pixiApp.view.height / 2);
+
+                // Optional: Add interaction event (e.g., trigger expression on click)
+                live2dModel.on('hit', (hitAreas) => {
+                    console.log('[Live2D] Hit areas:', hitAreas);
+                    if (hitAreas.includes('body')) {
+                        // Trigger a 'happy' expression if the body is hit
+                         try {
+                             live2dModel.expression('happy');
+                         } catch (e) {
+                             console.warn(`[Live2D] Error triggering hit expression: ${e.message}`);
+                         }
+                    }
+                });
+
+                live2dInitialized = true; // Set initialization flag
+                console.log('[Live2D] Initialized successfully.');
+                return true;
+            } catch (e) {
+                // Handle errors during Live2D initialization
+                displayError(`Error initializing Live2D: ${e.message}. Live2D avatar will not be displayed.`, false, 'error-message');
+                console.error('[Live2D] Full error:', e);
+                 // Do not return false here, let the calling function know init was attempted
+                 // The live2dInitialized flag indicates success/failure.
+                return false; // Indicate failure
+            }
+        }
+
+        // Updates Live2D model's emotional expression and body movements
+        function updateLive2DEmotions(emotionsTensor) {
+            // Only update if initialized and model exists and is ready for parameter access
+            if (!live2dInitialized || !live2dModel || !live2dModel.internalModel || !live2dModel.internalModel.coreModel) return;
+
+            try {
+                 // Get emotion values as array
+                 const emotions = emotionsTensor && typeof emotionsTensor.arraySync === 'function' ? emotionsTensor.arraySync()[0] : zeros([Config.Agent.EMOTION_DIM]);
+                 if (emotions.length === 0) return; // Nothing to do if emotions array is empty
+
+                 // Find the index of the dominant emotion
+                 const dominantEmotionIdx = emotions.indexOf(Math.max(...emotions));
+
+                 // Get the name of the dominant emotion
+                 const dominantEmotion = dominantEmotionIdx !== -1 ? emotionNames[dominantEmotionIdx] : null;
+
+                 // Map dominant emotion names to Live2D expression names
+                 const expressionMap = {
+                     'Joy': 'happy',
+                     'Fear': 'sad', // Using sad for fear as scared might not exist in all models
+                     'Curiosity': 'curious',
+                     'Frustration': 'angry',
+                     'Calm': 'neutral', // Using neutral for calm
+                     'Surprise': 'surprised'
+                     // Add more mappings if needed based on your model's expressions
+                 };
+
+                 // Get the expression name, defaulting to 'neutral' or null if no dominant emotion/mapping
+                 const expression = dominantEmotion ? expressionMap[dominantEmotion] : null;
+
+                 // Set the expression if a valid expression name was found
+                 if (expression && live2dModel.expression) {
+                     live2dModel.expression(expression);
+                 } else if (live2dModel.expression) {
+                     // Optionally set a default expression if no dominant emotion/mapping
+                     // live2dModel.expression('neutral'); // uncomment if you want a fallback expression
+                 }
+
+                 // --- Control Body Parameters based on Overall Intensity or Specific Emotions ---
+                 // Calculate overall intensity
+                 const intensity = emotions.reduce((sum, val) => sum + val, 0) / Config.Agent.EMOTION_DIM;
+
+                 // Example: Control body angle and breathing based on intensity (V1 parameter control)
+                 // Parameter names vary by model (e.g., ParamBodyAngleX, ParamBreath)
+                 // Check your model's parameters in Live2D Viewer
+                 if (live2dModel.internalModel.coreModel.setParameterValueById) {
+                     // Make body angle slightly sway based on intensity and time
+                     live2dModel.internalModel.coreModel.setParameterValueById('ParamBodyAngleX', (Math.sin(Date.now() * 0.002) * 5 + (intensity - 0.5) * 10) * 0.5); // sway + intensity bias
+                     // Control breathing parameter (often ParamBreath or similar) based on intensity
+                     live2dModel.internalModel.coreModel.setParameterValueById('ParamBreath', intensity * 0.5 + 0.5); // min 0.5, max 1.0 breath
+                 }
+
+                 // Optional: Control eye blink, mouth open, etc. based on emotions
+                 // e.g., Higher joy -> more blinking, higher fear -> wider eyes, etc.
+                 // Parameter names: ParamEyeLOpen, ParamEyeROpen, ParamMouthOpenY, etc.
+                 // Check Live2D documentation and model parameters.
+
+            } catch (e) {
+                console.warn(`[Live2D] Error setting emotions/parameters: ${e.message}`);
+                console.error('[Live2D] Full emotion update error:', e);
+            }
+        }
+
+        // Updates Live2D model's head movement parameters based on predicted label
+        function updateLive2DHeadMovement(hmLabel, deltaTime) {
+             // Only update if initialized and model exists with core model access
+            if (!live2dInitialized || !live2dModel || !live2dModel.internalModel || !live2dModel.internalModel.coreModel) return;
+
+             // Define target rotation values for each label (in radians or arbitrary units that map to Live2D params)
+             // Live2D Parameter values are typically degrees or scaled values, adjust the multipliers (e.g., *30)
+            let targetX = 0, targetY = 0, targetZ = 0;
+
+            switch (hmLabel) {
+                case 'nod':
+                    // Simulate a nodding motion (up/down on X axis)
+                    targetX = Math.sin(Date.now() * 0.005) * 0.3; // Oscillate on X axis
+                    targetY = 0;
+                    targetZ = 0;
+                    break;
+                case 'shake':
+                    // Simulate a shaking motion (left/right on Y axis)
+                    targetX = 0;
+                    targetY = Math.sin(Date.now() * 0.007) * 0.4; // Oscillate on Y axis
+                    targetZ = 0;
+                    break;
+                case 'tilt_left':
+                     // Static tilt left (on Y axis)
+                    targetX = 0;
+                    targetY = 0.3; // Tilt on Y axis (positive)
+                    targetZ = 0;
+                    break;
+                case 'tilt_right':
+                     // Static tilt right (on Y axis)
+                    targetX = 0;
+                    targetY = -0.3; // Tilt on Y axis (negative)
+                    targetZ = 0;
+                    break;
+                case 'idle':
+                default:
+                     // Subtle idle movement (small random-ish oscillations on X and Y)
+                    targetX = Math.sin(Date.now() * 0.001) * 0.05;
+                    targetY = Math.cos(Date.now() * 0.001) * 0.05;
+                    targetZ = 0; // Z is less common for idle head movement
+                    break;
+            }
+
+             // Set the target rotation based on the label
+            targetHeadRotation = { x: targetX, y: targetY, z: targetZ };
+
+             // Smoothly interpolate current rotation towards the target rotation using lerp
+             // Update transition progress
+            headMovementTransition += deltaTime / headMovementDuration;
+            if (headMovementTransition > 1) headMovementTransition = 1; // Clamp transition
+
+             // Interpolate current rotation values
+            currentHeadRotation.x = lerp(currentHeadRotation.x, targetHeadRotation.x, headMovementTransition);
+            currentHeadRotation.y = lerp(currentHeadRotation.y, targetHeadRotation.y, headMovementTransition);
+            currentHeadRotation.z = lerp(currentHeadRotation.z, targetHeadRotation.z, headMovementTransition);
+
+             // Apply interpolated values to Live2D parameters (assuming standard parameter names)
+             // Multipliers (e.g., *30) depend on the Live2D model's parameter ranges
+            try {
+                live2dModel.internalModel.coreModel.setParameterValueById('ParamAngleX', currentHeadRotation.x * 30);
+                live2dModel.internalModel.coreModel.setParameterValueById('ParamAngleY', currentHeadRotation.y * 30);
+                live2dModel.internalModel.coreModel.setParameterValueById('ParamAngleZ', currentHeadRotation.z * 30);
+                // Optional: Link body angle to head Y angle subtly (V1 parameter control)
+                 live2dModel.internalModel.coreModel.setParameterValueById('ParamBodyAngleX', currentHeadRotation.y * 10);
+            } catch (e) {
+                console.warn(`[Live2D] Error setting head movement parameters: ${e.message}`);
+                // Continue animation even if specific parameters fail
+            }
+
+
+             // Reset transition if target reached
+            if (headMovementTransition >= 1) {
+                headMovementTransition = 0; // Reset progress
+                headMovementDuration = 0.5 + Math.random() * 1.5; // Set random duration for next movement (0.5 to 2.0 seconds)
+            }
+        }
+
+
+        // --- Main Simulation Loop and Initialization ---
+        let agent, environment; // Agent and Environment instances
+        let currentStateVector = null; // Holds the current numerical state vector (from Environment)
+        let currentAgentEmotions = null; // Holds the agent's current emotion tensor
+        let currentRIHScore = 0; // Holds the agent's current RIH score
+        let currentAvgAffinity = 0; // Holds the agent's current average affinity score
+        let currentHmLabel = "idle"; // Holds the agent's current head movement label
+        let currentContext = "Initializing..."; // Holds the environment's current context message
+
+        // Orchestrates the initialization of all components
+        async function initialize() {
+             // Initialize visualizations and agent/environment
+            const threeSuccess = initThreeJS();
+            const conceptSuccess = initConceptVisualization();
+             // Note: Live2D init is awaited but its success/failure is checked via the flag
+            await initLive2D(); // Live2D is async
+            const agentSuccess = initAgentAndEnvironment(); // Agent/Env initialization is sync but can fail
+
+            // Check for initialization failures
+            if (!threeSuccess || !conceptSuccess || !agentSuccess) {
+                displayError("Initialization failed for one or more core components.", true);
+                // If critical error, stop here. Animation loop check handles this.
+            }
+            // Note: Live2D failure is not marked as critical here, as the demo can partially run without it.
+
+             // Setup user interaction controls and chat
+            setupControls();
+            setupChat();
+
+             // Get the initial state from the environment
+            const initialState = environment ? environment.reset() : { state: tensor(zeros([1, Config.Agent.BASE_STATE_DIM]), [1, Config.Agent.BASE_STATE_DIM]) }; // Fallback if env failed
+             currentStateVector = initialState.state.arraySync()[0]; // Store the initial state array
+
+             // Process the initial state with the agent
+            // Use default params if sliders aren't ready, and default context/reward
+            const initialAgentResponse = agent ? await agent.process(
+                 currentStateVector,
+                 parseFloat(document.getElementById('integration-slider')?.value || 0.5),
+                 parseFloat(document.getElementById('reflexivity-slider')?.value || 0.5),
+                 { eventType: null, reward: 0 }
+             ) : null; // Fallback if agent failed
+
+             // Store initial agent outputs
+             // Use fallback zero tensor if agentResponse or its emotion property is null
+             currentAgentEmotions = (initialAgentResponse && initialAgentResponse.emotions) ? initialAgentResponse.emotions : tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]);
+             currentRIHScore = initialAgentResponse ? initialAgentResponse.rihScore : 0;
+             currentAvgAffinity = (initialAgentResponse?.affinities && initialAgentResponse.affinities.length > 0) ? initialAgentResponse.affinities.reduce((a, b) => a + b, 0) / initialAgentResponse.affinities.length : 0;
+             currentHmLabel = initialAgentResponse ? initialAgentResponse.hmLabel : 'idle';
+             currentContext = initialAgentResponse ? initialAgentResponse.responseText : 'Agent unavailable.';
+
+
+            // Perform initial visualization updates
+            if (threeInitialized) {
+                updateThreeJS(
+                     currentStateVector.slice(0, Config.DIMENSIONS), // Pass only the visible state dimensions
+                     currentRIHScore,
+                     initialAgentResponse?.affinities || [], // Pass initial affinities, default to empty array
+                     parseFloat(document.getElementById('integration-slider')?.value || 0.5),
+                     parseFloat(document.getElementById('reflexivity-slider')?.value || 0.5)
+                 );
+            }
+            if (conceptInitialized) {
+                 updateAgentSimulationVisuals(currentAgentEmotions, currentRIHScore, currentAvgAffinity, currentHmLabel);
+            }
+             // Note: Live2D update is handled by the animation loop
+
+            // Update initial metrics display
+            updateMetricsDisplay(currentRIHScore, initialAgentResponse?.affinities || [], currentAgentEmotions, 'Initialized'); // Pass affinities array
+
+            // Start the continuous animation loop
+            animate();
+        }
+
+        // Initializes Agent and Environment instances
+        function initAgentAndEnvironment() {
+             // Check if TensorFlow.js is available, as Agent depends on it
+            if (typeof tf === 'undefined') {
+                 displayError("TensorFlow.js is required to initialize Agent and Environment. Simulation logic will be minimal.", true);
+                 // Allow some fallback logic in Agent/Env, but mark as critical for full functionality
+                 criticalError = true; // Consider TF.js critical for the core simulation
+                 return false; // Indicate failure
+            }
+            try {
+                agent = new SyntrometricAgent();
+                environment = new EmotionalSpace();
+                console.log("Agent and Environment initialized.");
+                return true;
+            } catch (e) {
+                displayError(`Error initializing Agent/Environment: ${e.message}. Simulation logic will be minimal.`, true); // Mark as critical
+                console.error('[Init] Agent/Env error:', e);
+                criticalError = true; // Mark as critical
+                return false; // Indicate failure
+            }
+        }
+
+        // Sets up the chat input functionality
+        function setupChat() {
+            const chatInput = document.getElementById('chat-input');
+            const chatOutput = document.getElementById('chat-output');
+
+            if (!chatInput || !chatOutput) {
+                console.warn("Chat elements not found.");
+                return;
+            }
+
+            // Add event listener for the 'keypress' event on the input field
+            chatInput.addEventListener('keypress', async (e) => {
+                 // Check if the key pressed was Enter and the input is not empty
+                if (e.key === 'Enter' && chatInput.value.trim()) {
+                    const userInput = chatInput.value.trim(); // Get user input
+                    appendChatMessage('You', userInput); // Display user message in chat output
+                    chatInput.value = ''; // Clear the input field
+
+                    // --- Process User Input ---
+                    // User input directly influences the environment's base emotions
+                    if (environment) {
+                         environment.getEmotionalImpactFromText(userInput);
+                         // Note: env.step will be called by the animation loop, which now
+                         // incorporates the updated base emotions. The agent will react
+                         // in subsequent frames.
+                    } else {
+                         appendChatMessage('System', 'Environment not initialized. Input ignored.');
+                    }
+
+                    // Optionally, could trigger an *immediate* step here if chat input
+                    // should cause an instant reaction, but the continuous loop is running.
+                    // For simplicity and consistent update timing, rely on the loop.
+                }
+            });
+        }
+
+
+        // Updates the metrics display panel
+        function updateMetricsDisplay(rihScore, affinities, emotionsTensor, context) {
+            const metricsDiv = document.getElementById('metrics');
+            if (!metricsDiv) return; // Ensure element exists
+
+             // Get emotion values as array (handle potential null/undefined tensor)
+             const emotions = emotionsTensor && typeof emotionsTensor.arraySync === 'function' ? emotionsTensor.arraySync()[0] : zeros([Config.Agent.EMOTION_DIM]);
+
+             // Calculate average affinity (handle case with no affinities)
+            const avgAffinity = affinities && affinities.length > 0 ? affinities.reduce((a, b) => a + b, 0) / affinities.length : 0;
+
+             // Find dominant emotion name (handle empty emotions array)
+            const dominantEmotionIdx = emotions.length > 0 ? emotions.indexOf(Math.max(...emotions)) : -1;
+            const dominantEmotionName = dominantEmotionIdx !== -1 ? emotionNames[dominantEmotionIdx] : 'Unknown';
+
+            // Get dominant emotion value safely
+            const dominantEmotionValue = dominantEmotionIdx !== -1 && emotions.length > dominantEmotionIdx ? emotions[dominantEmotionIdx] : 0;
+
+
+            // Update the HTML content of the metrics div
+            metricsDiv.innerHTML = `
+                <b>RIH Score:</b> ${(rihScore * 100).toFixed(1)}%<br>
+                <b>Avg Affinity:</b> ${(avgAffinity * 100).toFixed(1)}%<br>
+                <b>Dominant Emotion:</b> ${dominantEmotionName} (${(dominantEmotionValue * 100).toFixed(1)}%)<br>
+                <b>Current Context:</b> ${context || 'Stable'}
+            `;
+        }
+
+         // Sets up the slider controls
+        function setupControls() {
+            const integrationSlider = document.getElementById('integration-slider');
+            const reflexivitySlider = document.getElementById('reflexivity-slider');
+            const integrationValue = document.getElementById('integration-value');
+            const reflexivityValue = document.getElementById('reflexivity-value');
+
+            if (integrationSlider && integrationValue) {
+                integrationSlider.addEventListener('input', () => {
+                     // Update the displayed value next to the slider
+                    integrationValue.textContent = parseFloat(integrationSlider.value).toFixed(2);
+                });
+            }
+            if (reflexivitySlider && reflexivityValue) {
+                reflexivitySlider.addEventListener('input', () => {
+                     // Update the displayed value next to the slider
+                    reflexivityValue.textContent = parseFloat(reflexivitySlider.value).toFixed(2);
+                });
+            }
+        }
+
+
+        // The main animation loop
+        async function animate() {
+            // Stop the loop if a critical error occurred
+            if (criticalError) {
+                 // console.log("Critical error detected, stopping animation.");
+                 return; // Stop requesting next frame
+            }
+
+            // Request the next frame
+            requestAnimationFrame(animate);
+
+            // Get the time delta for frame-rate independent animations
+            const deltaTime = conceptClock ? conceptClock.getDelta() : 1 / 60; // Use conceptClock or fallback to ~60fps delta
+
+            // Get current slider values
+            const integrationParam = parseFloat(document.getElementById('integration-slider')?.value || 0.5);
+            const reflexivityParam = parseFloat(document.getElementById('reflexivity-slider')?.value || 0.5);
+
+            // --- Simulation Step (Environment and Agent) ---
+            // Only run simulation step if agent and environment are initialized
+            if (agent && environment && currentAgentEmotions) { // Ensure agent emotions are available for env step
+                 // Step the environment. Pass agent emotions and latest RIH/Affinity for dysvariant influence.
+                const envStep = await environment.step(currentAgentEmotions, currentRIHScore, currentAvgAffinity);
+
+                 // Process the new environment state with the agent
+                 // Ensure state from envStep is an array before passing
+                 const envStateArray = envStep.state && typeof envStep.state.arraySync === 'function' ? envStep.state.arraySync()[0] : zeros([Config.Agent.BASE_STATE_DIM]);
+
+                const agentResponse = await agent.process(
+                    envStateArray,
+                    integrationParam,
+                    reflexivityParam,
+                     { eventType: envStep.eventType, reward: envStep.reward } // Pass environment context
+                );
+
+                 // Dispose of previous agent emotions tensor before assigning the new one
+                 if (currentAgentEmotions && typeof currentAgentEmotions.dispose === 'function') {
+                     // tf.dispose(currentAgentEmotions); // Agent process handles disposing its prevEmotions now
+                 }
+
+                 // Update global state variables with results from the agent
+                currentAgentEmotions = agentResponse.emotions; // Update agent's emotion tensor (comes from Agent.process)
+                currentRIHScore = agentResponse.rihScore; // Update RIH score
+                 // Update average affinity (ensure affinities array exists)
+                 currentAvgAffinity = (agentResponse.affinities && agentResponse.affinities.length > 0) ? agentResponse.affinities.reduce((a, b) => a + b, 0) / agentResponse.affinities.length : 0;
+                currentHmLabel = agentResponse.hmLabel; // Update head movement label
+                currentContext = envStep.context; // Update environment context message
+                 currentStateVector = envStateArray; // Update the raw state vector array
+
+
+                // --- Update Visualizations ---
+                // Update the main Syntrometry visualization
+                if (threeInitialized) {
+                    updateThreeJS(
+                         currentStateVector.slice(0, Config.DIMENSIONS), // Pass only the first N dimensions for this viz
+                         currentRIHScore,
+                         agentResponse.affinities || [], // Pass affinities array, default to empty array
+                         integrationParam,
+                         reflexivityParam
+                     );
+                }
+
+                // Update the Concept Graph placeholders based on agent/env state
+                if (conceptInitialized) {
+                     updateAgentSimulationVisuals(currentAgentEmotions, currentRIHScore, currentAvgAffinity, currentHmLabel);
+                }
+
+                // Update the metrics display panel
+                updateMetricsDisplay(currentRIHScore, agentResponse.affinities || [], currentAgentEmotions, currentContext); // Pass affinities array
+
+            } else {
+                 // Handle case where agent/environment are not initialized (e.g., TF.js failed)
+                 // Visualizations and Live2D might still run their basic animations/idle states
+                 // console.warn("Agent or Environment not initialized, skipping simulation step.");
+                 // Update visuals with last known state or zeros if simulation isn't running
+                 if (threeInitialized) {
+                    updateThreeJS(
+                         currentStateVector ? currentStateVector.slice(0, Config.DIMENSIONS) : zeros([Config.DIMENSIONS]),
+                         currentRIHScore,
+                         [],
+                         integrationParam,
+                         reflexivityParam
+                     );
+                 }
+                 if (conceptInitialized) {
+                     updateAgentSimulationVisuals(currentAgentEmotions || tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]), currentRIHScore, currentAvgAffinity, currentHmLabel);
+                 }
+                 updateMetricsDisplay(currentRIHScore, [], currentAgentEmotions || tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]), currentContext);
+
+            }
+
+             // Update the Live2D model (emotions and head movement) - runs even if sim fails
+             if (live2dInitialized) {
+                 // Pass currentAgentEmotions (which might be a zero tensor if sim failed)
+                 updateLive2DEmotions(currentAgentEmotions || tensor(zeros([1, Config.Agent.EMOTION_DIM]), [1, Config.Agent.EMOTION_DIM]));
+                 updateLive2DHeadMovement(currentHmLabel, deltaTime); // Pass deltaTime for smoothing
+             }
+
+
+            // --- Render Visualizations ---
+            // Update controls for smooth camera movement in the concept graph
+            if (conceptInitialized && conceptControls) {
+                conceptControls.update();
+            }
+
+             // Animate concept graph nodes (rotations, oscillations)
+             if (conceptInitialized) {
+                 animateConceptNodes(deltaTime); // Pass deltaTime
+             }
+
+
+            // Render the Concept Graph scene using both renderers
+            if (conceptInitialized && conceptRenderer && conceptLabelRenderer) {
+                conceptRenderer.render(conceptScene, conceptCamera);
+                conceptLabelRenderer.render(conceptScene, conceptCamera);
+            }
+
+             // Render the Live2D scene (Pixi.js)
+             if (live2dInitialized && pixiApp) {
+                 try {
+                    // Avoid re-rendering if Pixi already handles it via its own ticker
+                    // If Pixi.Ticker is used, manual render() might not be needed or desired.
+                    // For manual rendering:
+                    // pixiApp.render();
+                 } catch (e) {
+                    console.error("[PixiJS] Error rendering Live2D:", e);
+                    displayError("Live2D rendering failed.", false);
+                 }
+             }
+
+            // The main Syntrometry panel rendering is handled inside updateThreeJS
+        }
+
+        // Cleans up resources when the window is unloaded
+        function cleanup() {
+            console.log("Cleaning up resources...");
+
+            // Dispose of Three.js renderers and remove their canvases
+            if (threeInitialized && renderer) {
+                renderer.dispose();
+                 const container = document.getElementById('syntrometry-panel');
+                 if (container && container.contains(renderer.domElement)) {
+                     container.removeChild(renderer.domElement);
+                 }
+            }
+            if (conceptInitialized && conceptRenderer) {
+                conceptRenderer.dispose();
+                 const container = document.getElementById('concept-panel');
+                 if (container && container.contains(conceptRenderer.domElement)) {
+                     container.removeChild(conceptRenderer.domElement);
+                 }
+            }
+            if (conceptInitialized && conceptLabelRenderer && conceptLabelRenderer.domElement) {
+                conceptLabelRenderer.domElement.remove();
+            }
+
+            // Dispose Three.js geometries and materials manually if not removed by removing meshes
+            // Nodes
+            nodes.forEach(node => {
+                 if (node.geometry) node.geometry.dispose();
+                 if (node.material) node.material.dispose();
+                 // Children (reflexivity loops) are disposed when removed in updateThreeJS, but double check
+                 while(node.children.length > 0) {
+                     const child = node.children[0];
+                     node.remove(child);
+                     if (child.geometry) child.geometry.dispose();
+                     if (child.material) child.material.dispose();
+                 }
+            });
+             // RIH node
+             if(rihNode) {
+                 if (rihNode.geometry) rihNode.geometry.dispose();
+                 if (rihNode.material) rihNode.material.dispose();
+             }
+            // Edges (disposed in updateThreeJS when cleared, but double check group)
+             if(edgesGroup) {
+                 edgesGroup.children.forEach(child => {
+                     if (child.geometry) child.geometry.dispose();
+                     if (child.material) child.material.dispose();
+                 });
+                 edgesGroup.children.length = 0; // Clear the group
+             }
+             // Concept Nodes
+             Object.values(conceptNodes).forEach(cn => {
+                 const node = cn.object;
+                 if (node) {
+                     if (node.geometry) node.geometry.dispose();
+                     if (node.material) node.material.dispose();
+                     // Labels are CSS objects, not Three.js geometry/material
+                 }
+             });
+             // Concept Edges
+             conceptEdges.forEach(edge => {
+                 if (edge.geometry) edge.geometry.dispose();
+                 if (edge.material) edge.material.dispose();
+             });
+             // Agent/Emergence meshes
+             if(agentStateMesh) {
+                 if (agentStateMesh.geometry) agentStateMesh.geometry.dispose();
+                 if (agentStateMesh.material) agentStateMesh.material.dispose();
+                  // Label is CSS
+             }
+             if(emergenceCoreMesh) {
+                 if (emergenceCoreMesh.geometry) emergenceCoreMesh.geometry.dispose();
+                 if (emergenceCoreMesh.material) emergenceCoreMesh.material.dispose();
+                  // Label is CSS
+             }
+             if(live2dPlaneConcept) {
+                 if (live2dPlaneConcept.geometry) live2dPlaneConcept.geometry.dispose();
+                 if (live2dPlaneConcept.material) live2dPlaneConcept.material.dispose();
+             }
+
+
+            // Destroy Pixi.js application
+            if (pixiApp) {
+                pixiApp.destroy(true); // true to remove view
+            }
+
+             // Dispose of TensorFlow.js tensors if they exist
+             // tf.disposeVariables(); // Dispose all managed variables - can be aggressive
+             // Explicitly dispose key tensors managed outside tf.tidy
+             if (currentAgentEmotions && typeof currentAgentEmotions.dispose === 'function') {
+                 currentAgentEmotions.dispose();
+                 currentAgentEmotions = null; // Set to null after disposing
+             }
+             if (environment?.baseEmotions && typeof environment.baseEmotions.dispose === 'function') {
+                 environment.baseEmotions.dispose();
+                  environment.baseEmotions = null; // Set to null after disposing
+             }
+
+
+            // Remove window resize listeners
+            window.removeEventListener('resize', onWindowResize);
+            window.removeEventListener('resize', onConceptWindowResize);
+
+            // Remove concept interaction listeners
+            if (conceptContainer) {
+                conceptContainer.removeEventListener('mousemove', onConceptMouseMove);
+                conceptContainer.removeEventListener('click', onConceptClick);
+            }
+
+            console.log("Cleanup complete.");
+        }
+
+
+        // --- Start Initialization on Window Load ---
+        window.addEventListener('load', initialize);
+        // Add cleanup on window unload
+        window.addEventListener('beforeunload', cleanup);
+
+        // Ensure TF.js doesn't clean up tensors needed across animation frames by default
+        // This is generally good practice when using tf.tidy frequently in a loop,
+        // manually disposing tensors returned by tidy is preferred.
+        // tf.ENV.set('WEBGL_RENDER_BROWSER', true); // Might help with some issues
+        // tf.enableProdMode(); // Production mode can improve performance by removing checks
+        // tf.ENV.set('DEBUG', false); // Disable debug mode
+
+
     </script>
 </body>
 </html>
